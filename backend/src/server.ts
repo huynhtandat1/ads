@@ -32,6 +32,8 @@ const ACTION: Record<string, string> = { POST: 'create', PUT: 'edit', DELETE: 'd
 const UNIQUE_FIELDS: Record<string, string[]> = {
   advertisers: ['name'],
   adOrders: ['advertiserId', 'name'],
+  media: ['name'],
+  mediaOrders: ['mediaId', 'name'],
 };
 const normKey = (fields: string[], r: Record<string, unknown>) =>
   fields.map((f) => String(r[f] ?? '').trim().toLowerCase()).join(' ');

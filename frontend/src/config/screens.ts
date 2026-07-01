@@ -25,6 +25,8 @@ export interface CrudFieldCfg {
   step?: number;
   hintKey?: string;
   dynLabel?: { watch: string; map: Record<string, string>; default: string }; // nhãn động theo field khác (labelKey)
+  derive?: { watch: string; from: string; source: string }; // giá trị lấy tự động từ bản ghi field khác trỏ tới
+  hidden?: boolean; // không hiển thị trong form (vẫn giữ/derive giá trị)
 }
 
 export interface FilterCfg {
@@ -123,7 +125,7 @@ export const SCREENS: Record<string, ScreenConfig> = {
     ],
   },
   g2a: {
-    screen: 'g2a', collection: 'media', titleKey: 'menu.g2a',
+    screen: 'g2a', collection: 'media', titleKey: 'menu.g2a', uniqueKeys: ['name'],
     filterKeys: ['mediaOrders', 'status'],
     columns: [
       { key: 'name', labelKey: 'col.media', sortable: true },
@@ -142,7 +144,7 @@ export const SCREENS: Record<string, ScreenConfig> = {
     ],
   },
   g2b: {
-    screen: 'g2b', collection: 'mediaOrders', titleKey: 'menu.g2b',
+    screen: 'g2b', collection: 'mediaOrders', titleKey: 'menu.g2b', uniqueKeys: ['mediaId', 'name'],
     filterKeys: ['mediaId', 'status'],
     columns: [
       { key: 'mediaId', labelKey: 'col.media', ref: { collection: 'media' }, sortable: true },
@@ -183,7 +185,7 @@ export const SCREENS: Record<string, ScreenConfig> = {
       { key: 'mediaId', labelKey: 'col.media', type: 'select', required: true, optionsFrom: 'media' },
       { key: 'mediaOrderId', labelKey: 'col.mediaOrder', type: 'select', required: true, optionsFrom: 'mediaOrders', filterBy: { field: 'mediaId', parentKey: 'mediaId' } },
       { key: 'name', labelKey: 'col.mediaId', type: 'text', required: true },
-      { key: 'type', labelKey: 'col.type', type: 'select', required: true, options: TYPE_OPTS },
+      { key: 'type', labelKey: 'col.type', type: 'select', required: true, options: TYPE_OPTS, derive: { watch: 'adIdId', from: 'adIds', source: 'type' }, hidden: true },
       { key: 'unitPrice', labelKey: 'col.unitPrice', type: 'number', step: 0.01, default: 0, dynLabel: PRICE_DYN_LABEL },
       { key: 'profitShare', labelKey: 'col.accountShare', type: 'percent', required: true, default: 80 },
       { key: 'note', labelKey: 'col.note', type: 'textarea' },

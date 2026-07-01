@@ -19,6 +19,8 @@ export interface FieldDef {
   hint?: string;
   half?: boolean;                                    // nửa hàng (2 cột)
   labelMap?: { watch: string; options: Record<string, string>; default: string }; // nhãn động theo field khác
+  derive?: { watch: string; from: string; source: string }; // giá trị tự lấy từ bản ghi field khác trỏ tới → read-only
+  hidden?: boolean; // không render trong form (vẫn giữ/derive/validate giá trị)
 }
 
 interface Props {
@@ -46,6 +48,18 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
   }, [onClose]);
 
   const set = (key: string, v: unknown) => setVals((s) => ({ ...s, [key]: v }));
+
+  // Tự lấy giá trị field derive từ bản ghi mà field 'watch' đang trỏ tới (vd: Loại lấy từ ID quảng cáo).
+  useEffect(() => {
+    for (const f of fields) {
+      if (!f.derive) continue;
+      const ref = vals[f.derive.watch];
+      const src = ref ? getAll(f.derive.from).find((r) => String(r.id) === String(ref)) : undefined;
+      const derived = src ? src[f.derive.source] : '';
+      if (String(vals[f.key] ?? '') !== String(derived ?? '')) set(f.key, derived ?? '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fields.map((f) => (f.derive ? vals[f.derive.watch] : '')).join('|')]);
 
   const submit = () => {
     const errs: Record<string, boolean> = {};
@@ -83,7 +97,7 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
         </div>
         <div className="p-6 grid grid-cols-2 gap-4">
-          {fields.map((f) => (
+          {fields.filter((f) => !f.hidden).map((f) => (
             <div key={f.key} className={f.half ? 'col-span-1' : 'col-span-2'}>
               <label className="block text-sm font-medium text-gray-600 mb-1.5">
                 {(f.labelMap ? (f.labelMap.options[String(vals[f.labelMap.watch] ?? '')] ?? f.labelMap.default) : f.label)} {f.required && <span className="text-rose-500">*</span>}
@@ -94,8 +108,8 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
                 <textarea value={String(vals[f.key] ?? '')} onChange={(e) => set(f.key, e.target.value)} rows={2}
                   className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200 ${errors[f.key] ? 'border-rose-400' : 'border-gray-200'}`} />
               ) : f.type === 'select' ? (
-                <select value={String(vals[f.key] ?? '')} onChange={(e) => set(f.key, e.target.value)}
-                  className={`w-full px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-200 ${errors[f.key] ? 'border-rose-400' : 'border-gray-200'}`}>
+                <select value={String(vals[f.key] ?? '')} onChange={(e) => set(f.key, e.target.value)} disabled={!!f.derive}
+                  className={`w-full px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-200 disabled:bg-gray-50 disabled:text-gray-500 ${errors[f.key] ? 'border-rose-400' : 'border-gray-200'}`}>
                   <option value="">{t('common.selectPh')}</option>
                   {optionsFor(f).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
