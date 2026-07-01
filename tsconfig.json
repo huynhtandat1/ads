@@ -1,0 +1,9 @@
+{
+  "//": "Monorepo solution file — các project thật nằm ở frontend/ và backend/.",
+  "files": [],
+  "include": [],
+  "compilerOptions": {
+    "noEmit": true,
+    "skipLibCheck": true
+  }
+}
