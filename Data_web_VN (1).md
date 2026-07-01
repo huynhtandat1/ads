@@ -323,7 +323,8 @@
     - Sửa
       - Có hiệu lực hiện tại
       - Có hiệu lực về sau
-  - Số tiền thực trả — Số tiền phải thu × Tỷ lệ chia tài khoản
+  - Số tiền thực trả — Số tiền phải trả × Tỷ lệ chia tài khoản
+    - **Đính chính:** bản gốc tiếng Trung ghi nhầm "应收金额" (phải thu); đúng logic nghiệp vụ phải là "应付金额" (**phải trả**, đã tính hệ số dữ liệu). Code dùng phải trả × tỷ lệ chia — đúng.
   - Trạng thái — *Đọc* — từ trạng thái ID hiện tại
     - Sửa
       - Bật
