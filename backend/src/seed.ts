@@ -1,17 +1,31 @@
 export type Row = Record<string, any> & { id: number };
 export type DB = Record<string, Row[]>;
 
+// Số tiền phải thu (giữ đồng bộ với frontend/src/lib/billing.ts):
+//  CPM = đơn giá×cơ sở/1000 · CPC/CPA = đơn giá×cơ sở · CPS = cơ sở×đơn giá(%).
+function receivable(type: string, price: number, base: number): number {
+  if (type === 'CPS') return (base * price) / 100;
+  if (type === 'CPM') return (price * base) / 1000;
+  return price * base;
+}
+
 const SCREENS = [
   'g1a', 'g1b', 'g1c', 'g2a', 'g2b', 'g2c', 'g3a', 'g3b', 'g3c', 'g3d',
   'g4a', 'g4b', 'g4c', 'g4d', 'g4e', 'g5a', 'g5b', 'g6', 'g7a', 'g7b', 'g7c',
 ];
 
+// Màn quản trị hệ thống — chỉ SUPER_ADMIN được thao tác, không cấp qua buildPerms
+// cho các vai trò thường (tránh operator tự tạo user / sửa vai trò để leo quyền).
+const ADMIN_SCREENS = new Set(['g7a', 'g7b', 'g7c']);
+
 function buildPerms(allowed: string[]) {
   const p: Record<string, Record<string, boolean>> = {};
   for (const s of SCREENS) {
+    const admin = ADMIN_SCREENS.has(s);
     p[s] = {
-      view: allowed.includes('view'), create: allowed.includes('create'),
-      edit: allowed.includes('edit'), delete: allowed.includes('delete'), export: allowed.includes('export'),
+      view: !admin && allowed.includes('view'), create: !admin && allowed.includes('create'),
+      edit: !admin && allowed.includes('edit'), delete: !admin && allowed.includes('delete'),
+      export: !admin && allowed.includes('export'),
     };
   }
   return p;
@@ -32,12 +46,11 @@ function seedEntries(source: string, dates: string[], startId: number): Row[] {
       const traffic = 800 + Math.floor(Math.random() * 6000);
       const settlement = 1000 + Math.floor(Math.random() * 9000);
       const base = settlement || traffic;
-      let receivable = a.type === 'CPS' ? (base * a.unitPrice) / 100 : a.unitPrice * base;
-      receivable = Math.round(receivable);
+      const amount = Math.round(receivable(a.type, a.unitPrice, base));
       rows.push({
         id: id++, date: d, objectId: a.name, adIdId: a.adIdId, advertiserId: a.advertiserId,
         adOrderId: a.adOrderId, type: a.type, unitPrice: a.unitPrice, traffic, settlement,
-        receivable, revenue: receivable, cost: settlement, clicks: traffic, source, status: true,
+        receivable: amount, revenue: amount, cost: settlement, clicks: traffic, source, status: true,
       });
     }
   }
@@ -60,14 +73,13 @@ function seedMediaEntries(): Row[] {
       const settlement = 1000 + Math.floor(Math.random() * 9000);
       const coefficient = 1;
       const base = settlement || traffic;
-      let receivable = m.type === 'CPS' ? (base * m.unitPrice) / 100 : m.unitPrice * base;
-      receivable = Math.round(receivable);
-      const actual = Math.round(receivable * (m.profitShare / 100) * coefficient);
+      const amount = Math.round(receivable(m.type, m.unitPrice, base));
+      const actual = Math.round(amount * (m.profitShare / 100) * coefficient);
       rows.push({
         id: id++, date: d, objectId: m.name, mediaIdId: m.mediaIdId, mediaId: m.mediaId,
         mediaOrderId: m.mediaOrderId, adIdId: m.adIdId, advertiserId: m.advertiserId, type: m.type,
-        unitPrice: m.unitPrice, traffic, settlement, coefficient, receivable, shareRate: m.profitShare,
-        actual, revenue: receivable, cost: actual, clicks: traffic, source: 'Media', status: true,
+        unitPrice: m.unitPrice, traffic, settlement, coefficient, receivable: amount, shareRate: m.profitShare,
+        actual, revenue: amount, cost: actual, clicks: traffic, source: 'Media', status: true,
       });
     }
   }
