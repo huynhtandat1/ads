@@ -32,6 +32,7 @@ const ACTION: Record<string, string> = { POST: 'create', PUT: 'edit', DELETE: 'd
 const UNIQUE_FIELDS: Record<string, string[]> = {
   advertisers: ['name'],
   adOrders: ['advertiserId', 'name'],
+  adIds: ['name'],
   media: ['name'],
   mediaOrders: ['mediaId', 'name'],
 };
