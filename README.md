@@ -69,7 +69,7 @@ Build frontend: `npm run build`. Đổi URL API qua biến môi trường `VITE_
 5. **Công thức** (cố định, dễ chỉnh ở `backend/src/seed.ts` & `frontend/src/lib/billing.ts`):
    Số tiền phải thu: CPM = đơn giá×lưu lượng/1000 · CPA = đơn giá×lưu lượng · CPS = số tiền×%(đơn giá).
    Media thực nhận = phải thu × tỷ lệ chia% × hệ số. Yiyi tổng = phải trả + lợi nhuận.
-   Thuế = lợi nhuận × 0.6 → `TAX_RATE`.
+   Thuế = lợi nhuận × 6% → `TAX_PCT`.
 
 ## Bảo mật & kiểm thử
 - RBAC + cô lập dữ liệu + audit log thực thi ở **backend** (frontend chỉ ẩn UI theo quyền).

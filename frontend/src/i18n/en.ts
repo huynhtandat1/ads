@@ -5,7 +5,7 @@ export default {
     filter: 'Filter', all: 'All', status: 'Status', actions: 'Actions', edit: 'Edit',
     delete: 'Delete', view: 'View', save: 'Save', cancel: 'Cancel', close: 'Close', confirm: 'Confirm',
     on: 'On', off: 'Off', yes: 'Yes', no: 'No', login: 'Login', logout: 'Logout',
-    username: 'Username', password: 'Password', loginTitle: 'System Login',
+    username: 'Username', password: 'Password', passwordPlaceholder: 'Leave blank to keep current', loginTitle: 'System Login',
     loginSub: 'Advertising Management System', required: 'Required', saved: 'Saved successfully',
     deleted: 'Deleted', toggled: 'Status updated', confirmDelete: 'Are you sure you want to delete?',
     duplicate: 'Name already exists, must be unique',

@@ -5,7 +5,7 @@ export default {
     filter: '筛选', all: '全部', status: '状态', actions: '操作', edit: '编辑',
     delete: '删除', view: '查看', save: '保存', cancel: '取消', close: '关闭', confirm: '确认',
     on: '开', off: '关', yes: '是', no: '否', login: '登录', logout: '退出登录',
-    username: '用户名', password: '密码', loginTitle: '系统登录',
+    username: '用户名', password: '密码', passwordPlaceholder: '留空表示不修改', loginTitle: '系统登录',
     loginSub: '广告管理系统', required: '必填', saved: '保存成功',
     deleted: '已删除', toggled: '状态已更新', confirmDelete: '确定要删除吗？',
     duplicate: '名称已存在，不能重复',

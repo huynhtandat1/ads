@@ -7,7 +7,7 @@ import { IconTrash } from './icons';
 export interface FieldDef {
   key: string;
   label: string;
-  type: 'text' | 'textarea' | 'number' | 'email' | 'select' | 'percent' | 'toggle';
+  type: 'text' | 'textarea' | 'number' | 'email' | 'select' | 'percent' | 'toggle' | 'password';
   required?: boolean;
   optionsFrom?: string;       // collection for dynamic select
   optionLabel?: string;       // label field (default 'name')
@@ -22,6 +22,8 @@ export interface FieldDef {
   derive?: { watch: string; from: string; source: string }; // giá trị tự lấy từ bản ghi field khác trỏ tới → read-only
   hidden?: boolean; // không render trong form (vẫn giữ/derive/validate giá trị)
   digitsOnly?: boolean; // chỉ cho nhập chữ số (vd: số điện thoại)
+  placeholder?: string;     // raw placeholder
+  placeholderKey?: string;  // i18n key cho placeholder
 }
 
 interface Props {
@@ -123,10 +125,12 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
               ) : (
                 <div className="relative">
                   <input
-                    type={f.type === 'email' ? 'email' : f.type === 'number' || f.type === 'percent' ? 'number' : 'text'}
+                    type={f.type === 'email' ? 'email' : f.type === 'number' || f.type === 'percent' ? 'number' : f.type === 'password' ? 'password' : 'text'}
                     inputMode={f.digitsOnly || isIntegerField(f) ? 'numeric' : undefined}
                     step={isIntegerField(f) ? 1 : f.step} value={String(vals[f.key] ?? '')}
+                    placeholder={f.placeholder ?? (f.placeholderKey ? t(f.placeholderKey) : undefined)}
                     onChange={(e) => set(f.key, cleanInput(f, e.target.value))}
+                    autoComplete={f.type === 'password' ? 'new-password' : undefined}
                     className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200 ${f.type === 'percent' ? 'pr-8' : ''} ${errors[f.key] ? 'border-rose-400' : 'border-gray-200'}`} />
                   {f.type === 'percent' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>}
                 </div>
