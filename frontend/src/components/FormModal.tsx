@@ -21,6 +21,7 @@ export interface FieldDef {
   labelMap?: { watch: string; options: Record<string, string>; default: string }; // nhãn động theo field khác
   derive?: { watch: string; from: string; source: string }; // giá trị tự lấy từ bản ghi field khác trỏ tới → read-only
   hidden?: boolean; // không render trong form (vẫn giữ/derive/validate giá trị)
+  digitsOnly?: boolean; // chỉ cho nhập chữ số (vd: số điện thoại)
 }
 
 interface Props {
@@ -117,7 +118,9 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
                 <div className="relative">
                   <input
                     type={f.type === 'email' ? 'email' : f.type === 'number' || f.type === 'percent' ? 'number' : 'text'}
-                    step={f.step} value={String(vals[f.key] ?? '')} onChange={(e) => set(f.key, e.target.value)}
+                    inputMode={f.digitsOnly ? 'numeric' : undefined}
+                    step={f.step} value={String(vals[f.key] ?? '')}
+                    onChange={(e) => set(f.key, f.digitsOnly ? e.target.value.replace(/\D/g, '') : e.target.value)}
                     className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200 ${f.type === 'percent' ? 'pr-8' : ''} ${errors[f.key] ? 'border-rose-400' : 'border-gray-200'}`} />
                   {f.type === 'percent' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>}
                 </div>

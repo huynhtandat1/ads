@@ -27,6 +27,7 @@ export interface CrudFieldCfg {
   dynLabel?: { watch: string; map: Record<string, string>; default: string }; // nhãn động theo field khác (labelKey)
   derive?: { watch: string; from: string; source: string }; // giá trị lấy tự động từ bản ghi field khác trỏ tới
   hidden?: boolean; // không hiển thị trong form (vẫn giữ/derive giá trị)
+  digitsOnly?: boolean; // chỉ cho nhập chữ số (vd: số điện thoại)
 }
 
 export interface FilterCfg {
@@ -81,7 +82,7 @@ export const SCREENS: Record<string, ScreenConfig> = {
     ],
     fields: [
       { key: 'name', labelKey: 'col.advertiser', type: 'text', required: true },
-      { key: 'phone', labelKey: 'col.phone', type: 'text', required: true },
+      { key: 'phone', labelKey: 'col.phone', type: 'text', required: true, digitsOnly: true },
       { key: 'contact', labelKey: 'col.contact', type: 'text', required: true },
       { key: 'email', labelKey: 'col.email', type: 'email' },
       { key: 'note', labelKey: 'col.note', type: 'textarea' },
@@ -137,7 +138,7 @@ export const SCREENS: Record<string, ScreenConfig> = {
     ],
     fields: [
       { key: 'name', labelKey: 'col.media', type: 'text', required: true },
-      { key: 'phone', labelKey: 'col.phone', type: 'text', required: true },
+      { key: 'phone', labelKey: 'col.phone', type: 'text', required: true, digitsOnly: true },
       { key: 'contact', labelKey: 'col.contact', type: 'text', required: true },
       { key: 'email', labelKey: 'col.email', type: 'email' },
       { key: 'note', labelKey: 'col.note', type: 'textarea' },
