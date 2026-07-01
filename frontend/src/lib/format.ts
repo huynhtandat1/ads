@@ -15,3 +15,8 @@ export function formatId(id: number | string): string {
   const hashed = (safe * K) % M;
   return hashed.toString(36).toUpperCase().padStart(6, '0');
 }
+
+// Định dạng tiền tệ: tối đa 2 chữ số thập phân (tránh hiển thị .151 do dữ liệu lẻ).
+export function money(v: number): string {
+  return '¥' + Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+}

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useCollection } from '../data/store';
 import { sumPerf, allPerf } from '../lib/analytics';
+import { money } from '../lib/format';
 import { useAuth } from '../auth/AuthContext';
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: string }) {
@@ -28,9 +29,9 @@ export function Dashboard() {
       <p className="text-sm text-gray-500 mt-1 mb-5">KrakenOcean · {t('common.loginSub')}</p>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        <Stat label={t('report.totalRevenue')} value={'¥' + tot.revenue.toLocaleString()} accent="text-cyan-600" />
-        <Stat label={t('report.totalCost')} value={'¥' + tot.cost.toLocaleString()} accent="text-orange-500" />
-        <Stat label={t('report.totalProfit')} value={'¥' + tot.profit.toLocaleString()} accent="text-emerald-600" />
+        <Stat label={t('report.totalRevenue')} value={money(tot.revenue)} accent="text-cyan-600" />
+        <Stat label={t('report.totalCost')} value={money(tot.cost)} accent="text-orange-500" />
+        <Stat label={t('report.totalProfit')} value={money(tot.profit)} accent="text-emerald-600" />
         <Stat label={t('report.avgMargin')} value={tot.margin + '%'} />
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
