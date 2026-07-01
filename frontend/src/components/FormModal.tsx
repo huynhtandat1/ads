@@ -49,6 +49,12 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
   }, [onClose]);
 
   const set = (key: string, v: unknown) => setVals((s) => ({ ...s, [key]: v }));
+  const isIntegerField = (f: FieldDef) => f.key === 'unitPrice' && vals.type === 'CPS';
+  const cleanInput = (f: FieldDef, v: string) => {
+    if (f.digitsOnly) return v.replace(/\D/g, '');
+    if (isIntegerField(f)) return v.split(/[.,]/)[0].replace(/\D/g, '');
+    return v;
+  };
 
   // Tự lấy giá trị field derive từ bản ghi mà field 'watch' đang trỏ tới (vd: Loại lấy từ ID quảng cáo).
   useEffect(() => {
@@ -118,9 +124,9 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
                 <div className="relative">
                   <input
                     type={f.type === 'email' ? 'email' : f.type === 'number' || f.type === 'percent' ? 'number' : 'text'}
-                    inputMode={f.digitsOnly ? 'numeric' : undefined}
-                    step={f.step} value={String(vals[f.key] ?? '')}
-                    onChange={(e) => set(f.key, f.digitsOnly ? e.target.value.replace(/\D/g, '') : e.target.value)}
+                    inputMode={f.digitsOnly || isIntegerField(f) ? 'numeric' : undefined}
+                    step={isIntegerField(f) ? 1 : f.step} value={String(vals[f.key] ?? '')}
+                    onChange={(e) => set(f.key, cleanInput(f, e.target.value))}
                     className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200 ${f.type === 'percent' ? 'pr-8' : ''} ${errors[f.key] ? 'border-rose-400' : 'border-gray-200'}`} />
                   {f.type === 'percent' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>}
                 </div>

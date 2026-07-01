@@ -204,7 +204,7 @@ export function MediaDataEntryPage() {
                         <td className="px-3 py-2"><span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium">{c.type}</span></td>
                         <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-700">{m.name}</td>
                         <td className="px-3 py-2">
-                          <RateEditor value={c.unitPrice} workingDate={date} suffix={c.type === 'CPS' ? '%' : ''} disabled={!canEdit}
+                          <RateEditor value={c.unitPrice} workingDate={date} suffix={c.type === 'CPS' ? '%' : ''} integer={c.type === 'CPS'} disabled={!canEdit}
                             onSet={(v, eff) => { setRate('mediaId', m.id, 'unitPrice', v, eff); toast(t('entry.effSaved')); }} />
                         </td>
                         <td className="px-3 py-2 text-right">{readVal(c.traffic)}</td>

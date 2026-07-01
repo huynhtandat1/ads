@@ -127,9 +127,15 @@ async function writeLog(user: SessionUser, action: string, object: string): Prom
 
 // ----- App -----
 const app = express();
-// Giới hạn CORS theo danh sách origin (mặc định frontend dev). Đặt qua CORS_ORIGIN (phân tách bằng dấu phẩy).
-const ORIGINS = (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map((s) => s.trim());
-app.use(cors({ origin: ORIGINS }));
+// Giới hạn CORS theo danh sách origin. Dev mặc định cho mọi localhost port vì Vite có thể tự nhảy 5173/5174/...
+const ORIGINS = (process.env.CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
+const allowOrigin = (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
+  if (!origin) return cb(null, true);
+  if (ORIGINS.includes('*') || ORIGINS.includes(origin)) return cb(null, true);
+  if (!process.env.CORS_ORIGIN && /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) return cb(null, true);
+  return cb(new Error('Not allowed by CORS'));
+};
+app.use(cors({ origin: allowOrigin }));
 app.use(express.json({ limit: '5mb' }));
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));

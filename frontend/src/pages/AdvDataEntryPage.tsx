@@ -246,7 +246,7 @@ export function AdvDataEntryPage({
                     <td className="px-3 py-2"><span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium">{ad.type}</span></td>
                     <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-700">{ad.name}</td>
                     <td className="px-3 py-2">
-                      <RateEditor value={price} workingDate={date} suffix={ad.type === 'CPS' ? '%' : ''} disabled={!canEdit}
+                      <RateEditor value={price} workingDate={date} suffix={ad.type === 'CPS' ? '%' : ''} integer={ad.type === 'CPS'} disabled={!canEdit}
                         onSet={(v, eff) => { setRate('adId', ad.id, 'unitPrice', v, eff); toast(t('entry.effSaved')); }} />
                     </td>
                     <td className="px-3 py-2">{valueCell(ad, 'traffic')}</td>

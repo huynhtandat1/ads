@@ -16,7 +16,7 @@ export default {
   },
   menu: {
     g1: 'Advertiser Management', g1a: 'Advertisers', g1b: 'Ad Orders', g1c: 'Ad IDs',
-    g2: 'Traffic Management', g2a: 'Downstream / Media', g2b: 'Media Ad Orders', g2c: 'Media IDs',
+    g2: 'Traffic Management', g2a: 'Media', g2b: 'Media Ad Orders', g2c: 'Media IDs',
     g3: 'Data Import', g3a: 'AI Data Import', g3b: 'Advertiser Data', g3c: 'Main Media Data', g3d: 'Yiyi Data Import',
     g4: 'Reports', g4a: 'Total Profit', g4b: 'Ad Order Profit', g4c: 'Advertiser Data', g4d: 'Media Data', g4e: 'Yiyi Report',
     g5: 'Settlement', g5a: 'Advertiser Settlement', g5b: 'Media Settlement',

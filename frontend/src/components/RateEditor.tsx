@@ -12,11 +12,12 @@ interface Props {
   workingDate: string;           // ngày đang thao tác (cho "hiệu lực hiện tại")
   suffix?: string;               // vd '%'
   disabled?: boolean;
+  integer?: boolean;             // CPS nhập phần trăm nguyên: 80 = 80%
   onSet: (value: number, effectiveFrom: string) => void;
 }
 
 // Ô hiển thị giá trị + popover sửa kèm 2 lựa chọn hiệu lực theo mốc ngày.
-export function RateEditor({ value, workingDate, suffix = '', disabled, onSet }: Props) {
+export function RateEditor({ value, workingDate, suffix = '', disabled, integer, onSet }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [val, setVal] = useState(String(value));
@@ -42,7 +43,8 @@ export function RateEditor({ value, workingDate, suffix = '', disabled, onSet }:
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute z-50 mt-1 left-0 w-60 bg-white rounded-lg border border-gray-200 shadow-xl p-3 text-left">
             <div className="relative mb-2">
-              <input type="number" step="0.01" autoFocus value={val} onChange={(e) => setVal(e.target.value)}
+              <input type="number" step={integer ? 1 : 0.01} autoFocus value={val}
+                onChange={(e) => setVal(integer ? e.target.value.replace(/\D/g, '') : e.target.value)}
                 className={`w-full h-8 px-2 ${suffix ? 'pr-6' : ''} rounded border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200`} />
               {suffix && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">{suffix}</span>}
             </div>

@@ -16,7 +16,7 @@ export default {
   },
   menu: {
     g1: 'Quản lý nhà quảng cáo', g1a: 'Quản lý nhà quảng cáo', g1b: 'Quản lý đơn quảng cáo', g1c: 'Quản lý ID quảng cáo',
-    g2: 'Quản lý lưu lượng', g2a: 'Hạ nguồn / Media', g2b: 'Đơn quảng cáo media', g2c: 'Quản lý ID media',
+    g2: 'Quản lý lưu lượng', g2a: 'Media', g2b: 'Đơn quảng cáo media', g2c: 'Quản lý ID media',
     g3: 'Nhập dữ liệu', g3a: 'Nhập dữ liệu AI', g3b: 'Nhập dữ liệu nhà quảng cáo', g3c: 'Dữ liệu media chính', g3d: 'Nhập dữ liệu Yiyi',
     g4: 'Truy vấn dữ liệu', g4a: 'Lợi nhuận tổng', g4b: 'Lợi nhuận đơn quảng cáo', g4c: 'Dữ liệu nhà quảng cáo', g4d: 'Dữ liệu media', g4e: 'Báo cáo Yiyi',
     g5: 'Phiếu thanh toán', g5a: 'Thanh toán nhà quảng cáo', g5b: 'Thanh toán media',
