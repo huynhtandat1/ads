@@ -49,7 +49,6 @@ export function Login() {
             {loading ? '…' : t('common.login')}
           </button>
         </form>
-        <p className="text-xs text-gray-400 mt-5 text-center">admin / admin &nbsp;·&nbsp; operator / 123456</p>
       </div>
     </div>
   );
