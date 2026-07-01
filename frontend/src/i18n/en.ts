@@ -8,6 +8,7 @@ export default {
     username: 'Username', password: 'Password', loginTitle: 'System Login',
     loginSub: 'Advertising Management System', required: 'Required', saved: 'Saved successfully',
     deleted: 'Deleted', toggled: 'Status updated', confirmDelete: 'Are you sure you want to delete?',
+    duplicate: 'Name already exists, must be unique',
     noData: 'No data', page: 'Page', of: 'of', rows: 'rows', total: 'Total',
     selectPh: '-- Select --', from: 'From', to: 'To', apply: 'Apply',
     createNew: 'Create New', editItem: 'Edit', loginError: 'Invalid username or password',

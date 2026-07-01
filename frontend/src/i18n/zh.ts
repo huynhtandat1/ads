@@ -8,6 +8,7 @@ export default {
     username: '用户名', password: '密码', loginTitle: '系统登录',
     loginSub: '广告管理系统', required: '必填', saved: '保存成功',
     deleted: '已删除', toggled: '状态已更新', confirmDelete: '确定要删除吗？',
+    duplicate: '名称已存在，不能重复',
     noData: '暂无数据', page: '第', of: '/', rows: '条', total: '共',
     selectPh: '-- 请选择 --', from: '起始日期', to: '结束日期', apply: '应用',
     createNew: '新建', editItem: '编辑', loginError: '用户名或密码错误',

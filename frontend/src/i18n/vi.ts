@@ -8,6 +8,7 @@ export default {
     username: 'Tên đăng nhập', password: 'Mật khẩu', loginTitle: 'Đăng nhập hệ thống',
     loginSub: 'Hệ thống quản lý quảng cáo', required: 'Bắt buộc', saved: 'Đã lưu thành công',
     deleted: 'Đã xóa', toggled: 'Đã cập nhật trạng thái', confirmDelete: 'Bạn chắc chắn muốn xóa?',
+    duplicate: 'Tên đã tồn tại, không được trùng',
     noData: 'Không có dữ liệu', page: 'Trang', of: 'trên', rows: 'dòng', total: 'Tổng',
     selectPh: '-- Chọn --', from: 'Từ ngày', to: 'Đến ngày', apply: 'Áp dụng',
     createNew: 'Tạo mới', editItem: 'Chỉnh sửa', loginError: 'Sai tên đăng nhập hoặc mật khẩu',

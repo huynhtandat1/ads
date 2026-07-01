@@ -41,6 +41,8 @@ export interface ScreenConfig {
   columns: CrudColumn[];
   fields: CrudFieldCfg[];
   filters?: FilterCfg[];
+  uniqueKeys?: string[]; // tổ hợp field phải duy nhất (không phân biệt hoa/thường). 1 field = duy nhất đơn; nhiều = cặp duy nhất
+  filterKeys?: string[]; // giới hạn cột nào có dropdown lọc; bỏ trống = tất cả
 }
 
 const TYPE_OPTS = [
@@ -60,9 +62,13 @@ const PRICE_DYN_LABEL = {
 const orderNamesOf = (advId: number) =>
   getAll('adOrders').filter((o) => o.advertiserId === advId).map((o) => o.name);
 
+const mediaOrderNamesOf = (mediaId: number) =>
+  getAll('mediaOrders').filter((o) => o.mediaId === mediaId).map((o) => o.name);
+
 export const SCREENS: Record<string, ScreenConfig> = {
   g1a: {
-    screen: 'g1a', collection: 'advertisers', titleKey: 'menu.g1a',
+    screen: 'g1a', collection: 'advertisers', titleKey: 'menu.g1a', uniqueKeys: ['name'],
+    filterKeys: ['orders', 'status'],
     columns: [
       { key: 'name', labelKey: 'col.advertiser', sortable: true },
       { key: 'orders', labelKey: 'col.orders', type: 'tags', compute: (r) => orderNamesOf(r.id) },
@@ -80,7 +86,8 @@ export const SCREENS: Record<string, ScreenConfig> = {
     ],
   },
   g1b: {
-    screen: 'g1b', collection: 'adOrders', titleKey: 'menu.g1b',
+    screen: 'g1b', collection: 'adOrders', titleKey: 'menu.g1b', uniqueKeys: ['advertiserId', 'name'],
+    filterKeys: ['advertiserId', 'status'],
     columns: [
       { key: 'advertiserId', labelKey: 'col.advertiser', ref: { collection: 'advertisers' }, sortable: true },
       { key: 'name', labelKey: 'col.adOrder', sortable: true },
@@ -96,6 +103,7 @@ export const SCREENS: Record<string, ScreenConfig> = {
   },
   g1c: {
     screen: 'g1c', collection: 'adIds', titleKey: 'menu.g1c',
+    filterKeys: ['advertiserId', 'adOrderId', 'name', 'type', 'status'],
     columns: [
       { key: 'advertiserId', labelKey: 'col.advertiser', ref: { collection: 'advertisers' } },
       { key: 'adOrderId', labelKey: 'col.adOrder', ref: { collection: 'adOrders' } },
@@ -116,8 +124,10 @@ export const SCREENS: Record<string, ScreenConfig> = {
   },
   g2a: {
     screen: 'g2a', collection: 'media', titleKey: 'menu.g2a',
+    filterKeys: ['mediaOrders', 'status'],
     columns: [
       { key: 'name', labelKey: 'col.media', sortable: true },
+      { key: 'mediaOrders', labelKey: 'col.mediaOrder', type: 'tags', compute: (r) => mediaOrderNamesOf(r.id) },
       { key: 'contact', labelKey: 'col.contact' },
       { key: 'phone', labelKey: 'col.phone' },
       { key: 'email', labelKey: 'col.email' },
@@ -133,6 +143,7 @@ export const SCREENS: Record<string, ScreenConfig> = {
   },
   g2b: {
     screen: 'g2b', collection: 'mediaOrders', titleKey: 'menu.g2b',
+    filterKeys: ['mediaId', 'status'],
     columns: [
       { key: 'mediaId', labelKey: 'col.media', ref: { collection: 'media' }, sortable: true },
       { key: 'name', labelKey: 'col.mediaOrder', sortable: true },
@@ -148,6 +159,7 @@ export const SCREENS: Record<string, ScreenConfig> = {
   },
   g2c: {
     screen: 'g2c', collection: 'mediaIds', titleKey: 'menu.g2c',
+    filterKeys: ['advertiserId', 'adOrderId', 'adIdId', 'mediaId', 'mediaOrderId', 'name', 'status'],
     columns: [
       { key: 'advertiserId', labelKey: 'col.advertiser', ref: { collection: 'advertisers' } },
       { key: 'adOrderId', labelKey: 'col.adOrder', ref: { collection: 'adOrders' } },

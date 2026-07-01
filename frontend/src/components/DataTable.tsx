@@ -32,6 +32,7 @@ interface Props {
   canExport?: boolean;
   exportName?: string;
   pageSize?: number;
+  filterKeys?: string[]; // giới hạn cột nào có dropdown lọc; bỏ trống = tất cả
 }
 
 const money = (v: number) => '¥' + Number(v || 0).toLocaleString();
@@ -50,7 +51,7 @@ const noFilter = (c: Column) => c.type === 'index' || c.key === 'actions';
 
 export function DataTable({
   columns, rows, toolbarLeft, filters = [], searchKeys, onToggle,
-  canExport = true, exportName = 'export', pageSize = 10,
+  canExport = true, exportName = 'export', pageSize = 10, filterKeys,
 }: Props) {
   const { t } = useTranslation();
   const [q, setQ] = useState('');
@@ -215,7 +216,7 @@ export function DataTable({
               <tr className="bg-white border-b border-gray-100">
                 {visibleColumns.map((c) => (
                   <th key={c.key} className="px-2 py-2 font-normal normal-case">
-                    {noFilter(c) ? null : c.type === 'toggle' ? (
+                    {noFilter(c) || (filterKeys && !filterKeys.includes(c.key)) ? null : c.type === 'toggle' ? (
                       <select value={colFilters[c.key] ?? ''} onChange={(e) => { setColFilters((v) => ({ ...v, [c.key]: e.target.value })); setPage(1); }}
                         className="w-full h-7 px-1.5 rounded border border-gray-200 text-xs bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-cyan-300">
                         <option value="">{t('common.all')}</option>

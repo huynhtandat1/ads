@@ -27,6 +27,21 @@ const COLLECTION_SCREEN: Record<string, string> = {
 };
 const ACTION: Record<string, string> = { POST: 'create', PUT: 'edit', DELETE: 'delete' };
 
+// Collection -> tổ hợp field phải duy nhất (không phân biệt hoa/thường).
+// 1 field = duy nhất đơn (tên nhà QC); nhiều field = cặp duy nhất (nhà QC + đơn QC).
+const UNIQUE_FIELDS: Record<string, string[]> = {
+  advertisers: ['name'],
+  adOrders: ['advertiserId', 'name'],
+};
+const normKey = (fields: string[], r: Record<string, unknown>) =>
+  fields.map((f) => String(r[f] ?? '').trim().toLowerCase()).join(' ');
+function isDuplicate(collection: string, row: Record<string, unknown>, exceptId?: number): boolean {
+  const fields = UNIQUE_FIELDS[collection];
+  if (!fields) return false;
+  const key = normKey(fields, row);
+  return (db[collection] || []).some((r) => r.id !== exceptId && normKey(fields, r) === key);
+}
+
 // ----- Auth -----
 interface SessionUser { id: number; username: string; fullName: string; role: string; scope?: string }
 
@@ -159,6 +174,7 @@ app.post('/api/:collection', auth, async (req, res) => {
   if (!checkRbac(req, res)) return;
   const c = req.params.collection;
   const row = req.body as Row;
+  if (isDuplicate(c, row)) return res.status(409).json({ error: 'duplicate' });
   db[c] = [row, ...(db[c] || [])];
   await upsertRow(c, row);
   const log = await writeLog((req as any).user, 'create', `${c} #${row.id}`);
@@ -168,6 +184,10 @@ app.post('/api/:collection', auth, async (req, res) => {
 app.put('/api/:collection/:id', auth, async (req, res) => {
   if (!checkRbac(req, res)) return;
   const c = req.params.collection; const id = Number(req.params.id);
+  if (UNIQUE_FIELDS[c]) {
+    const current = (db[c] || []).find((r) => r.id === id);
+    if (current && isDuplicate(c, { ...current, ...req.body }, id)) return res.status(409).json({ error: 'duplicate' });
+  }
   let updated: Row | undefined;
   db[c] = (db[c] || []).map((r) => (r.id === id ? (updated = { ...r, ...req.body }) : r));
   if (updated) await upsertRow(c, updated);
