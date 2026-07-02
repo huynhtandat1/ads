@@ -78,6 +78,7 @@ const UNIQUE_FIELDS: Record<string, string[]> = {
   adIds: ['name'],
   media: ['name'],
   mediaOrders: ['mediaId', 'name'],
+  mediaIds: ['name'],
 };
 const normKey = (fields: string[], r: Record<string, unknown>) =>
   fields.map((f) => String(r[f] ?? '').trim().toLowerCase()).join(' ');

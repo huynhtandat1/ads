@@ -162,7 +162,7 @@ export const SCREENS: Record<string, ScreenConfig> = {
     ],
   },
   g2c: {
-    screen: 'g2c', collection: 'mediaIds', titleKey: 'menu.g2c',
+    screen: 'g2c', collection: 'mediaIds', titleKey: 'menu.g2c', uniqueKeys: ['name'],
     filterKeys: ['advertiserId', 'adOrderId', 'adIdId', 'mediaId', 'mediaOrderId', 'name', 'status'],
     columns: [
       { key: 'advertiserId', labelKey: 'col.advertiser', ref: { collection: 'advertisers' } },
