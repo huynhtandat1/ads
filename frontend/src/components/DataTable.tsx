@@ -90,18 +90,40 @@ export function DataTable({
         return String(r[k] ?? '').toLowerCase().includes(lc);
       }));
     }
+    // So sánh 2 ô của một cột theo hướng dir (1: tăng, -1: giảm).
+    const cmpCol = (col: Column, a: Row, b: Row, dir: 1 | -1): number => {
+      if (['currency', 'percent', 'number'].includes(col.type || '')) {
+        return ((Number(a[col.key]) || 0) - (Number(b[col.key]) || 0)) * dir;
+      }
+      const av = cellText(col, a), bv = cellText(col, b);
+      const na = Number(av), nb = Number(bv);
+      if (av !== '' && bv !== '' && !isNaN(na) && !isNaN(nb)) return (na - nb) * dir;
+      return av.localeCompare(bv) * dir;
+    };
+
     if (sort) {
+      // Người dùng bấm tiêu đề → tôn trọng sắp xếp thủ công theo cột đó.
       const col = columns.find((c) => c.key === sort.key);
-      data.sort((a, b) => {
-        if (col && ['currency', 'percent', 'number'].includes(col.type || '')) {
-          return ((Number(a[sort.key]) || 0) - (Number(b[sort.key]) || 0)) * sort.dir;
+      data.sort((a, b) => (col
+        ? cmpCol(col, a, b, sort.dir)
+        : String(a[sort.key] ?? '').localeCompare(String(b[sort.key] ?? '')) * sort.dir));
+    } else {
+      // Không sắp thủ công: nếu có bộ lọc đang bật, tự sắp xếp theo CÁC CỘT CÒN LẠI
+      // (trái→phải, A→Z, nhiều cấp) — bỏ qua chính cột đang được lọc.
+      const activeKeys = new Set<string>([
+        ...filters.filter((f) => { const v = filterVals[f.key]; return v && v !== 'all'; }).map((f) => f.key),
+        ...Object.entries(colFilters).filter(([, v]) => v).map(([k]) => k),
+      ]);
+      if (activeKeys.size > 0) {
+        const sortCols = columns.filter((c) =>
+          !['index', 'id', 'toggle'].includes(c.type || '') && c.key !== 'actions' && !activeKeys.has(c.key));
+        if (sortCols.length) {
+          data.sort((a, b) => {
+            for (const col of sortCols) { const r = cmpCol(col, a, b, 1); if (r !== 0) return r; }
+            return 0;
+          });
         }
-        const av = col ? cellText(col, a) : String(a[sort.key] ?? '');
-        const bv = col ? cellText(col, b) : String(b[sort.key] ?? '');
-        const na = Number(av), nb = Number(bv);
-        if (av !== '' && bv !== '' && !isNaN(na) && !isNaN(nb)) return (na - nb) * sort.dir;
-        return av.localeCompare(bv) * sort.dir;
-      });
+      }
     }
     return data;
   }, [rows, filters, filterVals, colFilters, q, sort, columns, searchKeys]);
@@ -150,7 +172,9 @@ export function DataTable({
     const v = row[col.key];
     if (v == null || v === '') return <span className="text-gray-300">-</span>;
     if (col.type === 'tags') {
-      const arr = Array.isArray(v) ? v : String(v).split(',').map((s) => s.trim()).filter(Boolean);
+      const raw = Array.isArray(v) ? v : String(v).split(',').map((s) => s.trim()).filter(Boolean);
+      // Sắp các thẻ trong ô theo A→Z (hàng ngang).
+      const arr = [...raw].sort((a, b) => String(a).localeCompare(String(b)));
       if (!arr.length) return <span className="text-gray-300">-</span>;
       return <div className="flex flex-wrap gap-1">{arr.map((x, i) => (
         <span key={i} className="px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700 text-xs border border-cyan-100">{x}</span>
@@ -168,14 +192,7 @@ export function DataTable({
       <div className="flex flex-wrap items-center gap-3 p-4 border-b border-gray-100">
         {toolbarLeft}
         <div className="flex-1" />
-        {filters.map((f) => (
-          <select key={f.key} value={filterVals[f.key] ?? 'all'}
-            onChange={(e) => { setFilterVals((v) => ({ ...v, [f.key]: e.target.value })); setPage(1); }}
-            className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-200">
-            <option value="all">{f.label}: {t('common.all')}</option>
-            {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        ))}
+        {/* Bộ lọc dropdown trên thanh công cụ đã ẩn — dùng hàng lọc theo cột (nút "Lọc"). */}
         <div className="relative">
           <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />
           <input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder={t('common.searchPh')}
@@ -198,27 +215,6 @@ export function DataTable({
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-gray-500 bg-gray-50/60 border-b border-gray-100">
-              {visibleColumns.map((c) => {
-                const sortable = !noSort(c);
-                return (
-                  <th key={c.key} onClick={() => sortable && toggleSort(c.key)}
-                    className={`px-4 py-3 font-semibold uppercase text-xs tracking-wide whitespace-nowrap ${
-                      sortable ? 'cursor-pointer select-none hover:text-gray-700' : ''
-                    } ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''}`}>
-                    <span className={`inline-flex items-center gap-1 ${c.align === 'right' ? 'flex-row-reverse' : ''}`}>
-                      {c.label}
-                      {sortable && (
-                        <span className="text-[9px] leading-none flex flex-col">
-                          <span className={sort?.key === c.key && sort.dir === 1 ? 'text-cyan-500' : 'text-gray-300'}>▲</span>
-                          <span className={sort?.key === c.key && sort.dir === -1 ? 'text-cyan-500' : 'text-gray-300'}>▼</span>
-                        </span>
-                      )}
-                    </span>
-                  </th>
-                );
-              })}
-            </tr>
             {showFilters && (
               <tr className="bg-white border-b border-gray-100">
                 {visibleColumns.map((c) => (
@@ -241,6 +237,27 @@ export function DataTable({
                 ))}
               </tr>
             )}
+            <tr className="text-left text-gray-500 bg-gray-50/60 border-b border-gray-100">
+              {visibleColumns.map((c) => {
+                const sortable = !noSort(c);
+                return (
+                  <th key={c.key} onClick={() => sortable && toggleSort(c.key)}
+                    className={`px-4 py-3 font-semibold uppercase text-xs tracking-wide whitespace-nowrap ${
+                      sortable ? 'cursor-pointer select-none hover:text-gray-700' : ''
+                    } ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''}`}>
+                    <span className={`inline-flex items-center gap-1 ${c.align === 'right' ? 'flex-row-reverse' : ''}`}>
+                      {c.label}
+                      {sortable && (
+                        <span className="text-[9px] leading-none flex flex-col">
+                          <span className={sort?.key === c.key && sort.dir === 1 ? 'text-cyan-500' : 'text-gray-300'}>▲</span>
+                          <span className={sort?.key === c.key && sort.dir === -1 ? 'text-cyan-500' : 'text-gray-300'}>▼</span>
+                        </span>
+                      )}
+                    </span>
+                  </th>
+                );
+              })}
+            </tr>
           </thead>
           <tbody>
             {pageRows.length === 0 && (
