@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCollection } from '../data/store';
-import { sumPerf, allPerf } from '../lib/analytics';
+import { sumPerf, allPerf, filterByDate } from '../lib/analytics';
 import { money } from '../lib/format';
 import { useAuth } from '../auth/AuthContext';
 
@@ -13,20 +14,45 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
   );
 }
 
+const pad = (n: number) => String(n).padStart(2, '0');
+
 export function Dashboard() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  // subscribe to relevant collections so cards refresh on changes
-  useCollection('importAI'); useCollection('advertisers'); useCollection('media');
-  const tot = sumPerf(allPerf());
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  useCollection('importAI');
+  useCollection('importAdv');
+  useCollection('importMedia');
+  useCollection('importYiyi');
   const advN = useCollection('advertisers').length;
   const medN = useCollection('media').length;
   const midN = useCollection('mediaIds').length;
+  const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const from = `${year}-${pad(month)}-01`;
+  const to = `${year}-${pad(month)}-${pad(new Date(year, month, 0).getDate())}`;
+  const tot = sumPerf(filterByDate(allPerf(), from, to));
+  const sel = "h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-200";
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-gray-800">{t('common.welcome')}, {user?.fullName || user?.username} 👋</h1>
-      <p className="text-sm text-gray-500 mt-1 mb-5">KrakenOcean · {t('common.loginSub')}</p>
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
+        <div>
+          <h1 className="text-xl font-bold text-gray-800">{t('common.welcome')}, {user?.fullName || user?.username}</h1>
+          <p className="text-sm text-gray-500 mt-1">KrakenOcean · {t('common.loginSub')}</p>
+          <p className="text-xs text-gray-400 mt-1">{from} ~ {to}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 justify-end">
+          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={sel}>
+            {years.map((y) => <option key={y} value={y}>{y} {t('report.year')}</option>)}
+          </select>
+          <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className={sel}>
+            {months.map((m) => <option key={m} value={m}>{t('report.month')} {m}</option>)}
+          </select>
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         <Stat label={t('report.totalRevenue')} value={money(tot.revenue)} accent="text-cyan-600" />
