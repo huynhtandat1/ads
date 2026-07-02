@@ -44,6 +44,27 @@ export async function initDb() {
   pool = new Pool({ connectionString: CONN });
   await pool.query(SCHEMA);
   await seedIfEmpty();
+  await reconcileRoles();
+}
+
+// Đồng bộ quyền của các role MẶC ĐỊNH về đúng bản seed (nguồn sự thật).
+// Idempotent: chạy mọi lần khởi động để các DB cũ (được seed trước khi siết RBAC)
+// tự lành — ví dụ OPERATOR từng bị lưu permissions '*' sẽ được hạ về đúng quyền.
+// Chỉ động vào role trùng TÊN mặc định; role tuỳ biến do admin tạo không bị đụng.
+async function reconcileRoles() {
+  const canonical = seedData().roles || [];
+  for (const role of canonical) {
+    const name = role.name as string;
+    const perms = role.permissions as string; // '*' hoặc chuỗi JSON
+    await pool.query(
+      `UPDATE entities
+         SET data = jsonb_set(data, '{permissions}', to_jsonb($2::text), true)
+       WHERE collection = 'roles'
+         AND data->>'name' = $1
+         AND data->>'permissions' IS DISTINCT FROM $2`,
+      [name, perms],
+    );
+  }
 }
 
 async function seedIfEmpty() {

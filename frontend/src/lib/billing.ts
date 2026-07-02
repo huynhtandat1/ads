@@ -9,12 +9,13 @@ export interface BillingInputs {
 //  - CPM: Đơn giá × lưu lượng / 1000.
 //  - CPC / CPA: Đơn giá × cơ sở.
 //  - CPS: Tỷ lệ chia (%) × cơ sở  (đơn giá đóng vai trò tỷ lệ %).
-const has = (v: number | '') => v !== '' && v != null && Number.isFinite(Number(v));
 
 export function receivableOf(type: string, d: BillingInputs): number | null {
   const price = Number(d.unitPrice);
-  // Ưu tiên quyết toán KHI ĐÃ NHẬP (kể cả giá trị 0), không rớt về traffic khi settlement = 0.
-  const base = has(d.settlement) ? Number(d.settlement) : Number(d.traffic);
+  // Quyết toán = 0 (hoặc rỗng) nghĩa là "chưa quyết toán" → rớt về lưu lượng.
+  // Giữ ĐỒNG NHẤT với backend seed/etl (`settlement || traffic`); nếu coi 0 là "đã nhập"
+  // thì phải thu sẽ ra 0 cho mọi bản ghi chưa quyết toán, lệch với dữ liệu đã lưu.
+  const base = Number(d.settlement) || Number(d.traffic);
   if (!price || !base) return null;
   if (type === 'CPS') return (base * price) / 100;
   if (type === 'CPM') return (price * base) / 1000;
