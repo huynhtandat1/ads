@@ -13,6 +13,7 @@ export default {
     selectPh: '-- 请选择 --', from: '起始日期', to: '结束日期', apply: '应用',
     createNew: '新建', editItem: '编辑', loginError: '用户名或密码错误',
     dashboard: '概览', welcome: '欢迎回来',
+    invalidNumber: '数字格式不正确', invalidPercent: '比例必须在 0 到 100 之间',
   },
   menu: {
     g1: '广告主管理', g1a: '广告主管理', g1b: '广告订单管理', g1c: '广告ID管理',

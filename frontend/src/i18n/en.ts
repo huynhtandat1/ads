@@ -13,6 +13,7 @@ export default {
     selectPh: '-- Select --', from: 'From', to: 'To', apply: 'Apply',
     createNew: 'Create New', editItem: 'Edit', loginError: 'Invalid username or password',
     dashboard: 'Overview', welcome: 'Welcome back',
+    invalidNumber: 'Invalid number format', invalidPercent: 'Rate must be between 0 and 100',
   },
   menu: {
     g1: 'Advertiser Management', g1a: 'Advertisers', g1b: 'Ad Orders', g1c: 'Ad IDs',

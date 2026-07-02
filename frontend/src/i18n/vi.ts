@@ -13,6 +13,7 @@ export default {
     selectPh: '-- Chọn --', from: 'Từ ngày', to: 'Đến ngày', apply: 'Áp dụng',
     createNew: 'Tạo mới', editItem: 'Chỉnh sửa', loginError: 'Sai tên đăng nhập hoặc mật khẩu',
     dashboard: 'Tổng quan', welcome: 'Chào mừng trở lại',
+    invalidNumber: 'Định dạng số không hợp lệ', invalidPercent: 'Tỷ lệ phải từ 0 đến 100',
   },
   menu: {
     g1: 'Quản lý nhà quảng cáo', g1a: 'Quản lý nhà quảng cáo', g1b: 'Quản lý đơn quảng cáo', g1c: 'Quản lý ID quảng cáo',

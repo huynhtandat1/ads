@@ -39,14 +39,23 @@ export function create(c: string, data: Omit<Row, 'id'>): Row {
   const row = { ...data, id: nextId(c) } as Row;
   db[c] = [row, ...(db[c] || [])];
   emit();
-  api.create(c, row).then((r) => appendLog(r.log)).catch((e) => console.error('create failed', e));
+  api.create(c, row).then((r) => appendLog(r.log)).catch((e) => {
+    db[c] = (db[c] || []).filter((x) => x.id !== row.id);
+    emit();
+    console.error('create failed', e);
+  });
   return row;
 }
 
 export function update(c: string, id: number, patch: Partial<Row>) {
+  const before = (db[c] || []).find((r) => r.id === id);
   db[c] = (db[c] || []).map((r) => (r.id === id ? { ...r, ...patch } : r));
   emit();
-  api.update(c, id, patch).then((r) => appendLog(r.log)).catch((e) => console.error('update failed', e));
+  api.update(c, id, patch).then((r) => appendLog(r.log)).catch((e) => {
+    if (before) db[c] = (db[c] || []).map((r) => (r.id === id ? before : r));
+    emit();
+    console.error('update failed', e);
+  });
 }
 
 export function remove(c: string, id: number) {

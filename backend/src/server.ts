@@ -89,6 +89,23 @@ function isDuplicate(collection: string, row: Record<string, unknown>, exceptId?
   return (db[collection] || []).some((r) => r.id !== exceptId && normKey(fields, r) === key);
 }
 
+function hasInvalidNumber(collection: string, row: Record<string, unknown>): boolean {
+  if (['adIds', 'mediaIds', 'rates'].includes(collection) && row.unitPrice != null && row.unitPrice !== '') {
+    const unitPrice = Number(row.unitPrice);
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) return true;
+    if (row.type === 'CPS' && unitPrice > 100) return true;
+  }
+  if (collection === 'mediaIds' && row.profitShare != null && row.profitShare !== '') {
+    const profitShare = Number(row.profitShare);
+    if (!Number.isFinite(profitShare) || profitShare < 0 || profitShare > 100) return true;
+  }
+  if (collection === 'rates' && row.value != null && row.value !== '') {
+    const value = Number(row.value);
+    if (!Number.isFinite(value) || value < 0) return true;
+  }
+  return false;
+}
+
 // ----- Auth -----
 interface SessionUser { id: number; username: string; fullName: string; role: string; scope?: string }
 
@@ -322,6 +339,7 @@ app.post('/api/:collection', auth, asyncHandler(async (req, res) => {
   const row = req.body as Row;
   if (row == null || row.id == null || !Number.isFinite(Number(row.id))) return res.status(400).json({ error: 'invalid id' });
   if (outOfScope((req as any).user, c, row)) return res.status(403).json({ error: 'forbidden' });
+  if (hasInvalidNumber(c, row)) return res.status(400).json({ error: 'invalid number' });
   // Không cho ghi đè bản ghi đã tồn tại qua thao tác tạo (client tự cấp id).
   if ((db[c] || []).some((r) => r.id === Number(row.id))) return res.status(409).json({ error: 'id exists' });
   if (isDuplicate(c, row)) return res.status(409).json({ error: 'duplicate' });
@@ -341,10 +359,12 @@ app.put('/api/:collection/:id', auth, asyncHandler(async (req, res) => {
   const current = (db[c] || []).find((r) => r.id === id);
   // Chặn sửa dữ liệu ngoài scope (kiểm cả bản ghi hiện tại lẫn giá trị mới).
   const user = (req as any).user as SessionUser;
-  if (outOfScope(user, c, current) || outOfScope(user, c, { ...current, ...req.body })) {
+  const next = { ...current, ...req.body };
+  if (outOfScope(user, c, current) || outOfScope(user, c, next)) {
     return res.status(403).json({ error: 'forbidden' });
   }
-  if (UNIQUE_FIELDS[c] && current && isDuplicate(c, { ...current, ...req.body }, id)) {
+  if (hasInvalidNumber(c, next)) return res.status(400).json({ error: 'invalid number' });
+  if (UNIQUE_FIELDS[c] && current && isDuplicate(c, next, id)) {
     return res.status(409).json({ error: 'duplicate' });
   }
   // Users: nếu client gửi password mới (plaintext, không chứa ':') → hash.

@@ -42,7 +42,7 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
     for (const f of fields) base[f.key] = initial?.[f.key] ?? f.default ?? (f.type === 'toggle' ? true : '');
     return base;
   });
-  const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -52,11 +52,12 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
 
   const set = (key: string, v: unknown) => setVals((s) => ({ ...s, [key]: v }));
   const isIntegerField = (f: FieldDef) => f.key === 'unitPrice' && vals.type === 'CPS';
+  const isNumericField = (f: FieldDef) => f.type === 'number' || f.type === 'percent';
   const cleanInput = (f: FieldDef, v: string) => {
     if (f.digitsOnly) return v.replace(/\D/g, '');
-    if (isIntegerField(f)) return v.split(/[.,]/)[0].replace(/\D/g, '');
     return v;
   };
+  const isValidNumberText = (v: unknown) => /^\d+(\.\d+)?$/.test(String(v));
 
   // Tự lấy giá trị field derive từ bản ghi mà field 'watch' đang trỏ tới (vd: Loại lấy từ ID quảng cáo).
   useEffect(() => {
@@ -71,9 +72,18 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
   }, [fields.map((f) => (f.derive ? vals[f.derive.watch] : '')).join('|')]);
 
   const submit = () => {
-    const errs: Record<string, boolean> = {};
+    const errs: Record<string, string> = {};
     for (const f of fields) {
-      if (f.required && (vals[f.key] === '' || vals[f.key] == null)) errs[f.key] = true;
+      const raw = vals[f.key];
+      if (f.required && (raw === '' || raw == null)) {
+        errs[f.key] = t('common.required');
+        continue;
+      }
+      if (isNumericField(f) && raw !== '' && raw != null) {
+        const n = Number(raw);
+        if (!isValidNumberText(raw) || !Number.isFinite(n)) errs[f.key] = t('common.invalidNumber');
+        else if ((f.type === 'percent' || (f.key === 'unitPrice' && vals.type === 'CPS')) && n > 100) errs[f.key] = t('common.invalidPercent');
+      }
     }
     setErrors(errs);
     if (Object.keys(errs).length) return;
@@ -125,9 +135,9 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
               ) : (
                 <div className="relative">
                   <input
-                    type={f.type === 'email' ? 'email' : f.type === 'number' || f.type === 'percent' ? 'number' : f.type === 'password' ? 'password' : 'text'}
-                    inputMode={f.digitsOnly || isIntegerField(f) ? 'numeric' : undefined}
-                    step={isIntegerField(f) ? 1 : f.step} value={String(vals[f.key] ?? '')}
+                    type={f.type === 'email' ? 'email' : f.type === 'password' ? 'password' : 'text'}
+                    inputMode={f.digitsOnly || isIntegerField(f) ? 'numeric' : isNumericField(f) ? 'decimal' : undefined}
+                    value={String(vals[f.key] ?? '')}
                     placeholder={f.placeholder ?? (f.placeholderKey ? t(f.placeholderKey) : undefined)}
                     onChange={(e) => set(f.key, cleanInput(f, e.target.value))}
                     autoComplete={f.type === 'password' ? 'new-password' : undefined}
@@ -135,6 +145,7 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
                   {f.type === 'percent' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>}
                 </div>
               )}
+              {errors[f.key] && <p className="text-xs text-rose-500 mt-1">{errors[f.key]}</p>}
               {f.hint && <p className="text-xs text-gray-400 mt-1">{f.hint}</p>}
             </div>
           ))}
