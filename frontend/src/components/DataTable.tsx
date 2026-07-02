@@ -45,8 +45,15 @@ function cellText(col: Column, r: Row): string {
   if (Array.isArray(v)) return v.join(', ');
   return String(v ?? '');
 }
+
+function cellValues(col: Column, r: Row): string[] {
+  const text = cellText(col, r).trim();
+  if (!text) return [];
+  if (col.type !== 'tags') return [text];
+  return text.split(',').map((s) => s.trim()).filter(Boolean);
+}
 // Columns that cannot be sorted / filtered.
-const noSort = (c: Column) => c.type === 'index' || c.key === 'actions';
+const noSort = (c: Column) => c.sortable !== true || c.type === 'index' || c.key === 'actions';
 const noFilter = (c: Column) => c.type === 'index' || c.key === 'actions';
 
 export function DataTable({
@@ -72,7 +79,7 @@ export function DataTable({
       const fv = colFilters[c.key];
       if (!fv) continue;
       if (c.type === 'toggle') data = data.filter((r) => (r[c.key] ? 'on' : 'off') === fv);
-      else data = data.filter((r) => cellText(c, r) === fv);
+      else data = data.filter((r) => cellValues(c, r).includes(fv));
     }
     if (q.trim()) {
       const keys = searchKeys ?? columns.filter((c) => !['index', 'toggle'].includes(c.type || '')).map((c) => c.key);
@@ -113,7 +120,7 @@ export function DataTable({
   // Giá trị có sẵn của một cột (để chọn trong bộ lọc).
   const distinctValues = (c: Column): string[] => {
     const set = new Set<string>();
-    for (const r of rows) { const v = cellText(c, r); if (v) set.add(v); }
+    for (const r of rows) for (const v of cellValues(c, r)) set.add(v);
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   };
 
