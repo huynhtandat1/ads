@@ -74,7 +74,7 @@
 
 - **Tạo ID quảng cáo mới**
   - Nhà quảng cáo — *Đọc* — chọn từ danh sách nhà quảng cáo — **Bắt buộc**
-  - Đơn quảng cáo — *Đọc* — chọn từ danh sách nhà quảng cáo — **Bắt buộc**
+  - Đơn quảng cáo — *Đọc* — chọn từ danh sách Đơn quảng cáo — **Bắt buộc**
   - ID quảng cáo — *Nhập tay* — duy nhất, dùng uuid nhưng không hiển thị — **Bắt buộc**
   - Loại — *Chọn tay phân loại*
     - CPM
@@ -193,10 +193,10 @@
 
 - **Tạo media ID mới**
   - Nhà quảng cáo — *Đọc* — chọn từ danh sách nhà quảng cáo — **Bắt buộc**
-  - Đơn quảng cáo — *Đọc* — chọn từ danh sách nhà quảng cáo — **Bắt buộc**
-  - ID quảng cáo — *Đọc* — chọn từ danh sách nhà quảng cáo — **Bắt buộc**
-  - Media — *Đọc* — chọn từ danh sách nhà quảng cáo — **Bắt buộc**
-  - Đơn quảng cáo media — *Đọc* — chọn từ danh sách nhà quảng cáo — **Bắt buộc**
+  - Đơn quảng cáo — *Đọc* — chọn từ danh sách Đơn quảng cáo — **Bắt buộc**
+  - ID quảng cáo — *Đọc* — chọn từ danh sách ID quảng cáo — **Bắt buộc**
+  - Media — *Đọc* — chọn từ danh sách media — **Bắt buộc**
+  - Đơn quảng cáo media — *Đọc* — chọn từ danh sách Đơn quảng cáo media — **Bắt buộc**
   - Media ID — *Nhập tay* — duy nhất, dùng uuid nhưng không hiển thị — **Bắt buộc**
   - Loại — *Chọn tay phân loại*
     - CPM
@@ -280,6 +280,7 @@
   - Số tiền phải thu — *Tính toán*
     - Đơn giá × Dữ liệu lưu lượng → khi có dữ liệu quyết toán / số tiền thì cập nhật thành: Đơn giá × Dữ liệu quyết toán
     - Tỷ lệ chia × Số tiền → khi có dữ liệu quyết toán / số tiền thì cập nhật thành: Tỷ lệ chia × Số tiền quyết toán
+    - **Lưu ý CPM (chuẩn ngành):** với loại **CPM** = Đơn giá × cơ sở **/ 1000** (cost per mille — tính trên mỗi 1000 lượt). CPC/CPA vẫn là Đơn giá × cơ sở (không chia).
   - Trạng thái — *Đọc* — từ trạng thái ID hiện tại
     - Sửa
       - Bật
@@ -322,7 +323,8 @@
     - Sửa
       - Có hiệu lực hiện tại
       - Có hiệu lực về sau
-  - Số tiền thực trả — Số tiền phải thu × Tỷ lệ chia tài khoản
+  - Số tiền thực trả — Số tiền phải trả × Tỷ lệ chia tài khoản
+    - **Đính chính:** bản gốc tiếng Trung ghi nhầm "应收金额" (phải thu); đúng logic nghiệp vụ phải là "应付金额" (**phải trả**, đã tính hệ số dữ liệu). Code dùng phải trả × tỷ lệ chia — đúng.
   - Trạng thái — *Đọc* — từ trạng thái ID hiện tại
     - Sửa
       - Bật
