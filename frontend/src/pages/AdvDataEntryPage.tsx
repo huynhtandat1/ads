@@ -10,6 +10,7 @@ import { IconSearch, IconDownload, IconUpload } from '../components/icons';
 import { yesterdayStr } from '../lib/date';
 
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 
 type Draft = BillingInputs;
 
@@ -77,9 +78,18 @@ export function AdvDataEntryPage({
     },
     [fAdv, adIdsAll],
   );
+  // fOrder giữ id của 1 đơn đại diện, nhưng dropdown đã gộp theo TÊN (nhiều nhà QC
+  // có thể cùng tên đơn) → lọc phải khớp MỌI đơn cùng tên, không chỉ 1 id.
+  const orderIdsMatchingFilter = useMemo(() => {
+    if (!fOrder) return null;
+    const picked = getAll('adOrders').find((o) => String(o.id) === fOrder);
+    const name = norm(picked?.name);
+    return new Set(getAll('adOrders').filter((o) => norm(o.name) === name).map((o) => o.id));
+  }, [fOrder, adIdsAll]);
+
   const adIdOpts = useMemo(
-    () => adIdsAll.filter((a) => (!fAdv || String(a.advertiserId) === fAdv) && (!fOrder || String(a.adOrderId) === fOrder)),
-    [fAdv, fOrder, adIdsAll],
+    () => adIdsAll.filter((a) => (!fAdv || String(a.advertiserId) === fAdv) && (!orderIdsMatchingFilter || orderIdsMatchingFilter.has(a.adOrderId as number))),
+    [fAdv, orderIdsMatchingFilter, adIdsAll],
   );
 
   // Visible rows
@@ -87,7 +97,7 @@ export function AdvDataEntryPage({
     const lc = q.trim().toLowerCase();
     return adIdsAll.filter((ad) => {
       if (fAdv && String(ad.advertiserId) !== fAdv) return false;
-      if (fOrder && String(ad.adOrderId) !== fOrder) return false;
+      if (orderIdsMatchingFilter && !orderIdsMatchingFilter.has(ad.adOrderId as number)) return false;
       if (fAdId && String(ad.id) !== fAdId) return false;
       const online = ad.status !== false;
       if (fStatus === 'online' && !online) return false;
@@ -98,7 +108,7 @@ export function AdvDataEntryPage({
       }
       return true;
     });
-  }, [adIdsAll, fAdv, fOrder, fAdId, fStatus, q]);
+  }, [adIdsAll, fAdv, orderIdsMatchingFilter, fAdId, fStatus, q]);
 
   const setCell = (id: number, field: keyof Draft, value: string) => {
     setDraft((d) => ({ ...d, [id]: { ...d[id], [field]: value === '' ? '' : Number(value) } }));
