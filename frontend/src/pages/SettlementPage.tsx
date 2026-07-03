@@ -7,11 +7,11 @@ import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, type Row } from '../data/store';
 import { api } from '../api';
 import { IconPlus, IconPencil, IconEye } from '../components/icons';
+import { yesterdayStr } from '../lib/date';
 
 interface Props { screen: string; collection: string; titleKey: string; targetFrom: string; previewType: 'adv' | 'media' }
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
-const monthStart = () => todayStr().slice(0, 8) + '01';
+const monthStart = () => yesterdayStr().slice(0, 8) + '01';
 
 export function SettlementPage({ screen, collection, titleKey, targetFrom, previewType }: Props) {
   const { t } = useTranslation();
@@ -70,7 +70,7 @@ export function SettlementPage({ screen, collection, titleKey, targetFrom, previ
     { key: 'totalAmount', label: t('col.totalAmount'), type: 'number', required: true, default: 0 },
     { key: 'payStatus', label: t('col.payStatus'), type: 'select', required: true, default: 'unpaid',
       options: [{ value: 'unpaid', label: t('pay.unpaid') }, { value: 'paid', label: t('pay.paid') }] },
-    { key: 'createdAt', label: t('col.createdAt'), type: 'text', default: todayStr() },
+    { key: 'createdAt', label: t('col.createdAt'), type: 'text', default: yesterdayStr() },
   ];
 
   const onEditSubmit = (vals: Record<string, unknown>) => {
@@ -114,7 +114,7 @@ function GenerateModal({ collection, targetFrom, previewType, onClose, onDone }:
   const toast = useToast();
   const [target, setTarget] = useState('');
   const [from, setFrom] = useState(monthStart());
-  const [to, setTo] = useState(todayStr());
+  const [to, setTo] = useState(yesterdayStr());
   const [payStatus, setPayStatus] = useState('unpaid');
   const [total, setTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -137,7 +137,7 @@ function GenerateModal({ collection, targetFrom, previewType, onClose, onDone }:
     const code = `${prefix}-${from.slice(2, 7).replace('-', '')}-${String(Math.floor(Math.random() * 90) + 10)}`;
     create(collection, {
       code, target, period: `${from} ~ ${to}`, totalAmount: total, payStatus,
-      createdAt: todayStr(), status: true,
+      createdAt: yesterdayStr(), status: true,
     } as Omit<Row, 'id'>);
     onDone();
   };
