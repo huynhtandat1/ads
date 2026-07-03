@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getAll, refName, type Row } from '../data/store';
 import { receivableOf } from '../lib/billing';
 import { exportCSV } from '../lib/export';
 import { LatestDataHint } from '../components/LatestDataHint';
 import { IconSearch, IconDownload } from '../components/icons';
-import { monthRangeUntilYesterday } from '../lib/date';
+import { monthRangeUntilYesterday, yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importMedia';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -24,8 +24,8 @@ export function MediaReportPage() {
   const { t } = useTranslation();
   const screen = 'g4d';
 
-  const [from, setFrom] = useState(monthRangeUntilYesterday(0)[0]);
-  const [to, setTo] = useState(monthRangeUntilYesterday(0)[1]);
+  const [from, setFrom] = useState(yesterdayStr());
+  const [to, setTo] = useState(yesterdayStr());
   const [allDates, setAllDates] = useState(false);
   const [fMedia, setFMedia] = useState('');
   const [fOrder, setFOrder] = useState('');
@@ -54,6 +54,8 @@ export function MediaReportPage() {
     }).sort((a, b) => (a.date < b.date ? 1 : -1));
     setResult(data);
   };
+
+  useEffect(() => { runQuery(); }, []); // tự truy vấn hôm qua khi vào trang
 
   const pickThisMonth = () => { const [f, tt] = monthRangeUntilYesterday(0); setFrom(f); setTo(tt); setAllDates(false); };
   const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); setAllDates(false); };

@@ -18,9 +18,10 @@ interface DayRow {
 export function YiyiReportPage() {
   const { t } = useTranslation();
   const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [query, setQuery] = useState<{ year: number; month: number } | null>(null);
+  const yst = new Date(); yst.setDate(yst.getDate() - 1); // hôm qua (tháng chứa hôm qua)
+  const [year, setYear] = useState(yst.getFullYear());
+  const [month, setMonth] = useState(yst.getMonth() + 1);
+  const [query, setQuery] = useState<{ year: number; month: number } | null>({ year: yst.getFullYear(), month: yst.getMonth() + 1 });
 
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);

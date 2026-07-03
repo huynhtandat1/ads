@@ -5,7 +5,7 @@ import { exportCSV } from '../lib/export';
 import { RateEditor } from '../components/RateEditor';
 import { LatestDataHint } from '../components/LatestDataHint';
 import { IconSearch, IconDownload } from '../components/icons';
-import { monthRangeUntilYesterday, ymd } from '../lib/date';
+import { monthRangeUntilYesterday, yesterdayStr, ymd } from '../lib/date';
 
 export interface AggregateSpec {
   screen: string;
@@ -29,12 +29,12 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
   useDB(); // gồm cả spec.collections lẫn 'rates' (điểm thuế theo hiệu lực ngày)
   const todayStr = ymd(new Date());
 
-  const [from, setFrom] = useState(monthRangeUntilYesterday(0)[0]);
-  const [to, setTo] = useState(monthRangeUntilYesterday(0)[1]);
+  const [from, setFrom] = useState(yesterdayStr());
+  const [to, setTo] = useState(yesterdayStr());
   const [allDates, setAllDates] = useState(false);
   const [q, setQ] = useState('');
-  const [queried, setQueried] = useState(false);
-  const [params, setParams] = useState({ from: monthRangeUntilYesterday(0)[0], to: monthRangeUntilYesterday(0)[1], allDates: false, q: '' });
+  const [queried, setQueried] = useState(true); // tự truy vấn hôm qua khi vào trang
+  const [params, setParams] = useState({ from: yesterdayStr(), to: yesterdayStr(), allDates: false, q: '' });
 
   const groups = useMemo<GroupRow[]>(() => {
     if (!queried) return [];
