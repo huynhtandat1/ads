@@ -63,8 +63,8 @@ export function MediaReportPage() {
     const seen = new Set<string>();
     return getAll('mediaOrders').filter((o) => {
       if (fMedia && String(o.mediaId) !== fMedia) return false;
-      const key = `${o.mediaId}::${String(o.name ?? '').trim().toLowerCase()}`;
-      if (seen.has(key)) return false;
+      const key = String(o.name ?? '').trim().toLowerCase();
+      if (!key || seen.has(key)) return false;
       seen.add(key);
       return true;
     });

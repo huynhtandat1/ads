@@ -69,8 +69,8 @@ export function AdvDataEntryPage({
       const seen = new Set<string>();
       return getAll('adOrders').filter((o) => {
         if (fAdv && String(o.advertiserId) !== fAdv) return false;
-        const key = `${o.advertiserId}::${String(o.name ?? '').trim().toLowerCase()}`;
-        if (seen.has(key)) return false;
+        const key = String(o.name ?? '').trim().toLowerCase();
+        if (!key || seen.has(key)) return false;
         seen.add(key);
         return true;
       });
