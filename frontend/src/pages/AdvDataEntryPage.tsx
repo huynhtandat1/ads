@@ -32,7 +32,6 @@ export function AdvDataEntryPage({
   const [fOrder, setFOrder] = useState('');
   const [fAdId, setFAdId] = useState('');
   const [fStatus, setFStatus] = useState<'all' | 'online' | 'offline'>('all');
-  const [showOffline, setShowOffline] = useState(false);
   const [q, setQ] = useState('');
 
   const [draft, setDraft] = useState<Record<number, Draft>>({});
@@ -91,7 +90,6 @@ export function AdvDataEntryPage({
       if (fOrder && String(ad.adOrderId) !== fOrder) return false;
       if (fAdId && String(ad.id) !== fAdId) return false;
       const online = ad.status !== false;
-      if (!showOffline && !online) return false;
       if (fStatus === 'online' && !online) return false;
       if (fStatus === 'offline' && online) return false;
       if (lc) {
@@ -100,7 +98,7 @@ export function AdvDataEntryPage({
       }
       return true;
     });
-  }, [adIdsAll, fAdv, fOrder, fAdId, fStatus, q, showOffline]);
+  }, [adIdsAll, fAdv, fOrder, fAdId, fStatus, q]);
 
   const setCell = (id: number, field: keyof Draft, value: string) => {
     setDraft((d) => ({ ...d, [id]: { ...d[id], [field]: value === '' ? '' : Number(value) } }));
@@ -203,11 +201,6 @@ export function AdvDataEntryPage({
             <option value="online">{t('entry.online')}</option>
             <option value="offline">{t('entry.offline')}</option>
           </select>
-          <label className="inline-flex items-center gap-1.5 text-xs text-gray-500 whitespace-nowrap">
-            <input type="checkbox" checked={showOffline} onChange={(e) => setShowOffline(e.target.checked)}
-              className="w-3.5 h-3.5 accent-cyan-500" />
-            {t('entry.showOffline')}
-          </label>
           <div className="relative">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('common.searchPh')}

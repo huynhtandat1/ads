@@ -31,7 +31,6 @@ export function MediaDataEntryPage() {
   const [fOrder, setFOrder] = useState('');
   const [fMediaId, setFMediaId] = useState('');
   const [fStatus, setFStatus] = useState<'all' | 'confirmed' | 'unconfirmed'>('all');
-  const [showOffline, setShowOffline] = useState(false);
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
@@ -48,7 +47,7 @@ export function MediaDataEntryPage() {
     setSavedIds(saved);
   };
   useEffect(load, [date]);
-  useEffect(() => { setPage(1); }, [date, fAdv, fAdId, fMedia, fOrder, fMediaId, fStatus, q, showOffline]);
+  useEffect(() => { setPage(1); }, [date, fAdv, fAdId, fMedia, fOrder, fMediaId, fStatus, q]);
 
   const advOpts = getAll('advertisers');
   const adIdOpts = useMemo(() => getAll('adIds').filter((a) => !fAdv || String(a.advertiserId) === fAdv), [fAdv, mediaIdsAll]);
@@ -78,8 +77,7 @@ export function MediaDataEntryPage() {
       if (fMedia && String(m.mediaId) !== fMedia) return false;
       if (fOrder && String(m.mediaOrderId) !== fOrder) return false;
       if (fMediaId && String(m.id) !== fMediaId) return false;
-      // Mặc định ẩn link đã 下线 (đồng bộ với màn nhập liệu nhà QC); tick checkbox để hiện.
-      if (!showOffline && m.status === false) return false;
+      // Mặc định hiện cả link đã 下线; fStatus điều khiển confirmed/unconfirmed.
       if (fStatus === 'confirmed' && !savedIds.has(m.id)) return false;
       if (fStatus === 'unconfirmed' && savedIds.has(m.id)) return false;
       if (lc) {
@@ -88,7 +86,7 @@ export function MediaDataEntryPage() {
       }
       return true;
     });
-  }, [mediaIdsAll, fAdv, fAdId, fMedia, fOrder, fMediaId, fStatus, q, savedIds, showOffline]);
+  }, [mediaIdsAll, fAdv, fAdId, fMedia, fOrder, fMediaId, fStatus, q, savedIds]);
 
   // Lưu lượng/quyết toán lấy từ nhập liệu nhà QC theo ID quảng cáo (adIdId) + ngày.
   const advOf = (m: Row) => getAll('importAdv').find((r) => r.date === date && r.adIdId === m.adIdId);
@@ -180,11 +178,6 @@ export function MediaDataEntryPage() {
             <option value="confirmed">{t('entry.confirmed')}</option>
             <option value="unconfirmed">{t('entry.unconfirmed')}</option>
           </select>
-          <label className="inline-flex items-center gap-1.5 text-xs text-gray-500 whitespace-nowrap">
-            <input type="checkbox" checked={showOffline} onChange={(e) => setShowOffline(e.target.checked)}
-              className="w-3.5 h-3.5 accent-cyan-500" />
-            {t('entry.showOffline')}
-          </label>
           <div className="relative">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('common.searchPh')}
