@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getAll, refName, type Row } from '../data/store';
+import { effectiveValue, getAll, refName, useCollection, type Row } from '../data/store';
 import { receivableOf } from '../lib/billing';
 import { exportCSV } from '../lib/export';
 import { LatestDataHint } from '../components/LatestDataHint';
@@ -10,19 +10,24 @@ import { monthRangeUntilYesterday, yesterdayStr } from '../lib/date';
 const COLLECTION = 'importMedia';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
-// Số tiền phải thu / tỷ lệ chia / thực nhận (theo công thức màn Quản lý dữ liệu media chính),
-// dùng giá trị đã lưu, fallback tính lại nếu thiếu.
 function compute(r: Row) {
-  const receivable = r.receivable ?? receivableOf(r.type, { unitPrice: r.unitPrice, traffic: r.traffic, settlement: r.settlement }) ?? 0;
-  const shareRate = r.shareRate ?? 0;
-  const coefficient = r.coefficient ?? 1;
-  const actual = r.actual ?? Math.round(receivable * (shareRate / 100) * coefficient);
+  const coefficient = Number(r.coefficient ?? 1) || 1;
+  const fallbackBase = receivableOf(r.type, { unitPrice: r.unitPrice, traffic: r.traffic, settlement: r.settlement }) ?? 0;
+  const receivable = r.receivable != null ? Number(r.receivable) || 0 : Math.round(fallbackBase * coefficient);
+  const mediaId = getAll('mediaIds').find((m) => m.id === r.mediaIdId);
+  const fallbackShareRate = Number(mediaId?.profitShare ?? r.shareRate ?? 0) || 0;
+  const shareRate = r.mediaIdId != null
+    ? effectiveValue('mediaId', r.mediaIdId, 'profitShare', String(r.date || ''), fallbackShareRate)
+    : fallbackShareRate;
+  const actual = Math.round(receivable * (shareRate / 100));
   return { receivable, shareRate, coefficient, actual };
 }
 
 export function MediaReportPage() {
   const { t } = useTranslation();
   const screen = 'g4d';
+  useCollection('mediaIds');
+  useCollection('rates');
 
   const [from, setFrom] = useState(yesterdayStr());
   const [to, setTo] = useState(yesterdayStr());

@@ -165,6 +165,28 @@ function isolate(user: SessionUser): DB {
   return stripSecrets(out);
 }
 
+const rateKey = (entityType: string, entityId: number | string, field: string) => `${entityType}:${entityId}:${field}`;
+
+function effectiveValue(source: DB, entityType: string, entityId: number | string, field: string, date: string, fallback: number): number {
+  const key = rateKey(entityType, entityId, field);
+  let best: Row | undefined;
+  for (const r of source.rates || []) {
+    if (r.key === key && r.effectiveFrom <= date && (!best || r.effectiveFrom >= best.effectiveFrom)) best = r;
+  }
+  return best ? Number(best.value) : fallback;
+}
+
+function mediaActualOf(source: DB, r: Row): number {
+  const mediaId = (source.mediaIds || []).find((m) => m.id === r.mediaIdId);
+  const fallbackShareRate = Number(mediaId?.profitShare ?? r.shareRate ?? 0) || 0;
+  const shareRate = r.mediaIdId != null
+    ? effectiveValue(source, 'mediaId', r.mediaIdId, 'profitShare', String(r.date || ''), fallbackShareRate)
+    : fallbackShareRate;
+  const payable = r.receivable != null ? Number(r.receivable) || 0 : Number(r.payable) || 0;
+  if (!payable && r.receivable == null && r.payable == null) return Number(r.actual) || 0;
+  return Math.round(payable * (shareRate / 100));
+}
+
 // Bộ đếm id log tăng đơn điệu (tránh Math.max(...spread) tràn stack và tránh trùng id).
 let logSeq = 5000;
 async function writeLog(user: SessionUser, action: string, object: string): Promise<Row> {
@@ -238,7 +260,7 @@ app.get('/api/settlement/preview', auth, (req, res) => {
     const media = (scoped.media || []).find((m) => m.name === target);
     const total = (scoped.importMedia || [])
       .filter((r) => (!media || r.mediaId === media.id) && (!from || r.date >= from) && (!to || r.date <= to))
-      .reduce((s, r) => s + (Number(r.actual) || 0), 0);
+      .reduce((s, r) => s + mediaActualOf(scoped, r), 0);
     return res.json({ total: Math.round(total) });
   }
   const adv = (scoped.advertisers || []).find((a) => a.name === target);
