@@ -2,10 +2,10 @@ export type Row = Record<string, any> & { id: number };
 export type DB = Record<string, Row[]>;
 
 // Số tiền phải thu (giữ đồng bộ với frontend/src/lib/billing.ts):
-//  CPM = đơn giá×cơ sở/1000 (per mille) · CPC/CPA = đơn giá×cơ sở · CPS = cơ sở×đơn giá(%).
+//  CPM/CPC/CPA = đơn giá×cơ sở · CPS = cơ sở×đơn giá(%).
+//  CPM đã bỏ /1000 theo spec 2026-07-03.
 function receivable(type: string, price: number, base: number): number {
   if (type === 'CPS') return (base * price) / 100;
-  if (type === 'CPM') return (price * base) / 1000;
   return price * base;
 }
 
