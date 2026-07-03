@@ -6,7 +6,7 @@ export interface BillingInputs {
 
 // "Số tiền phải thu" theo spec:
 //  - Cơ sở = Dữ liệu lưu lượng/Số tiền; KHI CÓ dữ liệu quyết toán thì dùng quyết toán thay thế.
-//  - CPM: Đơn giá × cơ sở (đã đổi spec 2026-07-03: bỏ /1000, đồng nhất với CPC/CPA).
+//  - CPM: Đơn giá × cơ sở / 1000  (cost per mille — chuẩn ngành).
 //  - CPC / CPA: Đơn giá × cơ sở.
 //  - CPS: Tỷ lệ chia (%) × cơ sở  (đơn giá đóng vai trò tỷ lệ %).
 
@@ -18,6 +18,6 @@ export function receivableOf(type: string, d: BillingInputs): number | null {
   const base = Number(d.settlement) || Number(d.traffic);
   if (!price || !base) return null;
   if (type === 'CPS') return (base * price) / 100;
-  if (type === 'CPM') return price * base;
+  if (type === 'CPM') return (price * base) / 1000;
   return price * base;
 }
