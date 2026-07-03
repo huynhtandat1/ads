@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, remove, refName, effectiveValue, setRate, type Row } from '../data/store';
 import { receivableOf } from '../lib/billing';
 import { RateEditor } from '../components/RateEditor';
+import { Toggle } from '../components/Toggle';
 import { IconSearch, IconDownload, IconTrash } from '../components/icons';
 import { yesterdayStr } from '../lib/date';
 
@@ -28,6 +29,7 @@ export function MediaDataEntryPage() {
   const [fOrder, setFOrder] = useState('');
   const [fMediaId, setFMediaId] = useState('');
   const [fStatus, setFStatus] = useState<'all' | 'confirmed' | 'unconfirmed'>('all');
+  const [showOffline, setShowOffline] = useState(false);
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
@@ -45,7 +47,7 @@ export function MediaDataEntryPage() {
     setSavedIds(saved);
   };
   useEffect(load, [date]);
-  useEffect(() => { setPage(1); }, [date, fMedia, fOrder, fMediaId, fStatus, q]);
+  useEffect(() => { setPage(1); }, [date, fMedia, fOrder, fMediaId, fStatus, q, showOffline]);
 
   const mediaOpts = getAll('media');
   const orderOpts = useMemo(() => getAll('mediaOrders').filter((o) => !fMedia || String(o.mediaId) === fMedia), [fMedia, mediaIdsAll]);
@@ -60,6 +62,8 @@ export function MediaDataEntryPage() {
       if (fMedia && String(m.mediaId) !== fMedia) return false;
       if (fOrder && String(m.mediaOrderId) !== fOrder) return false;
       if (fMediaId && String(m.id) !== fMediaId) return false;
+      // Mặc định ẩn link đã 下线 (đồng bộ với màn nhập liệu nhà QC); tick checkbox để hiện.
+      if (!showOffline && m.status === false) return false;
       if (fStatus === 'confirmed' && !savedIds.has(m.id)) return false;
       if (fStatus === 'unconfirmed' && savedIds.has(m.id)) return false;
       if (lc) {
@@ -68,7 +72,7 @@ export function MediaDataEntryPage() {
       }
       return true;
     });
-  }, [mediaIdsAll, fMedia, fOrder, fMediaId, fStatus, q, savedIds]);
+  }, [mediaIdsAll, fMedia, fOrder, fMediaId, fStatus, q, savedIds, showOffline]);
 
   // Lưu lượng/quyết toán lấy từ nhập liệu nhà QC theo ID quảng cáo (adIdId) + ngày.
   const advOf = (m: Row) => getAll('importAdv').find((r) => r.date === date && r.adIdId === m.adIdId);
@@ -157,6 +161,11 @@ export function MediaDataEntryPage() {
             <option value="confirmed">{t('entry.confirmed')}</option>
             <option value="unconfirmed">{t('entry.unconfirmed')}</option>
           </select>
+          <label className="inline-flex items-center gap-1.5 text-xs text-gray-500 whitespace-nowrap">
+            <input type="checkbox" checked={showOffline} onChange={(e) => setShowOffline(e.target.checked)}
+              className="w-3.5 h-3.5 accent-cyan-500" />
+            {t('entry.showOffline')}
+          </label>
           <div className="relative">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('common.searchPh')}
@@ -202,7 +211,7 @@ export function MediaDataEntryPage() {
 
                   {pageRows.map((m) => {
                     const c = calc(m);
-                    const isSaved = savedIds.has(m.id);
+                    const isOnline = m.status !== false;
                     return (
                       <tr key={m.id} className="border-b border-gray-50 hover:bg-cyan-50/30">
                         <td className="px-3 py-2 whitespace-nowrap text-gray-600">{date}</td>
@@ -231,9 +240,14 @@ export function MediaDataEntryPage() {
                           {c.netPay == null ? <span className="text-gray-300">0</span> : <span className="text-emerald-600">{money(c.netPay)}</span>}
                         </td>
                         <td className="px-3 py-2">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${isSaved ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'}`}>
-                            {isSaved ? `✓ ${t('entry.confirmed')}` : t('entry.confirm')}
-                          </span>
+                          {/* Trạng thái = link 媒体ID đang 上线/下线 (đồng bộ với màn nhập liệu nhà QC). */}
+                          <div className="flex items-center gap-2">
+                            <Toggle on={isOnline} disabled={!canEdit}
+                              onChange={() => update('mediaIds', m.id, { status: !isOnline })} />
+                            <span className={`text-xs font-medium ${isOnline ? 'text-emerald-600' : 'text-gray-400'}`}>
+                              {isOnline ? t('entry.online') : t('entry.offline')}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-1.5 whitespace-nowrap">
