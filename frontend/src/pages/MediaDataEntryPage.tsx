@@ -224,6 +224,7 @@ export function MediaDataEntryPage() {
                   {pageRows.map((m) => {
                     const c = calc(m);
                     const isOnline = m.status !== false;
+                    const isSaved = savedIds.has(m.id);
                     return (
                       <tr key={m.id} className="border-b border-gray-50 hover:bg-cyan-50/30">
                         <td className="px-3 py-2 whitespace-nowrap text-gray-600">{date}</td>
@@ -261,8 +262,8 @@ export function MediaDataEntryPage() {
                           <div className="flex items-center gap-1.5 whitespace-nowrap">
                             {(canCreate || canEdit) && (
                               <button onClick={() => saveRow(m)}
-                                className="h-7 px-2.5 rounded-lg bg-emerald-500 text-white text-xs font-medium hover:bg-emerald-600">
-                                {t('entry.saveRow')}
+                                className={`h-7 px-2.5 rounded-lg text-xs font-medium ${isSaved ? 'bg-gray-100 text-emerald-700' : 'bg-emerald-500 text-white hover:bg-emerald-600'}`}>
+                                {isSaved ? t('entry.savedShort') : t('entry.saveRow')}
                               </button>
                             )}
                           </div>

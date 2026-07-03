@@ -67,7 +67,7 @@ export default {
     traffic: 'Dữ liệu lưu lượng', settlement: 'Dữ liệu quyết toán / Số tiền nhà QC', receivable: 'Số tiền phải thu',
     value: 'Giá trị', confirm: 'Xác nhận dữ liệu', confirmed: 'Đã xác nhận', unconfirmed: 'Chưa xác nhận',
     online: 'Đang hoạt động', offline: 'Ngừng hoạt động', showOffline: 'Hiện cả liên kết ngừng hoạt động', latestData: 'Ngày có dữ liệu gần nhất',
-    saveRow: 'Lưu vào hệ thống', deleteRow: 'Xóa dữ liệu', savedRow: 'Đã lưu vào hệ thống', forDate: 'Dữ liệu ngày',
+    saveRow: 'Lưu vào hệ thống', savedShort: 'Đã lưu', deleteRow: 'Xóa dữ liệu', savedRow: 'Đã lưu vào hệ thống', forDate: 'Dữ liệu ngày',
     aiFill: 'AI tự động điền', aiFilled: 'đã tự động điền dữ liệu',
     chooseMedia: 'Chọn media', chooseMediaOrder: 'Chọn đơn quảng', chooseMediaId: 'Chọn ID media',
     coefficient: 'Hệ số dữ liệu', shareRate: 'Tỷ lệ chia doanh thu', actual: 'Số tiền thực nhận', netPay: 'Số tiền thực trả', fromAdv: 'từ nhập liệu NQC',

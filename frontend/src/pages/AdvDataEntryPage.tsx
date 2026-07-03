@@ -112,6 +112,7 @@ export function AdvDataEntryPage({
 
   const setCell = (id: number, field: keyof Draft, value: string) => {
     setDraft((d) => ({ ...d, [id]: { ...d[id], [field]: value === '' ? '' : Number(value) } }));
+    setSavedIds((s) => { const next = new Set(s); next.delete(id); return next; });
   };
 
   // Đơn giá/Tỷ lệ có hiệu lực tại ngày đang nhập (theo lịch sử versioning).
@@ -251,6 +252,7 @@ export function AdvDataEntryPage({
                 const price = priceOf(ad);
                 const receivable = receivableOf(ad.type, { unitPrice: price, traffic: d.traffic, settlement: d.settlement });
                 const isOnline = ad.status !== false;
+                const isSaved = savedIds.has(ad.id);
                 return (
                   <tr key={ad.id} className="border-b border-gray-50 hover:bg-cyan-50/30">
                     <td className="px-3 py-2 whitespace-nowrap text-gray-600">{date}</td>
@@ -277,8 +279,8 @@ export function AdvDataEntryPage({
                       <div className="flex items-center gap-1.5 whitespace-nowrap">
                         {canCreate || canEdit ? (
                           <button onClick={() => saveRow(ad)}
-                            className="h-7 px-2.5 rounded-lg bg-emerald-500 text-white text-xs font-medium hover:bg-emerald-600">
-                            {t('entry.saveRow')}
+                            className={`h-7 px-2.5 rounded-lg text-xs font-medium ${isSaved ? 'bg-gray-100 text-emerald-700' : 'bg-emerald-500 text-white hover:bg-emerald-600'}`}>
+                            {isSaved ? t('entry.savedShort') : t('entry.saveRow')}
                           </button>
                         ) : null}
                       </div>

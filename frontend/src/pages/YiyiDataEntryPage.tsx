@@ -48,6 +48,7 @@ export function YiyiDataEntryPage() {
   const pup = Number(profitUnitPrice) || 0;
   const totalQty = CHANNELS.reduce((s, c) => s + (Number(qty[c]) || 0), 0);
   const enteredCount = CHANNELS.filter((c) => (Number(qty[c]) || 0) > 0).length;
+  const allEnteredSaved = enteredCount > 0 && CHANNELS.every((c) => saved.has(c) || (Number(qty[c]) || 0) === 0);
   const totalPayable = CHANNELS.reduce((s, c) => s + (Number(qty[c]) || 0) * up, 0);
   const totalProfit = CHANNELS.reduce((s, c) => s + (Number(qty[c]) || 0) * pup, 0);
 
@@ -130,7 +131,10 @@ export function YiyiDataEntryPage() {
                     <td className="px-4 py-3">
                       <input type="number" min={0} disabled={!canSave}
                         value={qty[c] === '' ? '' : String(qty[c])}
-                        onChange={(e) => setQty((s) => ({ ...s, [c]: e.target.value === '' ? '' : Number(e.target.value) }))}
+                        onChange={(e) => {
+                          setQty((s) => ({ ...s, [c]: e.target.value === '' ? '' : Number(e.target.value) }));
+                          setSaved((s) => { const next = new Set(s); next.delete(c); return next; });
+                        }}
                         className={inp} />
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -163,8 +167,8 @@ export function YiyiDataEntryPage() {
       {/* Save */}
       <div className="flex justify-end mt-5">
         <button onClick={save} disabled={!canSave}
-          className="h-10 px-6 rounded-lg bg-cyan-500 text-white text-sm font-semibold hover:bg-cyan-600 disabled:opacity-50">
-          {t('entry.saveRow')}
+          className={`h-10 px-6 rounded-lg text-sm font-semibold disabled:opacity-50 ${allEnteredSaved ? 'bg-gray-100 text-emerald-700' : 'bg-cyan-500 text-white hover:bg-cyan-600'}`}>
+          {allEnteredSaved ? t('entry.savedShort') : t('entry.saveRow')}
         </button>
       </div>
     </div>
