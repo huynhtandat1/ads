@@ -2,12 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
-import { useCollection, getAll, create, update, remove, refName, effectiveValue, setRate, type Row } from '../data/store';
+import { useCollection, getAll, create, update, refName, effectiveValue, setRate, type Row } from '../data/store';
 import { receivableOf, type BillingInputs } from '../lib/billing';
 import { RateEditor } from '../components/RateEditor';
-import { Toggle } from '../components/Toggle';
 import { LatestDataHint } from '../components/LatestDataHint';
-import { IconSearch, IconDownload, IconTrash, IconUpload } from '../components/icons';
+import { IconSearch, IconDownload, IconUpload } from '../components/icons';
 import { yesterdayStr } from '../lib/date';
 
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -42,7 +41,6 @@ export function AdvDataEntryPage({
 
   const canCreate = can(screen, 'create');
   const canEdit = can(screen, 'edit');
-  const canDelete = can(screen, 'delete');
 
   // Load saved values for the selected date into the editable grid.
   const load = () => {
@@ -118,14 +116,6 @@ export function AdvDataEntryPage({
     else create(COLLECTION, payload as Omit<Row, 'id'>);
     setSavedIds((s) => new Set(s).add(ad.id));
     toast(t('entry.savedRow'));
-  };
-
-  const deleteRow = (ad: Row) => {
-    const existing = getAll(COLLECTION).find((r) => r.date === date && (r.adIdId === ad.id || r.objectId === ad.name));
-    if (existing) remove(COLLECTION, existing.id);
-    setDraft((d) => ({ ...d, [ad.id]: { unitPrice: ad.unitPrice ?? '', traffic: '', settlement: '' } }));
-    setSavedIds((s) => { const n = new Set(s); n.delete(ad.id); return n; });
-    toast(t('common.deleted'));
   };
 
   // AI auto-fill: simulate fetching traffic/settlement from an external source for visible rows.
@@ -266,13 +256,10 @@ export function AdvDataEntryPage({
                       {receivable == null ? <span className="text-gray-300">—</span> : <span className="text-emerald-600">{money(receivable)}</span>}
                     </td>
                     <td className="px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <Toggle on={isOnline} disabled={!canEdit}
-                          onChange={() => update('adIds', ad.id, { status: !isOnline })} />
-                        <span className={`text-xs font-medium ${isOnline ? 'text-emerald-600' : 'text-gray-400'}`}>
-                          {isOnline ? t('entry.online') : t('entry.offline')}
-                        </span>
-                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        isOnline ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400'}`}>
+                        {isOnline ? t('entry.online') : t('entry.offline')}
+                      </span>
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1.5 whitespace-nowrap">
@@ -282,12 +269,6 @@ export function AdvDataEntryPage({
                             {t('entry.saveRow')}
                           </button>
                         ) : null}
-                        {canDelete && (
-                          <button onClick={() => deleteRow(ad)} title={t('entry.deleteRow')}
-                            className="h-7 px-2 inline-flex items-center gap-1 rounded-lg bg-rose-50 text-rose-600 text-xs font-medium hover:bg-rose-100">
-                            <IconTrash width={14} height={14} /> {t('entry.deleteRow')}
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>

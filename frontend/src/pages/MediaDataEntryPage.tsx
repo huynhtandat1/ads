@@ -2,12 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
-import { useCollection, getAll, create, update, remove, refName, effectiveValue, setRate, type Row } from '../data/store';
+import { useCollection, getAll, create, update, refName, effectiveValue, setRate, type Row } from '../data/store';
 import { receivableOf } from '../lib/billing';
 import { RateEditor } from '../components/RateEditor';
-import { Toggle } from '../components/Toggle';
 import { LatestDataHint } from '../components/LatestDataHint';
-import { IconSearch, IconDownload, IconTrash } from '../components/icons';
+import { IconSearch, IconDownload } from '../components/icons';
 import { yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importMedia';
@@ -39,7 +38,6 @@ export function MediaDataEntryPage() {
 
   const canCreate = can(screen, 'create');
   const canEdit = can(screen, 'edit');
-  const canDelete = can(screen, 'delete');
 
   const load = () => {
     const saved = new Set<number>();
@@ -123,13 +121,6 @@ export function MediaDataEntryPage() {
     else create(COLLECTION, buildPayload(m) as Omit<Row, 'id'>);
     setSavedIds((s) => new Set(s).add(m.id));
     toast(t('entry.savedRow'));
-  };
-
-  const deleteRow = (m: Row) => {
-    const existing = getAll(COLLECTION).find((r) => r.date === date && (r.mediaIdId === m.id || r.objectId === m.name));
-    if (existing) remove(COLLECTION, existing.id);
-    setSavedIds((s) => { const n = new Set(s); n.delete(m.id); return n; });
-    toast(t('common.deleted'));
   };
 
   const confirmAll = () => { rows.forEach(saveRow); toast(t('entry.savedAll')); };
@@ -259,14 +250,10 @@ export function MediaDataEntryPage() {
                           {c.netPay == null ? <span className="text-gray-300">0</span> : <span className="text-emerald-600">{money(c.netPay)}</span>}
                         </td>
                         <td className="px-3 py-2">
-                          {/* Trạng thái = link 媒体ID đang 上线/下线 (đồng bộ với màn nhập liệu nhà QC). */}
-                          <div className="flex items-center gap-2">
-                            <Toggle on={isOnline} disabled={!canEdit}
-                              onChange={() => update('mediaIds', m.id, { status: !isOnline })} />
-                            <span className={`text-xs font-medium ${isOnline ? 'text-emerald-600' : 'text-gray-400'}`}>
-                              {isOnline ? t('entry.online') : t('entry.offline')}
-                            </span>
-                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            isOnline ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400'}`}>
+                            {isOnline ? t('entry.online') : t('entry.offline')}
+                          </span>
                         </td>
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-1.5 whitespace-nowrap">
@@ -274,12 +261,6 @@ export function MediaDataEntryPage() {
                               <button onClick={() => saveRow(m)}
                                 className="h-7 px-2.5 rounded-lg bg-emerald-500 text-white text-xs font-medium hover:bg-emerald-600">
                                 {t('entry.saveRow')}
-                              </button>
-                            )}
-                            {canDelete && (
-                              <button onClick={() => deleteRow(m)} title={t('entry.deleteRow')}
-                                className="h-7 px-2 inline-flex items-center gap-1 rounded-lg bg-rose-50 text-rose-600 text-xs font-medium hover:bg-rose-100">
-                                <IconTrash width={14} height={14} />
                               </button>
                             )}
                           </div>
