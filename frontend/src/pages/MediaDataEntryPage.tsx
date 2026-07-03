@@ -5,7 +5,6 @@ import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, refName, effectiveValue, setRate, type Row } from '../data/store';
 import { receivableOf } from '../lib/billing';
 import { RateEditor } from '../components/RateEditor';
-import { LatestDataHint } from '../components/LatestDataHint';
 import { IconSearch, IconDownload } from '../components/icons';
 import { yesterdayStr } from '../lib/date';
 
@@ -151,8 +150,6 @@ export function MediaDataEntryPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2 justify-end">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={sel} />
-          {/* Lưu lượng của màn này lấy từ nhập liệu nhà QC (importAdv) → gợi ý theo cả 2 nguồn. */}
-          <LatestDataHint collections={[COLLECTION, 'importAdv']} current={date} onPick={setDate} />
           <select value={fAdv} onChange={(e) => { setFAdv(e.target.value); setFAdId(''); setFMediaId(''); }} className={sel}>
             <option value="">{t('entry.chooseAdv')}</option>
             {advOpts.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}

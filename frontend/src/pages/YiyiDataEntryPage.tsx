@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, type Row } from '../data/store';
-import { LatestDataHint } from '../components/LatestDataHint';
 import { yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importYiyi';
@@ -86,7 +85,6 @@ export function YiyiDataEntryPage() {
         <div className="flex flex-wrap items-center gap-2 justify-end">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
             className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white" />
-          <LatestDataHint collections={[COLLECTION]} current={date} onPick={setDate} />
         </div>
       </div>
 
