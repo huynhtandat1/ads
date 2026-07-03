@@ -5,9 +5,10 @@ import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, remove, refName, effectiveValue, setRate, type Row } from '../data/store';
 import { receivableOf, type BillingInputs } from '../lib/billing';
 import { RateEditor } from '../components/RateEditor';
+import { Toggle } from '../components/Toggle';
 import { IconSearch, IconDownload, IconTrash, IconUpload } from '../components/icons';
+import { yesterdayStr } from '../lib/date';
 
-const today = () => new Date().toISOString().slice(0, 10);
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 type Draft = BillingInputs;
@@ -26,11 +27,12 @@ export function AdvDataEntryPage({
   useCollection('rates'); // lịch sử đơn giá theo ngày
   const adIdsAll = useCollection('adIds');
 
-  const [date, setDate] = useState(today());
+  const [date, setDate] = useState(yesterdayStr());
   const [fAdv, setFAdv] = useState('');
   const [fOrder, setFOrder] = useState('');
   const [fAdId, setFAdId] = useState('');
-  const [fStatus, setFStatus] = useState<'all' | 'confirmed' | 'unconfirmed'>('all');
+  const [fStatus, setFStatus] = useState<'all' | 'online' | 'offline'>('all');
+  const [showOffline, setShowOffline] = useState(false);
   const [q, setQ] = useState('');
 
   const [draft, setDraft] = useState<Record<number, Draft>>({});
@@ -80,15 +82,17 @@ export function AdvDataEntryPage({
       if (fAdv && String(ad.advertiserId) !== fAdv) return false;
       if (fOrder && String(ad.adOrderId) !== fOrder) return false;
       if (fAdId && String(ad.id) !== fAdId) return false;
-      if (fStatus === 'confirmed' && !savedIds.has(ad.id)) return false;
-      if (fStatus === 'unconfirmed' && savedIds.has(ad.id)) return false;
+      const online = ad.status !== false;
+      if (!showOffline && !online) return false;
+      if (fStatus === 'online' && !online) return false;
+      if (fStatus === 'offline' && online) return false;
       if (lc) {
         const hay = `${ad.name} ${refName('advertisers', ad.advertiserId)} ${refName('adOrders', ad.adOrderId)}`.toLowerCase();
         if (!hay.includes(lc)) return false;
       }
       return true;
     });
-  }, [adIdsAll, fAdv, fOrder, fAdId, fStatus, q, savedIds]);
+  }, [adIdsAll, fAdv, fOrder, fAdId, fStatus, q, showOffline]);
 
   const setCell = (id: number, field: keyof Draft, value: string) => {
     setDraft((d) => ({ ...d, [id]: { ...d[id], [field]: value === '' ? '' : Number(value) } }));
@@ -195,9 +199,14 @@ export function AdvDataEntryPage({
           </select>
           <select value={fStatus} onChange={(e) => setFStatus(e.target.value as typeof fStatus)} className={sel}>
             <option value="all">{t('entry.allStatus')}</option>
-            <option value="confirmed">{t('entry.confirmed')}</option>
-            <option value="unconfirmed">{t('entry.unconfirmed')}</option>
+            <option value="online">{t('entry.online')}</option>
+            <option value="offline">{t('entry.offline')}</option>
           </select>
+          <label className="inline-flex items-center gap-1.5 text-xs text-gray-500 whitespace-nowrap">
+            <input type="checkbox" checked={showOffline} onChange={(e) => setShowOffline(e.target.checked)}
+              className="w-3.5 h-3.5 accent-cyan-500" />
+            {t('entry.showOffline')}
+          </label>
           <div className="relative">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('common.searchPh')}
@@ -237,7 +246,7 @@ export function AdvDataEntryPage({
                 const d = draft[ad.id] || { unitPrice: ad.unitPrice ?? '', traffic: '', settlement: '' };
                 const price = priceOf(ad);
                 const receivable = receivableOf(ad.type, { unitPrice: price, traffic: d.traffic, settlement: d.settlement });
-                const isSaved = savedIds.has(ad.id);
+                const isOnline = ad.status !== false;
                 return (
                   <tr key={ad.id} className="border-b border-gray-50 hover:bg-cyan-50/30">
                     <td className="px-3 py-2 whitespace-nowrap text-gray-600">{date}</td>
@@ -255,9 +264,13 @@ export function AdvDataEntryPage({
                       {receivable == null ? <span className="text-gray-300">—</span> : <span className="text-emerald-600">{money(receivable)}</span>}
                     </td>
                     <td className="px-3 py-2">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${isSaved ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'}`}>
-                        {isSaved ? `✓ ${t('entry.confirmed')}` : t('entry.confirm')}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <Toggle on={isOnline} disabled={!canEdit}
+                          onChange={() => update('adIds', ad.id, { status: !isOnline })} />
+                        <span className={`text-xs font-medium ${isOnline ? 'text-emerald-600' : 'text-gray-400'}`}>
+                          {isOnline ? t('entry.online') : t('entry.offline')}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1.5 whitespace-nowrap">

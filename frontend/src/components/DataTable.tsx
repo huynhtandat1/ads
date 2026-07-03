@@ -68,14 +68,16 @@ export function DataTable({
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null);
   const [page, setPage] = useState(1);
 
-  const filtered = useMemo(() => {
-    let data = [...rows];
+  const applyActiveFilters = (source: Row[], skip: { toolbarKey?: string; columnKey?: string } = {}) => {
+    let data = [...source];
     for (const f of filters) {
+      if (f.key === skip.toolbarKey) continue;
       const v = filterVals[f.key];
       if (v && v !== 'all') data = data.filter((r) => String(r[f.key]) === v);
     }
     // Bộ lọc theo từng cột (chọn giá trị có sẵn)
     for (const c of columns) {
+      if (c.key === skip.columnKey) continue;
       const fv = colFilters[c.key];
       if (!fv) continue;
       if (c.type === 'toggle') data = data.filter((r) => (r[c.key] ? 'on' : 'off') === fv);
@@ -90,17 +92,22 @@ export function DataTable({
         return String(r[k] ?? '').toLowerCase().includes(lc);
       }));
     }
-    // So sánh 2 ô của một cột theo hướng dir (1: tăng, -1: giảm).
-    const cmpCol = (col: Column, a: Row, b: Row, dir: 1 | -1): number => {
-      if (['currency', 'percent', 'number'].includes(col.type || '')) {
-        return ((Number(a[col.key]) || 0) - (Number(b[col.key]) || 0)) * dir;
-      }
-      const av = cellText(col, a), bv = cellText(col, b);
-      const na = Number(av), nb = Number(bv);
-      if (av !== '' && bv !== '' && !isNaN(na) && !isNaN(nb)) return (na - nb) * dir;
-      return av.localeCompare(bv) * dir;
-    };
+    return data;
+  };
 
+  // So sánh 2 ô của một cột theo hướng dir (1: tăng, -1: giảm).
+  const cmpCol = (col: Column, a: Row, b: Row, dir: 1 | -1): number => {
+    if (['currency', 'percent', 'number'].includes(col.type || '')) {
+      return ((Number(a[col.key]) || 0) - (Number(b[col.key]) || 0)) * dir;
+    }
+    const av = cellText(col, a), bv = cellText(col, b);
+    const na = Number(av), nb = Number(bv);
+    if (av !== '' && bv !== '' && !isNaN(na) && !isNaN(nb)) return (na - nb) * dir;
+    return av.localeCompare(bv) * dir;
+  };
+
+  const filtered = useMemo(() => {
+    const data = applyActiveFilters(rows);
     if (sort) {
       // Người dùng bấm tiêu đề → tôn trọng sắp xếp thủ công theo cột đó.
       const col = columns.find((c) => c.key === sort.key);
@@ -142,7 +149,7 @@ export function DataTable({
   // Giá trị có sẵn của một cột (để chọn trong bộ lọc).
   const distinctValues = (c: Column): string[] => {
     const set = new Set<string>();
-    for (const r of rows) for (const v of cellValues(c, r)) set.add(v);
+    for (const r of applyActiveFilters(rows, { columnKey: c.key })) for (const v of cellValues(c, r)) set.add(v);
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   };
 

@@ -4,27 +4,22 @@ import { useAuth } from '../auth/AuthContext';
 import { getAll, refName, type Row } from '../data/store';
 import { exportCSV } from '../lib/export';
 import { IconSearch, IconDownload } from '../components/icons';
+import { monthRangeUntilYesterday } from '../lib/date';
 
 const COLLECTION = 'importAdv';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
-const pad = (n: number) => String(n).padStart(2, '0');
-const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-function monthRange(offset: number): [string, string] {
-  const n = new Date();
-  const first = new Date(n.getFullYear(), n.getMonth() + offset, 1);
-  const last = new Date(n.getFullYear(), n.getMonth() + offset + 1, 0);
-  return [ymd(first), ymd(last)];
-}
 
 export function AdvReportPage() {
   const { t } = useTranslation();
   const { can } = useAuth();
   const screen = 'g4c';
 
-  const [from, setFrom] = useState(monthRange(0)[0]);
-  const [to, setTo] = useState(monthRange(0)[1]);
+  const [from, setFrom] = useState(monthRangeUntilYesterday(0)[0]);
+  const [to, setTo] = useState(monthRangeUntilYesterday(0)[1]);
   const [allDates, setAllDates] = useState(false);
   const [fAdv, setFAdv] = useState('');
+  const [fOrder, setFOrder] = useState('');
+  const [fAdId, setFAdId] = useState('');
   const [fType, setFType] = useState('');
   const [fStatus, setFStatus] = useState<'all' | 'confirmed' | 'unconfirmed'>('all');
   const [q, setQ] = useState('');
@@ -36,6 +31,8 @@ export function AdvReportPage() {
       if (!allDates && from && r.date < from) return false;
       if (!allDates && to && r.date > to) return false;
       if (fAdv && String(r.advertiserId) !== fAdv) return false;
+      if (fOrder && String(r.adOrderId) !== fOrder) return false;
+      if (fAdId && String(r.adIdId) !== fAdId) return false;
       if (fType && r.type !== fType) return false;
       if (fStatus === 'confirmed' && !r.status) return false;
       if (fStatus === 'unconfirmed' && r.status) return false;
@@ -48,10 +45,14 @@ export function AdvReportPage() {
     setResult(data);
   };
 
-  const pickThisMonth = () => { const [f, tt] = monthRange(0); setFrom(f); setTo(tt); setAllDates(false); };
-  const pickLastMonth = () => { const [f, tt] = monthRange(-1); setFrom(f); setTo(tt); setAllDates(false); };
+  const pickThisMonth = () => { const [f, tt] = monthRangeUntilYesterday(0); setFrom(f); setTo(tt); setAllDates(false); };
+  const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); setAllDates(false); };
 
   const rows = result ?? [];
+  const orderOptions = getAll('adOrders').filter((o) => !fAdv || String(o.advertiserId) === fAdv);
+  const adIdOptions = getAll('adIds').filter((a) =>
+    (!fAdv || String(a.advertiserId) === fAdv) && (!fOrder || String(a.adOrderId) === fOrder),
+  );
   const totals = rows.reduce(
     (s, r) => ({ traffic: s.traffic + (Number(r.traffic) || 0), settlement: s.settlement + (Number(r.settlement) || 0), receivable: s.receivable + (Number(r.receivable) || 0) }),
     { traffic: 0, settlement: 0, receivable: 0 },
@@ -106,9 +107,17 @@ export function AdvReportPage() {
             <button onClick={() => setAllDates(false)} className={`px-3 text-sm ${!allDates ? 'bg-cyan-500 text-white' : 'bg-white text-gray-600'}`}>{t('report.business')}</button>
             <button onClick={() => setAllDates(true)} className={`px-3 text-sm ${allDates ? 'bg-cyan-500 text-white' : 'bg-white text-gray-600'}`}>{t('report.allDates')}</button>
           </div>
-          <select value={fAdv} onChange={(e) => setFAdv(e.target.value)} className={sel}>
+          <select value={fAdv} onChange={(e) => { setFAdv(e.target.value); setFOrder(''); setFAdId(''); }} className={sel}>
             <option value="">{t('col.advertiser')}</option>
             {getAll('advertisers').map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
+          </select>
+          <select value={fOrder} onChange={(e) => { setFOrder(e.target.value); setFAdId(''); }} className={sel}>
+            <option value="">{t('col.adOrder')}</option>
+            {orderOptions.map((o) => <option key={o.id} value={String(o.id)}>{o.name}</option>)}
+          </select>
+          <select value={fAdId} onChange={(e) => setFAdId(e.target.value)} className={sel}>
+            <option value="">{t('col.adId')}</option>
+            {adIdOptions.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
           </select>
           <div className="relative">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />

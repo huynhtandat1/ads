@@ -97,7 +97,7 @@ function hasInvalidNumber(collection: string, row: Record<string, unknown>): boo
   }
   if (collection === 'mediaIds' && row.profitShare != null && row.profitShare !== '') {
     const profitShare = Number(row.profitShare);
-    if (!Number.isFinite(profitShare) || profitShare < 0 || profitShare > 100) return true;
+    if (!Number.isFinite(profitShare) || profitShare < 0) return true;
   }
   if (collection === 'rates' && row.value != null && row.value !== '') {
     const value = Number(row.value);
@@ -340,8 +340,11 @@ app.post('/api/:collection', auth, asyncHandler(async (req, res) => {
   if (row == null || row.id == null || !Number.isFinite(Number(row.id))) return res.status(400).json({ error: 'invalid id' });
   if (outOfScope((req as any).user, c, row)) return res.status(403).json({ error: 'forbidden' });
   if (hasInvalidNumber(c, row)) return res.status(400).json({ error: 'invalid number' });
-  // Không cho ghi đè bản ghi đã tồn tại qua thao tác tạo (client tự cấp id).
-  if ((db[c] || []).some((r) => r.id === Number(row.id))) return res.status(409).json({ error: 'id exists' });
+  // Client tự cấp id từ dữ liệu ĐÃ lọc theo scope nên có thể đụng bản ghi họ không thấy
+  // → server cấp lại id kế tiếp (client đồng bộ theo row trả về) thay vì từ chối.
+  if ((db[c] || []).some((r) => r.id === Number(row.id))) {
+    row.id = (db[c] || []).reduce((mx, r) => Math.max(mx, Number(r.id) || 0), 0) + 1;
+  }
   if (isDuplicate(c, row)) return res.status(409).json({ error: 'duplicate' });
   // Tự hash password khi tạo user; bỏ qua nếu đã là hash (chứa ':').
   if (c === 'users' && typeof row.password === 'string' && !row.password.includes(':')) {

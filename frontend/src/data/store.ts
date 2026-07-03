@@ -35,13 +35,30 @@ function appendLog(log?: Row) {
   if (log) { db.logs = [log, ...(db.logs || [])]; emit(); }
 }
 
+// Báo lỗi lưu cho người dùng (đăng ký từ ToastProvider). Trước đây lỗi server chỉ
+// console.warn → bản ghi hiện "Đã lưu" rồi biến mất sau khi tải lại mà không ai biết vì sao.
+export type SaveErrorKind = 'duplicate' | 'rejected';
+let notifySaveError: (kind: SaveErrorKind) => void = () => {};
+export function setSaveErrorNotifier(fn: (kind: SaveErrorKind) => void) { notifySaveError = fn; }
+const kindOf = (e: unknown): SaveErrorKind => ((e as any)?.status === 409 ? 'duplicate' : 'rejected');
+
 export function create(c: string, data: Omit<Row, 'id'>): Row {
   const row = { ...data, id: nextId(c) } as Row;
   db[c] = [row, ...(db[c] || [])];
   emit();
-  api.create(c, row).then((r) => appendLog(r.log)).catch((e) => {
-    db[c] = (db[c] || []).filter((x) => x.id !== row.id);
-    emit();
+  api.create(c, row).then((r) => {
+    // id do client cấp có thể đụng bản ghi ngoài scope → server cấp id mới, đồng bộ lại cache.
+    if (r.row && Number(r.row.id) !== row.id) {
+      db[c] = (db[c] || []).map((x) => (x === row ? { ...x, id: Number(r.row!.id) } : x));
+      emit();
+    }
+    appendLog(r.log);
+  }).catch((e) => {
+    // Server từ chối (trùng tên, hết quyền, ...) hoặc lỗi mạng → gỡ bản ghi tạm và báo lỗi rõ,
+    // tránh bản ghi "ma" hiển thị rồi tự biến mất sau khi tải lại trang.
+    const current = (db[c] || []).find((x) => x === row);
+    if (current) { db[c] = (db[c] || []).filter((x) => x !== row); emit(); }
+    notifySaveError(kindOf(e));
     console.error('create failed', e);
   });
   return row;
@@ -52,22 +69,32 @@ export function update(c: string, id: number, patch: Partial<Row>) {
   db[c] = (db[c] || []).map((r) => (r.id === id ? { ...r, ...patch } : r));
   emit();
   api.update(c, id, patch).then((r) => appendLog(r.log)).catch((e) => {
-    if (before) db[c] = (db[c] || []).map((r) => (r.id === id ? before : r));
-    emit();
+    if (before) { db[c] = (db[c] || []).map((r) => (r.id === id ? before : r)); emit(); }
+    notifySaveError(kindOf(e));
     console.error('update failed', e);
   });
 }
 
 export function remove(c: string, id: number) {
+  const removed = (db[c] || []).find((r) => r.id === id);
   db[c] = (db[c] || []).filter((r) => r.id !== id);
   emit();
-  api.remove(c, id).then((r) => appendLog(r.log)).catch((e) => console.error('delete failed', e));
+  api.remove(c, id).then((r) => appendLog(r.log)).catch((e) => {
+    if (removed) { db[c] = [removed, ...(db[c] || [])]; emit(); }
+    notifySaveError(kindOf(e));
+    console.error('delete failed', e);
+  });
 }
 
 export function toggleStatus(c: string, id: number) {
   db[c] = (db[c] || []).map((r) => (r.id === id ? { ...r, status: !r.status } : r));
   emit();
-  api.toggle(c, id).then((r) => appendLog(r.log)).catch((e) => console.error('toggle failed', e));
+  api.toggle(c, id).then((r) => appendLog(r.log)).catch((e) => {
+    db[c] = (db[c] || []).map((r) => (r.id === id ? { ...r, status: !r.status } : r));
+    emit();
+    notifySaveError(kindOf(e));
+    console.error('toggle failed', e);
+  });
 }
 
 // Quan hệ phụ thuộc: bản ghi cha -> các collection con tham chiếu tới nó.

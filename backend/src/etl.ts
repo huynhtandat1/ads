@@ -88,7 +88,7 @@ async function main() {
     const actual = Math.round(receivable * (shareRate / 100));
     return {
       id: r.id, date: r.d, objectId: `MID_${link.id}`, mediaIdId: link.id, mediaId: link.downstreamId,
-      mediaOrderId: null, adIdId: r.adSiteId, advertiserId: site?.upstreamId, type: site?.billingMethod,
+      mediaOrderId: null, adIdId: r.adSiteId, advertiserId: site?.upstreamId, adOrderId: site?.adOrderId, type: site?.billingMethod,
       unitPrice: num(r.unitPriceSnapshot), traffic: num(r.qty), settlement: num(r.amount1), coefficient: 1,
       receivable, shareRate, actual, revenue: receivable, cost: actual, clicks: num(r.qty),
       source: 'Media', status: bool(r.status),

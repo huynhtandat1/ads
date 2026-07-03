@@ -29,6 +29,8 @@ export interface CrudFieldCfg {
   hidden?: boolean; // không hiển thị trong form (vẫn giữ/derive giá trị)
   digitsOnly?: boolean; // chỉ cho nhập chữ số (vd: số điện thoại)
   placeholderKey?: string; // i18n key cho placeholder
+  sortActiveOptions?: boolean; // dropdown optionsFrom: ẩn bản ghi đã tắt + xếp số → Latin → Hán (pinyin)
+  usedOnce?: { collection: string; field: string }; // ẩn option đã được bản ghi khác trong collection.field dùng
 }
 
 export interface FilterCfg {
@@ -100,7 +102,7 @@ export const SCREENS: Record<string, ScreenConfig> = {
     ],
     filters: [{ key: 'advertiserId', labelKey: 'col.advertiser', from: 'advertisers' }],
     fields: [
-      { key: 'advertiserId', labelKey: 'col.advertiser', type: 'select', required: true, optionsFrom: 'advertisers' },
+      { key: 'advertiserId', labelKey: 'col.advertiser', type: 'select', required: true, optionsFrom: 'advertisers', sortActiveOptions: true },
       { key: 'name', labelKey: 'col.adOrder', type: 'text', required: true },
       { key: 'note', labelKey: 'col.note', type: 'textarea' },
     ],
@@ -118,8 +120,8 @@ export const SCREENS: Record<string, ScreenConfig> = {
     ],
     filters: [{ key: 'advertiserId', labelKey: 'col.advertiser', from: 'advertisers' }],
     fields: [
-      { key: 'advertiserId', labelKey: 'col.advertiser', type: 'select', required: true, optionsFrom: 'advertisers' },
-      { key: 'adOrderId', labelKey: 'col.adOrder', type: 'select', required: true, optionsFrom: 'adOrders', filterBy: { field: 'advertiserId', parentKey: 'advertiserId' } },
+      { key: 'advertiserId', labelKey: 'col.advertiser', type: 'select', required: true, optionsFrom: 'advertisers', sortActiveOptions: true },
+      { key: 'adOrderId', labelKey: 'col.adOrder', type: 'select', required: true, optionsFrom: 'adOrders', filterBy: { field: 'advertiserId', parentKey: 'advertiserId' }, sortActiveOptions: true },
       { key: 'name', labelKey: 'col.adId', type: 'text', required: true },
       { key: 'type', labelKey: 'col.type', type: 'select', required: true, options: TYPE_OPTS },
       { key: 'unitPrice', labelKey: 'col.unitPrice', type: 'number', step: 0.01, default: 0, dynLabel: PRICE_DYN_LABEL },
@@ -156,7 +158,7 @@ export const SCREENS: Record<string, ScreenConfig> = {
     ],
     filters: [{ key: 'mediaId', labelKey: 'col.media', from: 'media' }],
     fields: [
-      { key: 'mediaId', labelKey: 'col.media', type: 'select', required: true, optionsFrom: 'media' },
+      { key: 'mediaId', labelKey: 'col.media', type: 'select', required: true, optionsFrom: 'media', sortActiveOptions: true },
       { key: 'name', labelKey: 'col.mediaOrder', type: 'text', required: true },
       { key: 'note', labelKey: 'col.note', type: 'textarea' },
     ],
@@ -181,11 +183,11 @@ export const SCREENS: Record<string, ScreenConfig> = {
       { key: 'mediaId', labelKey: 'col.media', from: 'media' },
     ],
     fields: [
-      { key: 'advertiserId', labelKey: 'col.advertiser', type: 'select', required: true, optionsFrom: 'advertisers' },
-      { key: 'adOrderId', labelKey: 'col.adOrder', type: 'select', required: true, optionsFrom: 'adOrders', filterBy: { field: 'advertiserId', parentKey: 'advertiserId' } },
-      { key: 'adIdId', labelKey: 'col.adId', type: 'select', required: true, optionsFrom: 'adIds', filterBy: { field: 'adOrderId', parentKey: 'adOrderId' } },
-      { key: 'mediaId', labelKey: 'col.media', type: 'select', required: true, optionsFrom: 'media' },
-      { key: 'mediaOrderId', labelKey: 'col.mediaOrder', type: 'select', required: true, optionsFrom: 'mediaOrders', filterBy: { field: 'mediaId', parentKey: 'mediaId' } },
+      { key: 'advertiserId', labelKey: 'col.advertiser', type: 'select', required: true, optionsFrom: 'advertisers', sortActiveOptions: true },
+      { key: 'adOrderId', labelKey: 'col.adOrder', type: 'select', required: true, optionsFrom: 'adOrders', filterBy: { field: 'advertiserId', parentKey: 'advertiserId' }, sortActiveOptions: true },
+      { key: 'adIdId', labelKey: 'col.adId', type: 'select', required: true, optionsFrom: 'adIds', filterBy: { field: 'adOrderId', parentKey: 'adOrderId' }, sortActiveOptions: true, usedOnce: { collection: 'mediaIds', field: 'adIdId' } },
+      { key: 'mediaId', labelKey: 'col.media', type: 'select', required: true, optionsFrom: 'media', sortActiveOptions: true },
+      { key: 'mediaOrderId', labelKey: 'col.mediaOrder', type: 'select', required: true, optionsFrom: 'mediaOrders', filterBy: { field: 'mediaId', parentKey: 'mediaId' }, sortActiveOptions: true },
       { key: 'name', labelKey: 'col.mediaId', type: 'text', required: true },
       { key: 'type', labelKey: 'col.type', type: 'select', required: true, options: TYPE_OPTS, derive: { watch: 'adIdId', from: 'adIds', source: 'type' }, hidden: true },
       { key: 'unitPrice', labelKey: 'col.unitPrice', type: 'number', step: 0.01, default: 0, dynLabel: PRICE_DYN_LABEL },

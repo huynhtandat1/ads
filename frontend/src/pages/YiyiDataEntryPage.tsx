@@ -4,9 +4,10 @@ import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, type Row } from '../data/store';
 
+import { yesterdayStr } from '../lib/date';
+
 const COLLECTION = 'importYiyi';
 const CHANNELS = ['yy-02-01', 'yy-02-02', 'yy-02-03', 'yy-02-04'];
-const today = () => new Date().toISOString().slice(0, 10);
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 export function YiyiDataEntryPage() {
@@ -18,7 +19,7 @@ export function YiyiDataEntryPage() {
 
   const canSave = can(screen, 'create') || can(screen, 'edit');
 
-  const [date, setDate] = useState(today());
+  const [date, setDate] = useState(yesterdayStr());
   const [qty, setQty] = useState<Record<string, number | ''>>(() => Object.fromEntries(CHANNELS.map((c) => [c, 0])));
   const [unitPrice, setUnitPrice] = useState<number | ''>(0);
   const [profitUnitPrice, setProfitUnitPrice] = useState<number | ''>(0);

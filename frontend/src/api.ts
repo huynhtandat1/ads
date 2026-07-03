@@ -20,7 +20,10 @@ async function req<T = any>(method: string, path: string, body?: unknown): Promi
   }
   if (!res.ok) {
     const msg = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(msg.error || `${res.status} ${res.statusText}`);
+    const err: Error & { status?: number; body?: unknown } = new Error(msg.error || `${res.status} ${res.statusText}`);
+    err.status = res.status;
+    err.body = msg;
+    throw err;
   }
   return res.json();
 }
@@ -29,7 +32,7 @@ export const api = {
   login: (username: string, password: string) =>
     req<{ token: string; user: any; db: DB }>('POST', '/login', { username, password }),
   fetchDB: () => req<{ db: DB }>('GET', '/db'),
-  create: (c: string, row: Row) => req<{ log?: Row }>('POST', `/${c}`, row),
+  create: (c: string, row: Row) => req<{ log?: Row; row?: Row }>('POST', `/${c}`, row),
   update: (c: string, id: number, patch: Partial<Row>) => req<{ log?: Row }>('PUT', `/${c}/${id}`, patch),
   remove: (c: string, id: number) => req<{ log?: Row }>('DELETE', `/${c}/${id}`),
   toggle: (c: string, id: number) => req<{ log?: Row }>('POST', `/${c}/${id}/toggle`),

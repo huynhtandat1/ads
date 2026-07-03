@@ -24,6 +24,8 @@ export interface FieldDef {
   digitsOnly?: boolean; // chỉ cho nhập chữ số (vd: số điện thoại)
   placeholder?: string;     // raw placeholder
   placeholderKey?: string;  // i18n key cho placeholder
+  sortActiveOptions?: boolean; // dropdown optionsFrom: lọc status=false + xếp theo nhóm ký tự đầu
+  usedOnce?: { collection: string; field: string }; // ẩn option đã được bản ghi khác trong collection.field dùng
 }
 
 interface Props {
@@ -59,6 +61,26 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
   };
   const isValidNumberText = (v: unknown) => /^\d+(\.\d+)?$/.test(String(v));
 
+  // Phân nhóm ký tự đầu cho sortActiveOptions: 0 số, 1 Latin, 2 Hán, 3 còn lại.
+  const groupOfFirstChar = (label: string): number => {
+    const ch = String(label).trim().charAt(0);
+    if (!ch) return 3;
+    if (/[0-9]/.test(ch)) return 0;
+    if (/[a-zA-Z]/.test(ch)) return 1;
+    if (/[㐀-鿿豈-﫿]/.test(ch)) return 2;
+    return 3;
+  };
+  // Hán xếp theo pinyin; Latin/số xếp theo locale numeric; giữ thứ tự ổn định bằng value.
+  const collator = new Intl.Collator('zh-Hans-u-co-pinyin', { numeric: true, sensitivity: 'base' });
+  const compareGroupedOptionLabels = (a: { value: string; label: string }, b: { value: string; label: string }) => {
+    const la = String(a.label).trim();
+    const lb = String(b.label).trim();
+    const ga = groupOfFirstChar(la);
+    const gb = groupOfFirstChar(lb);
+    if (ga !== gb) return ga - gb;
+    return collator.compare(la, lb) || a.value.localeCompare(b.value);
+  };
+
   // Tự lấy giá trị field derive từ bản ghi mà field 'watch' đang trỏ tới (vd: Loại lấy từ ID quảng cáo).
   useEffect(() => {
     for (const f of fields) {
@@ -82,7 +104,7 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
       if (isNumericField(f) && raw !== '' && raw != null) {
         const n = Number(raw);
         if (!isValidNumberText(raw) || !Number.isFinite(n)) errs[f.key] = t('common.invalidNumber');
-        else if ((f.type === 'percent' || (f.key === 'unitPrice' && vals.type === 'CPS')) && n > 100) errs[f.key] = t('common.invalidPercent');
+        else if (f.key === 'unitPrice' && vals.type === 'CPS' && n > 100) errs[f.key] = t('common.invalidPercent');
       }
     }
     setErrors(errs);
@@ -103,7 +125,20 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
         const parentVal = vals[f.filterBy.parentKey];
         rows = parentVal ? rows.filter((r) => String(r[f.filterBy!.field]) === String(parentVal)) : [];
       }
-      return rows.map((r) => ({ value: String(r[f.optionValue || 'id']), label: String(r[f.optionLabel || 'name']) }));
+      if (f.sortActiveOptions) rows = rows.filter((r) => r.status !== false);
+      // Mỗi option chỉ được 1 bản ghi dùng: loại các giá trị đã bị bản ghi khác chiếm
+      // (giữ lại giá trị của chính bản ghi đang sửa).
+      if (f.usedOnce) {
+        const used = new Set(
+          getAll(f.usedOnce.collection)
+            .filter((r) => r.id !== initial?.id)
+            .map((r) => String(r[f.usedOnce!.field] ?? '')),
+        );
+        rows = rows.filter((r) => !used.has(String(r[f.optionValue || 'id'])));
+      }
+      const opts = rows.map((r) => ({ value: String(r[f.optionValue || 'id']), label: String(r[f.optionLabel || 'name']) }));
+      if (f.sortActiveOptions) opts.sort(compareGroupedOptionLabels);
+      return opts;
     }
     return [];
   };

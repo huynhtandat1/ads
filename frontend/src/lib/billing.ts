@@ -6,7 +6,7 @@ export interface BillingInputs {
 
 // "Số tiền phải thu" theo spec:
 //  - Cơ sở = Dữ liệu lưu lượng/Số tiền; KHI CÓ dữ liệu quyết toán thì dùng quyết toán thay thế.
-//  - CPM: Đơn giá × lưu lượng / 1000.
+//  - CPM: Đơn giá × cơ sở / 1000 (cost per mille — tính trên mỗi 1000 lượt).
 //  - CPC / CPA: Đơn giá × cơ sở.
 //  - CPS: Tỷ lệ chia (%) × cơ sở  (đơn giá đóng vai trò tỷ lệ %).
 
