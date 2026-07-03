@@ -50,7 +50,16 @@ export function AdvReportPage() {
   const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); setAllDates(false); };
 
   const rows = result ?? [];
-  const orderOptions = getAll('adOrders').filter((o) => !fAdv || String(o.advertiserId) === fAdv);
+  const orderOptions = (() => {
+    const seen = new Set<string>();
+    return getAll('adOrders').filter((o) => {
+      if (fAdv && String(o.advertiserId) !== fAdv) return false;
+      const key = `${o.advertiserId}::${String(o.name ?? '').trim().toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
   const adIdOptions = getAll('adIds').filter((a) =>
     (!fAdv || String(a.advertiserId) === fAdv) && (!fOrder || String(a.adOrderId) === fOrder),
   );

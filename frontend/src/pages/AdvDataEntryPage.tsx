@@ -66,7 +66,16 @@ export function AdvDataEntryPage({
   // Cascading dropdown option lists
   const advOpts = getAll('advertisers');
   const orderOpts = useMemo(
-    () => getAll('adOrders').filter((o) => !fAdv || String(o.advertiserId) === fAdv),
+    () => {
+      const seen = new Set<string>();
+      return getAll('adOrders').filter((o) => {
+        if (fAdv && String(o.advertiserId) !== fAdv) return false;
+        const key = `${o.advertiserId}::${String(o.name ?? '').trim().toLowerCase()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    },
     [fAdv, adIdsAll],
   );
   const adIdOpts = useMemo(

@@ -53,7 +53,16 @@ export function MediaDataEntryPage() {
   const advOpts = getAll('advertisers');
   const adIdOpts = useMemo(() => getAll('adIds').filter((a) => !fAdv || String(a.advertiserId) === fAdv), [fAdv, mediaIdsAll]);
   const mediaOpts = getAll('media');
-  const orderOpts = useMemo(() => getAll('mediaOrders').filter((o) => !fMedia || String(o.mediaId) === fMedia), [fMedia, mediaIdsAll]);
+  const orderOpts = useMemo(() => {
+    const seen = new Set<string>();
+    return getAll('mediaOrders').filter((o) => {
+      if (fMedia && String(o.mediaId) !== fMedia) return false;
+      const key = `${o.mediaId}::${String(o.name ?? '').trim().toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [fMedia, mediaIdsAll]);
   const mediaIdOpts = useMemo(
     () => mediaIdsAll.filter((m) =>
       (!fAdv || String(m.advertiserId) === fAdv) && (!fAdId || String(m.adIdId) === fAdId) &&

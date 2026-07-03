@@ -59,7 +59,16 @@ export function MediaReportPage() {
   const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); setAllDates(false); };
 
   const rows = result ?? [];
-  const orderOptions = getAll('mediaOrders').filter((o) => !fMedia || String(o.mediaId) === fMedia);
+  const orderOptions = (() => {
+    const seen = new Set<string>();
+    return getAll('mediaOrders').filter((o) => {
+      if (fMedia && String(o.mediaId) !== fMedia) return false;
+      const key = `${o.mediaId}::${String(o.name ?? '').trim().toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
   const mediaIdOptions = getAll('mediaIds').filter((m) =>
     (!fMedia || String(m.mediaId) === fMedia) && (!fOrder || String(m.mediaOrderId) === fOrder),
   );
