@@ -40,7 +40,17 @@ export function create(c: string, data: Omit<Row, 'id'>): Row {
   db[c] = [row, ...(db[c] || [])];
   emit();
   api.create(c, row).then((r) => appendLog(r.log)).catch((e) => {
-    db[c] = (db[c] || []).filter((x) => x.id !== row.id);
+    // Lỗi do người dùng/dữ liệu (4xx: trùng tên, id tồn tại, hết quyền, ...) → giữ bản ghi tạm
+    // để người dùng nhìn thấy và sửa; tránh xóa nhầm bản ghi khác nếu giữa chừng id bị "tái sử dụng".
+    const status = (e as any)?.status;
+    if (Number.isFinite(status) && status >= 400 && status < 500) {
+      console.warn(`create ${c}#${row.id} rejected by server (${status}); giữ bản ghi tạm`, e);
+      return;
+    }
+    // Lỗi mạng/5xx: chỉ rollback khi bản ghi tạm vẫn còn và vẫn là reference y hệt.
+    const current = (db[c] || []).find((x) => x.id === row.id);
+    if (!current || current !== row) return;
+    db[c] = (db[c] || []).filter((x) => x !== row);
     emit();
     console.error('create failed', e);
   });
@@ -52,6 +62,11 @@ export function update(c: string, id: number, patch: Partial<Row>) {
   db[c] = (db[c] || []).map((r) => (r.id === id ? { ...r, ...patch } : r));
   emit();
   api.update(c, id, patch).then((r) => appendLog(r.log)).catch((e) => {
+    const status = (e as any)?.status;
+    if (Number.isFinite(status) && status >= 400 && status < 500) {
+      console.warn(`update ${c}#${id} rejected by server (${status}); giữ thay đổi tạm`, e);
+      return;
+    }
     if (before) db[c] = (db[c] || []).map((r) => (r.id === id ? before : r));
     emit();
     console.error('update failed', e);

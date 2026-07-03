@@ -16,11 +16,22 @@ import { SettlementPage } from './pages/SettlementPage';
 import { LogsPage } from './pages/LogsPage';
 import { RolesPage } from './pages/RolesPage';
 import { DataIsolationPage } from './pages/DataIsolationPage';
-import { refName, type Row } from './data/store';
+import { getAll, refName, type Row } from './data/store';
+
+const adOrderLabel = (r: Row) => {
+  if (!r.adOrderId) return '';
+  const order = getAll('adOrders').find((o) => o.id === r.adOrderId);
+  if (!order) return '';
+  return `${refName('advertisers', order.advertiserId)} / ${order.name}`;
+};
 
 const REPORTS: Record<string, AggregateSpec> = {
   g4a: { screen: 'g4a', titleKey: 'menu.g4a', collections: ['importAI', 'importAdv', 'importMedia', 'importYiyi'], dim: (r: Row) => r.date, dimLabelKey: 'col.date', withTax: true },
-  g4b: { screen: 'g4b', titleKey: 'menu.g4b', collections: ['importAI', 'importAdv', 'importMedia', 'importYiyi'], dim: (r: Row) => (r.adOrderId ? refName('adOrders', r.adOrderId) : r.objectId), dimLabelKey: 'col.adOrder' },
+  g4b: {
+    screen: 'g4b', titleKey: 'menu.g4b', collections: ['importAI', 'importAdv', 'importMedia'],
+    dim: adOrderLabel,
+    dimLabelKey: 'col.adOrder',
+  },
 };
 
 /** Renders the right page only if the user has view permission for that screen. */

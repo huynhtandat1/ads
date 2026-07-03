@@ -4,17 +4,10 @@ import { getAll, refName, type Row } from '../data/store';
 import { receivableOf } from '../lib/billing';
 import { exportCSV } from '../lib/export';
 import { IconSearch, IconDownload } from '../components/icons';
+import { monthRangeUntilYesterday } from '../lib/date';
 
 const COLLECTION = 'importMedia';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
-const pad = (n: number) => String(n).padStart(2, '0');
-const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-function monthRange(offset: number): [string, string] {
-  const n = new Date();
-  const first = new Date(n.getFullYear(), n.getMonth() + offset, 1);
-  const last = new Date(n.getFullYear(), n.getMonth() + offset + 1, 0);
-  return [ymd(first), ymd(last)];
-}
 
 // Số tiền phải thu / tỷ lệ chia / thực nhận (theo công thức màn Quản lý dữ liệu media chính),
 // dùng giá trị đã lưu, fallback tính lại nếu thiếu.
@@ -30,10 +23,12 @@ export function MediaReportPage() {
   const { t } = useTranslation();
   const screen = 'g4d';
 
-  const [from, setFrom] = useState(monthRange(0)[0]);
-  const [to, setTo] = useState(monthRange(0)[1]);
+  const [from, setFrom] = useState(monthRangeUntilYesterday(0)[0]);
+  const [to, setTo] = useState(monthRangeUntilYesterday(0)[1]);
   const [allDates, setAllDates] = useState(false);
   const [fMedia, setFMedia] = useState('');
+  const [fOrder, setFOrder] = useState('');
+  const [fMediaId, setFMediaId] = useState('');
   const [fType, setFType] = useState('');
   const [fStatus, setFStatus] = useState<'all' | 'confirmed' | 'unconfirmed'>('all');
   const [q, setQ] = useState('');
@@ -45,6 +40,8 @@ export function MediaReportPage() {
       if (!allDates && from && r.date < from) return false;
       if (!allDates && to && r.date > to) return false;
       if (fMedia && String(r.mediaId) !== fMedia) return false;
+      if (fOrder && String(r.mediaOrderId) !== fOrder) return false;
+      if (fMediaId && String(r.mediaIdId) !== fMediaId) return false;
       if (fType && r.type !== fType) return false;
       if (fStatus === 'confirmed' && !r.status) return false;
       if (fStatus === 'unconfirmed' && r.status) return false;
@@ -57,10 +54,14 @@ export function MediaReportPage() {
     setResult(data);
   };
 
-  const pickThisMonth = () => { const [f, tt] = monthRange(0); setFrom(f); setTo(tt); setAllDates(false); };
-  const pickLastMonth = () => { const [f, tt] = monthRange(-1); setFrom(f); setTo(tt); setAllDates(false); };
+  const pickThisMonth = () => { const [f, tt] = monthRangeUntilYesterday(0); setFrom(f); setTo(tt); setAllDates(false); };
+  const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); setAllDates(false); };
 
   const rows = result ?? [];
+  const orderOptions = getAll('mediaOrders').filter((o) => !fMedia || String(o.mediaId) === fMedia);
+  const mediaIdOptions = getAll('mediaIds').filter((m) =>
+    (!fMedia || String(m.mediaId) === fMedia) && (!fOrder || String(m.mediaOrderId) === fOrder),
+  );
   const totals = rows.reduce((s, r) => {
     const c = compute(r);
     return {
@@ -122,9 +123,17 @@ export function MediaReportPage() {
             <button onClick={() => setAllDates(false)} className={`px-3 text-sm ${!allDates ? 'bg-cyan-500 text-white' : 'bg-white text-gray-600'}`}>{t('report.business')}</button>
             <button onClick={() => setAllDates(true)} className={`px-3 text-sm ${allDates ? 'bg-cyan-500 text-white' : 'bg-white text-gray-600'}`}>{t('report.allDates')}</button>
           </div>
-          <select value={fMedia} onChange={(e) => setFMedia(e.target.value)} className={sel}>
+          <select value={fMedia} onChange={(e) => { setFMedia(e.target.value); setFOrder(''); setFMediaId(''); }} className={sel}>
             <option value="">{t('col.media')}</option>
             {getAll('media').map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
+          </select>
+          <select value={fOrder} onChange={(e) => { setFOrder(e.target.value); setFMediaId(''); }} className={sel}>
+            <option value="">{t('col.mediaOrder')}</option>
+            {orderOptions.map((o) => <option key={o.id} value={String(o.id)}>{o.name}</option>)}
+          </select>
+          <select value={fMediaId} onChange={(e) => setFMediaId(e.target.value)} className={sel}>
+            <option value="">{t('col.mediaId')}</option>
+            {mediaIdOptions.map((m) => <option key={m.id} value={String(m.id)}>{m.name}</option>)}
           </select>
           <div className="relative">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />

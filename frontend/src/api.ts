@@ -20,7 +20,10 @@ async function req<T = any>(method: string, path: string, body?: unknown): Promi
   }
   if (!res.ok) {
     const msg = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(msg.error || `${res.status} ${res.statusText}`);
+    const err: Error & { status?: number; body?: unknown } = new Error(msg.error || `${res.status} ${res.statusText}`);
+    err.status = res.status;
+    err.body = msg;
+    throw err;
   }
   return res.json();
 }

@@ -4,6 +4,7 @@ import { snapshot, useCollection, effectiveValue, setRate, type Row } from '../d
 import { exportCSV } from '../lib/export';
 import { RateEditor } from '../components/RateEditor';
 import { IconSearch, IconDownload } from '../components/icons';
+import { monthRangeUntilYesterday, ymd } from '../lib/date';
 
 export interface AggregateSpec {
   screen: string;
@@ -17,12 +18,6 @@ export interface AggregateSpec {
 const TAX_PCT = 6; // Điểm thuế mặc định 6% (có thể sửa theo hiệu lực ngày)
 const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
-const pad = (n: number) => String(n).padStart(2, '0');
-const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-function monthRange(offset: number): [string, string] {
-  const n = new Date();
-  return [ymd(new Date(n.getFullYear(), n.getMonth() + offset, 1)), ymd(new Date(n.getFullYear(), n.getMonth() + offset + 1, 0))];
-}
 
 interface GroupRow { dim: string; revenue: number; cost: number; profit: number; margin: number; tax: number; afterTax: number }
 
@@ -32,12 +27,12 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
   useCollection('rates'); // điểm thuế theo hiệu lực ngày
   const todayStr = ymd(new Date());
 
-  const [from, setFrom] = useState(monthRange(0)[0]);
-  const [to, setTo] = useState(monthRange(0)[1]);
+  const [from, setFrom] = useState(monthRangeUntilYesterday(0)[0]);
+  const [to, setTo] = useState(monthRangeUntilYesterday(0)[1]);
   const [allDates, setAllDates] = useState(false);
   const [q, setQ] = useState('');
   const [queried, setQueried] = useState(false);
-  const [params, setParams] = useState({ from: monthRange(0)[0], to: monthRange(0)[1], allDates: false, q: '' });
+  const [params, setParams] = useState({ from: monthRangeUntilYesterday(0)[0], to: monthRangeUntilYesterday(0)[1], allDates: false, q: '' });
 
   const groups = useMemo<GroupRow[]>(() => {
     if (!queried) return [];
@@ -48,7 +43,8 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
     for (const r of src) {
       if (!params.allDates && params.from && r.date < params.from) continue;
       if (!params.allDates && params.to && r.date > params.to) continue;
-      const dim = spec.dim(r) || '-';
+      const dim = spec.dim(r);
+      if (!dim) continue;
       if (lc && !dim.toLowerCase().includes(lc)) continue;
       const g = map.get(dim) || { revenue: 0, cost: 0 };
       g.revenue += Number(r.revenue) || 0;
@@ -69,8 +65,8 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
   }), { revenue: 0, cost: 0, profit: 0, tax: 0, afterTax: 0 });
 
   const runQuery = () => { setParams({ from, to, allDates, q }); setQueried(true); };
-  const pickThisMonth = () => { const [f, tt] = monthRange(0); setFrom(f); setTo(tt); setAllDates(false); };
-  const pickLastMonth = () => { const [f, tt] = monthRange(-1); setFrom(f); setTo(tt); setAllDates(false); };
+  const pickThisMonth = () => { const [f, tt] = monthRangeUntilYesterday(0); setFrom(f); setTo(tt); setAllDates(false); };
+  const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); setAllDates(false); };
 
   const HEADERS = [t(spec.dimLabelKey), t('col.revenue'), t('col.cost'), t('col.profit'),
     ...(spec.withTax ? [t('col.tax'), t('col.afterTax')] : []), t('col.margin')];

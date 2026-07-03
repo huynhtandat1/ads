@@ -97,7 +97,7 @@ function hasInvalidNumber(collection: string, row: Record<string, unknown>): boo
   }
   if (collection === 'mediaIds' && row.profitShare != null && row.profitShare !== '') {
     const profitShare = Number(row.profitShare);
-    if (!Number.isFinite(profitShare) || profitShare < 0 || profitShare > 100) return true;
+    if (!Number.isFinite(profitShare) || profitShare < 0) return true;
   }
   if (collection === 'rates' && row.value != null && row.value !== '') {
     const value = Number(row.value);

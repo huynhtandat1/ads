@@ -68,14 +68,16 @@ export function DataTable({
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null);
   const [page, setPage] = useState(1);
 
-  const filtered = useMemo(() => {
-    let data = [...rows];
+  const applyActiveFilters = (source: Row[], skip: { toolbarKey?: string; columnKey?: string } = {}) => {
+    let data = [...source];
     for (const f of filters) {
+      if (f.key === skip.toolbarKey) continue;
       const v = filterVals[f.key];
       if (v && v !== 'all') data = data.filter((r) => String(r[f.key]) === v);
     }
     // Bộ lọc theo từng cột (chọn giá trị có sẵn)
     for (const c of columns) {
+      if (c.key === skip.columnKey) continue;
       const fv = colFilters[c.key];
       if (!fv) continue;
       if (c.type === 'toggle') data = data.filter((r) => (r[c.key] ? 'on' : 'off') === fv);
@@ -90,6 +92,11 @@ export function DataTable({
         return String(r[k] ?? '').toLowerCase().includes(lc);
       }));
     }
+    return data;
+  };
+
+  const filtered = useMemo(() => {
+    const data = applyActiveFilters(rows);
     if (sort) {
       const col = columns.find((c) => c.key === sort.key);
       data.sort((a, b) => {
@@ -117,10 +124,15 @@ export function DataTable({
     setSort((s) => (s?.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
   };
 
+  const toolbarOptions = (f: FilterDef) => {
+    const available = new Set(applyActiveFilters(rows, { toolbarKey: f.key }).map((r) => String(r[f.key])));
+    return f.options.filter((o) => available.has(o.value));
+  };
+
   // Giá trị có sẵn của một cột (để chọn trong bộ lọc).
   const distinctValues = (c: Column): string[] => {
     const set = new Set<string>();
-    for (const r of rows) for (const v of cellValues(c, r)) set.add(v);
+    for (const r of applyActiveFilters(rows, { columnKey: c.key })) for (const v of cellValues(c, r)) set.add(v);
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   };
 
@@ -173,7 +185,7 @@ export function DataTable({
             onChange={(e) => { setFilterVals((v) => ({ ...v, [f.key]: e.target.value })); setPage(1); }}
             className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-200">
             <option value="all">{f.label}: {t('common.all')}</option>
-            {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {toolbarOptions(f).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         ))}
         <div className="relative">

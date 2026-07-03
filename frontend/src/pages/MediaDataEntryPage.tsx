@@ -6,9 +6,9 @@ import { useCollection, getAll, create, update, remove, refName, effectiveValue,
 import { receivableOf } from '../lib/billing';
 import { RateEditor } from '../components/RateEditor';
 import { IconSearch, IconDownload, IconTrash } from '../components/icons';
+import { yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importMedia';
-const today = () => new Date().toISOString().slice(0, 10);
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 const typeOf = (mid: Row): string => mid.type ?? getAll('adIds').find((a) => a.id === mid.adIdId)?.type ?? '-';
@@ -23,12 +23,13 @@ export function MediaDataEntryPage() {
   useCollection('rates');     // lịch sử đơn giá/hệ số/tỷ lệ chia TK
   const mediaIdsAll = useCollection('mediaIds');
 
-  const [date, setDate] = useState(today());
+  const [date, setDate] = useState(yesterdayStr());
   const [fMedia, setFMedia] = useState('');
   const [fOrder, setFOrder] = useState('');
   const [fMediaId, setFMediaId] = useState('');
   const [fStatus, setFStatus] = useState<'all' | 'confirmed' | 'unconfirmed'>('all');
   const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
   const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
 
   const canCreate = can(screen, 'create');
@@ -44,6 +45,7 @@ export function MediaDataEntryPage() {
     setSavedIds(saved);
   };
   useEffect(load, [date]);
+  useEffect(() => { setPage(1); }, [date, fMedia, fOrder, fMediaId, fStatus, q]);
 
   const mediaOpts = getAll('media');
   const orderOpts = useMemo(() => getAll('mediaOrders').filter((o) => !fMedia || String(o.mediaId) === fMedia), [fMedia, mediaIdsAll]);
@@ -61,7 +63,7 @@ export function MediaDataEntryPage() {
       if (fStatus === 'confirmed' && !savedIds.has(m.id)) return false;
       if (fStatus === 'unconfirmed' && savedIds.has(m.id)) return false;
       if (lc) {
-        const hay = `${m.name} ${refName('media', m.mediaId)} ${refName('mediaOrders', m.mediaOrderId)}`.toLowerCase();
+        const hay = `${m.name} ${refName('media', m.mediaId)} ${refName('mediaOrders', m.mediaOrderId)} ${refName('advertisers', m.advertiserId)} ${refName('adOrders', m.adOrderId)} ${refName('adIds', m.adIdId)}`.toLowerCase();
         if (!hay.includes(lc)) return false;
       }
       return true;
@@ -85,12 +87,17 @@ export function MediaDataEntryPage() {
     return { type, traffic, settlement, unitPrice, coef, accountShare, payable, netPay };
   };
 
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const curPage = Math.min(page, totalPages);
+  const pageRows = rows.slice((curPage - 1) * pageSize, curPage * pageSize);
   const dayTotal = rows.reduce((s, m) => s + (calc(m).netPay ?? 0), 0);
 
   const buildPayload = (m: Row) => {
     const c = calc(m);
     return {
       date, objectId: m.name, mediaIdId: m.id, mediaId: m.mediaId, mediaOrderId: m.mediaOrderId, adIdId: m.adIdId,
+      advertiserId: m.advertiserId, adOrderId: m.adOrderId,
       type: c.type, unitPrice: c.unitPrice, traffic: Number(c.traffic) || 0, settlement: Number(c.settlement) || 0,
       coefficient: c.coef, payable: c.payable ?? 0, shareRate: c.accountShare, actual: c.netPay ?? 0, receivable: c.payable ?? 0,
       revenue: c.payable ?? 0, cost: c.netPay ?? 0, clicks: Number(c.traffic) || 0, source: 'Media', status: true,
@@ -193,7 +200,7 @@ export function MediaDataEntryPage() {
                     </td>
                   </tr>
 
-                  {rows.map((m) => {
+                  {pageRows.map((m) => {
                     const c = calc(m);
                     const isSaved = savedIds.has(m.id);
                     return (
@@ -251,6 +258,16 @@ export function MediaDataEntryPage() {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="flex items-center justify-between p-4 text-sm text-gray-500 border-t border-gray-100">
+          <span>{t('common.total')} {rows.length} {t('common.rows')}</span>
+          <div className="flex items-center gap-1">
+            <button disabled={curPage <= 1} onClick={() => setPage(curPage - 1)}
+              className="h-8 px-3 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50">‹</button>
+            <span className="px-3">{curPage} / {totalPages}</span>
+            <button disabled={curPage >= totalPages} onClick={() => setPage(curPage + 1)}
+              className="h-8 px-3 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50">›</button>
+          </div>
         </div>
       </div>
     </div>

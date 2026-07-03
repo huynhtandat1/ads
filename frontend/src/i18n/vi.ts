@@ -18,7 +18,7 @@ export default {
   menu: {
     g1: 'Quản lý nhà quảng cáo', g1a: 'Quản lý nhà quảng cáo', g1b: 'Quản lý đơn quảng cáo', g1c: 'Quản lý ID quảng cáo',
     g2: 'Quản lý lưu lượng', g2a: 'Media', g2b: 'Đơn quảng cáo media', g2c: 'Quản lý ID media',
-    g3: 'Nhập dữ liệu', g3a: 'Nhập dữ liệu AI', g3b: 'Nhập dữ liệu nhà quảng cáo', g3c: 'Dữ liệu media chính', g3d: 'Nhập dữ liệu Yiyi',
+    g3: 'Nhập dữ liệu', g3a: 'Nhập dữ liệu AI', g3b: 'Nhập dữ liệu nhà quảng cáo', g3c: 'Chỉnh sửa dữ liệu media', g3d: 'Nhập dữ liệu Yiyi',
     g4: 'Truy vấn dữ liệu', g4a: 'Lợi nhuận tổng', g4b: 'Lợi nhuận đơn quảng cáo', g4c: 'Dữ liệu nhà quảng cáo', g4d: 'Dữ liệu media', g4e: 'Báo cáo Yiyi',
     g5: 'Phiếu thanh toán', g5a: 'Thanh toán nhà quảng cáo', g5b: 'Thanh toán media',
     g6: 'Nhật ký thao tác',
@@ -65,6 +65,7 @@ export default {
     allStatus: 'Tất cả trạng thái', unitShare: 'Đơn giá / Tỷ lệ chia sẻ',
     traffic: 'Dữ liệu lưu lượng', settlement: 'Dữ liệu quyết toán / Số tiền nhà QC', receivable: 'Số tiền phải thu',
     value: 'Giá trị', confirm: 'Xác nhận dữ liệu', confirmed: 'Đã xác nhận', unconfirmed: 'Chưa xác nhận',
+    online: 'Đang hoạt động', offline: 'Ngừng hoạt động', showOffline: 'Hiện cả liên kết ngừng hoạt động',
     saveRow: 'Lưu vào hệ thống', deleteRow: 'Xóa dữ liệu', savedRow: 'Đã lưu vào hệ thống', forDate: 'Dữ liệu ngày',
     aiFill: 'AI tự động điền', aiFilled: 'đã tự động điền dữ liệu',
     chooseMedia: 'Chọn media', chooseMediaOrder: 'Chọn đơn quảng', chooseMediaId: 'Chọn ID media',
