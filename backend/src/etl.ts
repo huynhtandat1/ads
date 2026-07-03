@@ -12,6 +12,16 @@ const sourceUrl = (() => { const u = new URL(TARGET); u.pathname = '/' + SOURCE_
 const num = (v: unknown) => Number(v ?? 0);
 const bool = (s: unknown) => String(s).toLowerCase() === 'active' || String(s).toLowerCase() === 'confirmed';
 
+// Số tiền phải thu tính lại theo loại (đồng bộ với frontend/src/lib/billing.ts và seed.ts):
+//  CPM = giá×cơ sở/1000 (per mille) · CPS = cơ sở×giá(%) · CPC/CPA = giá×cơ sở.
+// KHÔNG lấy revenue có sẵn của DB nguồn: nguồn tính CPM không chia 1000 → sai 1000 lần.
+function receivableOf(type: string | undefined, price: number, base: number): number {
+  if (!price || !base) return 0;
+  if (type === 'CPS') return (base * price) / 100;
+  if (type === 'CPM') return (price * base) / 1000;
+  return price * base;
+}
+
 async function main() {
   const src = new Pool({ connectionString: sourceUrl });
   const tgt = new Pool({ connectionString: TARGET });
@@ -69,11 +79,15 @@ async function main() {
 
   db.importAdv = daily.map((r) => {
     const site = adSiteById.get(r.adSiteId);
+    const base = num(r.amount1) || num(r.qty); // quyết toán, rớt về lưu lượng
+    const receivable = Math.round(receivableOf(site?.billingMethod, num(r.unitPriceSnapshot), base));
+    // Giữ TỶ LỆ rebate của nguồn (rebateAmount/revenue) nhưng áp lên receivable đã tính đúng thang.
+    const rebateRate = num(r.revenue) ? num(r.rebateAmount) / num(r.revenue) : 0;
     return {
       id: r.id, date: r.d, objectId: site?.name ?? String(r.adSiteId), adIdId: r.adSiteId,
       advertiserId: site?.upstreamId, adOrderId: site?.adOrderId, type: site?.billingMethod,
       unitPrice: num(r.unitPriceSnapshot), traffic: num(r.qty), settlement: num(r.amount1),
-      receivable: Math.round(num(r.revenue)), revenue: num(r.revenue), cost: num(r.rebateAmount),
+      receivable, revenue: receivable, cost: Math.round(receivable * rebateRate),
       clicks: num(r.qty), source: 'Advertiser', status: bool(r.status),
     };
   });
@@ -83,7 +97,8 @@ async function main() {
     const site = adSiteById.get(r.adSiteId);
     const link = linkByAdSite.get(r.adSiteId);
     const down = downById.get(link.downstreamId);
-    const receivable = Math.round(num(r.revenue));
+    const base = num(r.amount1) || num(r.qty);
+    const receivable = Math.round(receivableOf(site?.billingMethod, num(r.unitPriceSnapshot), base));
     const shareRate = Math.round(num(down?.payoutRate) * 100);
     const actual = Math.round(receivable * (shareRate / 100));
     return {

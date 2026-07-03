@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getAll } from '../data/store';
 import { exportCSV } from '../lib/export';
+import { LatestDataHint } from '../components/LatestDataHint';
 import { IconSearch, IconDownload, IconRefresh } from '../components/icons';
 
 const COLLECTION = 'importYiyi';
@@ -90,6 +91,8 @@ export function YiyiReportPage() {
           <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className={sel}>
             {months.map((m) => <option key={m} value={m}>{t('report.month')} {m}</option>)}
           </select>
+          <LatestDataHint collections={[COLLECTION]}
+            onPick={(d) => { const y = Number(d.slice(0, 4)), m = Number(d.slice(5, 7)); setYear(y); setMonth(m); setQuery({ year: y, month: m }); }} />
           <button onClick={() => setQuery({ year, month })}
             className="h-9 px-4 inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600">
             <IconSearch width={16} height={16} /> {t('report.query')}

@@ -6,6 +6,7 @@ import { useCollection, getAll, create, update, remove, refName, effectiveValue,
 import { receivableOf } from '../lib/billing';
 import { RateEditor } from '../components/RateEditor';
 import { Toggle } from '../components/Toggle';
+import { LatestDataHint } from '../components/LatestDataHint';
 import { IconSearch, IconDownload, IconTrash } from '../components/icons';
 import { yesterdayStr } from '../lib/date';
 
@@ -25,6 +26,8 @@ export function MediaDataEntryPage() {
   const mediaIdsAll = useCollection('mediaIds');
 
   const [date, setDate] = useState(yesterdayStr());
+  const [fAdv, setFAdv] = useState('');
+  const [fAdId, setFAdId] = useState('');
   const [fMedia, setFMedia] = useState('');
   const [fOrder, setFOrder] = useState('');
   const [fMediaId, setFMediaId] = useState('');
@@ -47,18 +50,24 @@ export function MediaDataEntryPage() {
     setSavedIds(saved);
   };
   useEffect(load, [date]);
-  useEffect(() => { setPage(1); }, [date, fMedia, fOrder, fMediaId, fStatus, q, showOffline]);
+  useEffect(() => { setPage(1); }, [date, fAdv, fAdId, fMedia, fOrder, fMediaId, fStatus, q, showOffline]);
 
+  const advOpts = getAll('advertisers');
+  const adIdOpts = useMemo(() => getAll('adIds').filter((a) => !fAdv || String(a.advertiserId) === fAdv), [fAdv, mediaIdsAll]);
   const mediaOpts = getAll('media');
   const orderOpts = useMemo(() => getAll('mediaOrders').filter((o) => !fMedia || String(o.mediaId) === fMedia), [fMedia, mediaIdsAll]);
   const mediaIdOpts = useMemo(
-    () => mediaIdsAll.filter((m) => (!fMedia || String(m.mediaId) === fMedia) && (!fOrder || String(m.mediaOrderId) === fOrder)),
-    [fMedia, fOrder, mediaIdsAll],
+    () => mediaIdsAll.filter((m) =>
+      (!fAdv || String(m.advertiserId) === fAdv) && (!fAdId || String(m.adIdId) === fAdId) &&
+      (!fMedia || String(m.mediaId) === fMedia) && (!fOrder || String(m.mediaOrderId) === fOrder)),
+    [fAdv, fAdId, fMedia, fOrder, mediaIdsAll],
   );
 
   const rows = useMemo(() => {
     const lc = q.trim().toLowerCase();
     return mediaIdsAll.filter((m) => {
+      if (fAdv && String(m.advertiserId) !== fAdv) return false;
+      if (fAdId && String(m.adIdId) !== fAdId) return false;
       if (fMedia && String(m.mediaId) !== fMedia) return false;
       if (fOrder && String(m.mediaOrderId) !== fOrder) return false;
       if (fMediaId && String(m.id) !== fMediaId) return false;
@@ -72,7 +81,7 @@ export function MediaDataEntryPage() {
       }
       return true;
     });
-  }, [mediaIdsAll, fMedia, fOrder, fMediaId, fStatus, q, savedIds, showOffline]);
+  }, [mediaIdsAll, fAdv, fAdId, fMedia, fOrder, fMediaId, fStatus, q, savedIds, showOffline]);
 
   // Lưu lượng/quyết toán lấy từ nhập liệu nhà QC theo ID quảng cáo (adIdId) + ngày.
   const advOf = (m: Row) => getAll('importAdv').find((r) => r.date === date && r.adIdId === m.adIdId);
@@ -144,6 +153,16 @@ export function MediaDataEntryPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2 justify-end">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={sel} />
+          {/* Lưu lượng của màn này lấy từ nhập liệu nhà QC (importAdv) → gợi ý theo cả 2 nguồn. */}
+          <LatestDataHint collections={[COLLECTION, 'importAdv']} current={date} onPick={setDate} />
+          <select value={fAdv} onChange={(e) => { setFAdv(e.target.value); setFAdId(''); setFMediaId(''); }} className={sel}>
+            <option value="">{t('entry.chooseAdv')}</option>
+            {advOpts.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
+          </select>
+          <select value={fAdId} onChange={(e) => { setFAdId(e.target.value); setFMediaId(''); }} className={sel}>
+            <option value="">{t('entry.chooseAdId')}</option>
+            {adIdOpts.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
+          </select>
           <select value={fMedia} onChange={(e) => { setFMedia(e.target.value); setFOrder(''); setFMediaId(''); }} className={sel}>
             <option value="">{t('entry.chooseMedia')}</option>
             {mediaOpts.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}

@@ -19,7 +19,7 @@ export default {
   menu: {
     g1: '广告主管理', g1a: '广告主管理', g1b: '广告订单管理', g1c: '广告ID管理',
     g2: '流量管理', g2a: '媒体', g2b: '媒体广告订单', g2c: '媒体ID管理',
-    g3: '数据录入', g3a: 'AI数据录入', g3b: '广告主数据录入', g3c: '编辑媒体数据', g3d: 'Yiyi数据录入',
+    g3: '数据录入', g3a: 'AI数据录入', g3b: '广告主数据录入', g3c: '媒体数据编辑', g3d: 'Yiyi数据录入',
     g4: '数据查询', g4a: '总利润', g4b: '广告订单利润', g4c: '广告主数据', g4d: '媒体数据', g4e: 'Yiyi报表',
     g5: '结算单', g5a: '广告主结算', g5b: '媒体结算',
     g6: '操作日志',
@@ -66,7 +66,7 @@ export default {
     allStatus: '全部状态', unitShare: '单价 / 分成比例',
     traffic: '流量数据', settlement: '结算数据 / 广告主金额', receivable: '应收金额',
     value: '数值', confirm: '确认数据', confirmed: '已确认', unconfirmed: '未确认',
-    online: '在线', offline: '离线', showOffline: '同时显示离线链接',
+    online: '在线', offline: '离线', showOffline: '同时显示离线链接', latestData: '最近有数据的日期',
     saveRow: '保存到系统', deleteRow: '删除数据', savedRow: '已保存到系统', forDate: '数据日期',
     aiFill: 'AI 自动填充', aiFilled: '已自动填充数据',
     chooseMedia: '选择媒体', chooseMediaOrder: '选择广告订单', chooseMediaId: '选择媒体ID',

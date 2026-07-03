@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
 import { getAll, refName, type Row } from '../data/store';
 import { exportCSV } from '../lib/export';
+import { LatestDataHint } from '../components/LatestDataHint';
 import { IconSearch, IconDownload } from '../components/icons';
 import { monthRangeUntilYesterday } from '../lib/date';
 
@@ -96,6 +97,8 @@ export function AdvReportPage() {
           </div>
           <button onClick={pickThisMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.thisMonth')}</button>
           <button onClick={pickLastMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.lastMonth')}</button>
+          <LatestDataHint collections={[COLLECTION]} current={to}
+            onPick={(d) => { setFrom(`${d.slice(0, 7)}-01`); setTo(d); setAllDates(false); }} />
         </div>
 
         <div className="flex-1" />

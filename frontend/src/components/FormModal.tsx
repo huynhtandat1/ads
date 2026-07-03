@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getAll, type Row } from '../data/store';
+import { compareGroupedLabels } from '../lib/optionSort';
 import { Toggle } from './Toggle';
 import { IconTrash } from './icons';
 
@@ -61,25 +62,9 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
   };
   const isValidNumberText = (v: unknown) => /^\d+(\.\d+)?$/.test(String(v));
 
-  // Phân nhóm ký tự đầu cho sortActiveOptions: 0 số, 1 Latin, 2 Hán, 3 còn lại.
-  const groupOfFirstChar = (label: string): number => {
-    const ch = String(label).trim().charAt(0);
-    if (!ch) return 3;
-    if (/[0-9]/.test(ch)) return 0;
-    if (/[a-zA-Z]/.test(ch)) return 1;
-    if (/[㐀-鿿豈-﫿]/.test(ch)) return 2;
-    return 3;
-  };
-  // Hán xếp theo pinyin; Latin/số xếp theo locale numeric; giữ thứ tự ổn định bằng value.
-  const collator = new Intl.Collator('zh-Hans-u-co-pinyin', { numeric: true, sensitivity: 'base' });
-  const compareGroupedOptionLabels = (a: { value: string; label: string }, b: { value: string; label: string }) => {
-    const la = String(a.label).trim();
-    const lb = String(b.label).trim();
-    const ga = groupOfFirstChar(la);
-    const gb = groupOfFirstChar(lb);
-    if (ga !== gb) return ga - gb;
-    return collator.compare(la, lb) || a.value.localeCompare(b.value);
-  };
+  // Số → Latin → Hán (pinyin); giữ thứ tự ổn định bằng value.
+  const compareGroupedOptionLabels = (a: { value: string; label: string }, b: { value: string; label: string }) =>
+    compareGroupedLabels(String(a.label), String(b.label)) || a.value.localeCompare(b.value);
 
   // Tự lấy giá trị field derive từ bản ghi mà field 'watch' đang trỏ tới (vd: Loại lấy từ ID quảng cáo).
   useEffect(() => {

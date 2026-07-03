@@ -6,6 +6,7 @@ import { useCollection, getAll, create, update, remove, refName, effectiveValue,
 import { receivableOf, type BillingInputs } from '../lib/billing';
 import { RateEditor } from '../components/RateEditor';
 import { Toggle } from '../components/Toggle';
+import { LatestDataHint } from '../components/LatestDataHint';
 import { IconSearch, IconDownload, IconTrash, IconUpload } from '../components/icons';
 import { yesterdayStr } from '../lib/date';
 
@@ -185,6 +186,7 @@ export function AdvDataEntryPage({
         </div>
         <div className="flex flex-wrap items-center gap-2 justify-end">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={sel} />
+          <LatestDataHint collections={[COLLECTION]} current={date} onPick={setDate} />
           <select value={fAdv} onChange={(e) => { setFAdv(e.target.value); setFOrder(''); setFAdId(''); }} className={sel}>
             <option value="">{t('entry.chooseAdv')}</option>
             {advOpts.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}

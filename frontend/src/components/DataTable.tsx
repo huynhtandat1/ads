@@ -5,6 +5,7 @@ import { Toggle } from './Toggle';
 import { IconSearch, IconDownload, IconFilter } from './icons';
 import { exportCSV } from '../lib/export';
 import { formatId } from '../lib/format';
+import { compareGroupedLabels } from '../lib/optionSort';
 
 export interface Column {
   key: string;
@@ -150,7 +151,8 @@ export function DataTable({
   const distinctValues = (c: Column): string[] => {
     const set = new Set<string>();
     for (const r of applyActiveFilters(rows, { columnKey: c.key })) for (const v of cellValues(c, r)) set.add(v);
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
+    // Cùng thứ tự với dropdown trong form: số → Latin → Hán (pinyin).
+    return Array.from(set).sort(compareGroupedLabels);
   };
 
   const doExport = () => {

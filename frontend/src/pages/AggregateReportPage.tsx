@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { snapshot, useCollection, effectiveValue, setRate, type Row } from '../data/store';
 import { exportCSV } from '../lib/export';
 import { RateEditor } from '../components/RateEditor';
+import { LatestDataHint } from '../components/LatestDataHint';
 import { IconSearch, IconDownload } from '../components/icons';
 import { monthRangeUntilYesterday, ymd } from '../lib/date';
 
@@ -98,6 +99,8 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
           </div>
           <button onClick={pickThisMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.thisMonth')}</button>
           <button onClick={pickLastMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.lastMonth')}</button>
+          <LatestDataHint collections={spec.collections} current={to}
+            onPick={(d) => { setFrom(`${d.slice(0, 7)}-01`); setTo(d); setAllDates(false); }} />
           {spec.withTax && (
             <div className="flex items-end gap-1.5">
               <label className="block text-xs text-gray-500 mb-1">{t('col.tax')}:</label>

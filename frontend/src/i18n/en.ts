@@ -66,7 +66,7 @@ export default {
     allStatus: 'All Status', unitShare: 'Unit Price / Share Rate',
     traffic: 'Traffic Data', settlement: 'Settlement / Advertiser Amount', receivable: 'Receivable',
     value: 'Value', confirm: 'Confirm Data', confirmed: 'Confirmed', unconfirmed: 'Unconfirmed',
-    online: 'Online', offline: 'Offline', showOffline: 'Show offline links too',
+    online: 'Online', offline: 'Offline', showOffline: 'Show offline links too', latestData: 'Latest data date',
     saveRow: 'Save to System', deleteRow: 'Delete', savedRow: 'Saved to system', forDate: 'Data for',
     aiFill: 'AI Auto-fill', aiFilled: 'auto-filled data',
     chooseMedia: 'Select Media', chooseMediaOrder: 'Select Ad Order', chooseMediaId: 'Select Media ID',

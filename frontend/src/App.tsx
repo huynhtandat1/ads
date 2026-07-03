@@ -16,20 +16,21 @@ import { SettlementPage } from './pages/SettlementPage';
 import { LogsPage } from './pages/LogsPage';
 import { RolesPage } from './pages/RolesPage';
 import { DataIsolationPage } from './pages/DataIsolationPage';
-import { getAll, refName, type Row } from './data/store';
+import { getAll, type Row } from './data/store';
 
-const adOrderLabel = (r: Row) => {
+// 业务 = tên đơn quảng cáo (360 / sm / Qianwen...): gộp chung các 广告主 có cùng đơn,
+// không tách "advertiser / order" như trước (spec #9: 查询按业务分类).
+const adOrderName = (r: Row) => {
   if (!r.adOrderId) return '';
   const order = getAll('adOrders').find((o) => o.id === r.adOrderId);
-  if (!order) return '';
-  return `${refName('advertisers', order.advertiserId)} / ${order.name}`;
+  return order ? String(order.name) : '';
 };
 
 const REPORTS: Record<string, AggregateSpec> = {
   g4a: { screen: 'g4a', titleKey: 'menu.g4a', collections: ['importAI', 'importAdv', 'importMedia', 'importYiyi'], dim: (r: Row) => r.date, dimLabelKey: 'col.date', withTax: true },
   g4b: {
     screen: 'g4b', titleKey: 'menu.g4b', collections: ['importAI', 'importAdv', 'importMedia'],
-    dim: adOrderLabel,
+    dim: adOrderName,
     dimLabelKey: 'col.adOrder',
   },
 };
