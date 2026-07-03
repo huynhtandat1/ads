@@ -13,12 +13,13 @@ const num = (v: unknown) => Number(v ?? 0);
 const bool = (s: unknown) => String(s).toLowerCase() === 'active' || String(s).toLowerCase() === 'confirmed';
 
 // Số tiền phải thu tính lại theo loại (đồng bộ với frontend/src/lib/billing.ts và seed.ts):
-//  CPM/CPC/CPA = giá×cơ sở · CPS = cơ sở×giá(%).
-//  CPM đã bỏ /1000 theo spec 2026-07-03. KHÔNG lấy revenue có sẵn của DB nguồn vì
-//  nguồn có thể đã có /1000 hoặc chưa → tính lại từ đầu cho nhất quán.
+//  CPM = giá×cơ sở/1000 (cost per mille) · CPC/CPA = giá×cơ sở · CPS = cơ sở×giá(%).
+//  KHÔNG lấy revenue có sẵn của DB nguồn vì nguồn có thể đã có /1000 hoặc chưa
+//  → tính lại từ đầu cho nhất quán.
 function receivableOf(type: string | undefined, price: number, base: number): number {
   if (!price || !base) return 0;
   if (type === 'CPS') return (base * price) / 100;
+  if (type === 'CPM') return (price * base) / 1000;
   return price * base;
 }
 
