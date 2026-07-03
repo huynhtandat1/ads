@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { snapshot, useCollection, effectiveValue, setRate, type Row } from '../data/store';
+import { snapshot, useDB, effectiveValue, setRate, type Row } from '../data/store';
 import { exportCSV } from '../lib/export';
 import { RateEditor } from '../components/RateEditor';
 import { LatestDataHint } from '../components/LatestDataHint';
@@ -24,8 +24,9 @@ interface GroupRow { dim: string; revenue: number; cost: number; profit: number;
 
 export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
   const { t } = useTranslation();
-  spec.collections.forEach((c) => useCollection(c));
-  useCollection('rates'); // điểm thuế theo hiệu lực ngày
+  // Số hook phải CỐ ĐỊNH giữa các lần render (spec.collections dài ngắn khác nhau
+  // giữa g4a/g4b) → subscribe cả DB bằng 1 hook thay vì useCollection trong vòng lặp.
+  useDB(); // gồm cả spec.collections lẫn 'rates' (điểm thuế theo hiệu lực ngày)
   const todayStr = ymd(new Date());
 
   const [from, setFrom] = useState(monthRangeUntilYesterday(0)[0]);

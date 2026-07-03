@@ -179,6 +179,16 @@ export function useCollection(c: string): Row[] {
   return useSyncExternalStore(subscribe, () => db[c] || EMPTY);
 }
 
+/**
+ * Reactive hook: toàn bộ DB, re-render khi bất kỳ collection nào đổi.
+ * Dùng khi danh sách collection phụ thuộc props (vd AggregateReportPage) —
+ * gọi useCollection trong vòng lặp làm SỐ HOOK thay đổi giữa 2 lần render
+ * cùng một instance (chuyển route g4a↔g4b) → React crash "change in order of Hooks".
+ */
+export function useDB(): DB {
+  return useSyncExternalStore(subscribe, snapshot);
+}
+
 /** Lookup helper: name of a referenced row by id. */
 export function refName(c: string, id: number | undefined, field = 'name'): string {
   if (id == null) return '-';

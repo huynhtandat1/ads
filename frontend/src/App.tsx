@@ -65,8 +65,9 @@ export default function App() {
               <Route path="import-media" element={<Guard screen="g3c"><MediaDataEntryPage /></Guard>} />
               <Route path="import-yiyi" element={<Guard screen="g3d"><YiyiDataEntryPage /></Guard>} />
 
-              <Route path="report-profit" element={<Guard screen="g4a"><AggregateReportPage spec={REPORTS.g4a} /></Guard>} />
-              <Route path="report-order-profit" element={<Guard screen="g4b"><AggregateReportPage spec={REPORTS.g4b} /></Guard>} />
+              {/* key: 2 route dùng chung component — buộc remount khi chuyển, mỗi báo cáo giữ state riêng */}
+              <Route path="report-profit" element={<Guard screen="g4a"><AggregateReportPage key="g4a" spec={REPORTS.g4a} /></Guard>} />
+              <Route path="report-order-profit" element={<Guard screen="g4b"><AggregateReportPage key="g4b" spec={REPORTS.g4b} /></Guard>} />
               <Route path="report-advertiser" element={<Guard screen="g4c"><AdvReportPage /></Guard>} />
               <Route path="report-media" element={<Guard screen="g4d"><MediaReportPage /></Guard>} />
               <Route path="report-yiyi" element={<Guard screen="g4e"><YiyiReportPage /></Guard>} />
