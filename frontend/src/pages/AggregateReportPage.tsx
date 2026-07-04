@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { snapshot, useDB, effectiveValue, setRate, type Row } from '../data/store';
+import { snapshot, useDB, effectiveValue, setRate, getAll, type Row } from '../data/store';
 import { exportCSV } from '../lib/export';
 import { RateEditor } from '../components/RateEditor';
 import { LatestDataHint } from '../components/LatestDataHint';
@@ -32,9 +32,10 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
   const [from, setFrom] = useState(yesterdayStr());
   const [to, setTo] = useState(yesterdayStr());
   const [allDates, setAllDates] = useState(false);
+  const [fAdv, setFAdv] = useState('');
   const [q, setQ] = useState('');
   const [queried, setQueried] = useState(true); // tự truy vấn hôm qua khi vào trang
-  const [params, setParams] = useState({ from: yesterdayStr(), to: yesterdayStr(), allDates: false, q: '' });
+  const [params, setParams] = useState({ from: yesterdayStr(), to: yesterdayStr(), allDates: false, fAdv: '', q: '' });
 
   const groups = useMemo<GroupRow[]>(() => {
     if (!queried) return [];
@@ -45,6 +46,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
     for (const r of src) {
       if (!params.allDates && params.from && r.date < params.from) continue;
       if (!params.allDates && params.to && r.date > params.to) continue;
+      if (params.fAdv && String(r.advertiserId) !== params.fAdv) continue;
       const dim = spec.dim(r);
       if (!dim) continue;
       if (lc && !dim.toLowerCase().includes(lc)) continue;
@@ -66,7 +68,8 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
     revenue: s.revenue + g.revenue, cost: s.cost + g.cost, profit: s.profit + g.profit, tax: s.tax + g.tax, afterTax: s.afterTax + g.afterTax,
   }), { revenue: 0, cost: 0, profit: 0, tax: 0, afterTax: 0 });
 
-  const runQuery = () => { setParams({ from, to, allDates, q }); setQueried(true); };
+  const runQuery = () => { setParams({ from, to, allDates, fAdv, q }); setQueried(true); };
+  useEffect(runQuery, [from, to, allDates, fAdv, q]);
   const pickThisMonth = () => { const [f, tt] = monthRangeUntilYesterday(0); setFrom(f); setTo(tt); setAllDates(false); };
   const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); setAllDates(false); };
 
@@ -116,6 +119,12 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
             <button onClick={() => setAllDates(false)} className={`px-3 text-sm ${!allDates ? 'bg-cyan-500 text-white' : 'bg-white text-gray-600'}`}>{t('report.business')}</button>
             <button onClick={() => setAllDates(true)} className={`px-3 text-sm ${allDates ? 'bg-cyan-500 text-white' : 'bg-white text-gray-600'}`}>{t('report.allDates')}</button>
           </div>
+          {spec.screen === 'g4b' && (
+            <select value={fAdv} onChange={(e) => setFAdv(e.target.value)} className={sel}>
+              <option value="">{t('col.advertiser')}</option>
+              {getAll('advertisers').map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
+            </select>
+          )}
           <div className="relative">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('common.searchPh')}

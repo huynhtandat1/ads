@@ -133,11 +133,6 @@ export function AdvReportPage() {
             <option value="">{t('col.adId')}</option>
             {adIdOptions.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
           </select>
-          <div className="relative">
-            <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('common.searchPh')}
-              className="h-9 pl-8 pr-3 rounded-lg border border-gray-200 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-cyan-200" />
-          </div>
           <select value={fType} onChange={(e) => setFType(e.target.value)} className={sel}>
             <option value="">{t('col.type')}</option>
             {['CPM', 'CPA', 'CPS'].map((x) => <option key={x} value={x}>{x}</option>)}
@@ -147,6 +142,11 @@ export function AdvReportPage() {
             <option value="confirmed">{t('entry.confirmed')}</option>
             <option value="unconfirmed">{t('entry.unconfirmed')}</option>
           </select>
+          <div className="relative">
+            <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('common.searchPh')}
+              className="h-9 pl-8 pr-3 rounded-lg border border-gray-200 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-cyan-200" />
+          </div>
           <button onClick={runQuery} className="h-9 px-4 inline-flex items-center gap-1.5 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600">
             <IconSearch width={16} height={16} /> {t('report.query')}
           </button>

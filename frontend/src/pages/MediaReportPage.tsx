@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { effectiveValue, getAll, refName, useCollection, type Row } from '../data/store';
 import { receivableOf } from '../lib/billing';
@@ -9,6 +9,7 @@ import { monthRangeUntilYesterday, yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importMedia';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 
 function compute(r: Row) {
   const coefficient = Number(r.coefficient ?? 1) || 1;
@@ -26,6 +27,7 @@ function compute(r: Row) {
 export function MediaReportPage() {
   const { t } = useTranslation();
   const screen = 'g4d';
+  useCollection(COLLECTION);
   useCollection('mediaIds');
   useCollection('rates');
 
@@ -40,13 +42,20 @@ export function MediaReportPage() {
   const [q, setQ] = useState('');
   const [result, setResult] = useState<Row[] | null>(null);
 
-  const runQuery = () => {
+  const orderIdsMatchingFilter = useMemo(() => {
+    if (!fOrder) return null;
+    const picked = getAll('mediaOrders').find((o) => String(o.id) === fOrder);
+    const name = norm(picked?.name);
+    return new Set(getAll('mediaOrders').filter((o) => norm(o.name) === name).map((o) => o.id));
+  }, [fOrder]);
+
+  const filteredRows = useMemo(() => {
     const lc = q.trim().toLowerCase();
-    const data = getAll(COLLECTION).filter((r) => {
+    return getAll(COLLECTION).filter((r) => {
       if (!allDates && from && r.date < from) return false;
       if (!allDates && to && r.date > to) return false;
       if (fMedia && String(r.mediaId) !== fMedia) return false;
-      if (fOrder && String(r.mediaOrderId) !== fOrder) return false;
+      if (orderIdsMatchingFilter && !orderIdsMatchingFilter.has(r.mediaOrderId as number)) return false;
       if (fMediaId && String(r.mediaIdId) !== fMediaId) return false;
       if (fType && r.type !== fType) return false;
       if (fStatus === 'confirmed' && !r.status) return false;
@@ -57,10 +66,11 @@ export function MediaReportPage() {
       }
       return true;
     }).sort((a, b) => (a.date < b.date ? 1 : -1));
-    setResult(data);
-  };
+  }, [from, to, allDates, fMedia, orderIdsMatchingFilter, fMediaId, fType, fStatus, q]);
 
-  useEffect(() => { runQuery(); }, []); // tự truy vấn hôm qua khi vào trang
+  const runQuery = () => setResult(filteredRows);
+
+  useEffect(() => { setResult(filteredRows); }, [filteredRows]);
 
   const pickThisMonth = () => { const [f, tt] = monthRangeUntilYesterday(0); setFrom(f); setTo(tt); setAllDates(false); };
   const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); setAllDates(false); };
@@ -77,7 +87,7 @@ export function MediaReportPage() {
     });
   })();
   const mediaIdOptions = getAll('mediaIds').filter((m) =>
-    (!fMedia || String(m.mediaId) === fMedia) && (!fOrder || String(m.mediaOrderId) === fOrder),
+    (!fMedia || String(m.mediaId) === fMedia) && (!orderIdsMatchingFilter || orderIdsMatchingFilter.has(m.mediaOrderId as number)),
   );
   const totals = rows.reduce((s, r) => {
     const c = compute(r);
@@ -154,11 +164,6 @@ export function MediaReportPage() {
             <option value="">{t('col.mediaId')}</option>
             {mediaIdOptions.map((m) => <option key={m.id} value={String(m.id)}>{m.name}</option>)}
           </select>
-          <div className="relative">
-            <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('common.searchPh')}
-              className="h-9 pl-8 pr-3 rounded-lg border border-gray-200 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-cyan-200" />
-          </div>
           <select value={fType} onChange={(e) => setFType(e.target.value)} className={sel}>
             <option value="">{t('col.type')}</option>
             {['CPM', 'CPA', 'CPS'].map((x) => <option key={x} value={x}>{x}</option>)}
@@ -168,6 +173,11 @@ export function MediaReportPage() {
             <option value="confirmed">{t('entry.confirmed')}</option>
             <option value="unconfirmed">{t('entry.unconfirmed')}</option>
           </select>
+          <div className="relative">
+            <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('common.searchPh')}
+              className="h-9 pl-8 pr-3 rounded-lg border border-gray-200 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-cyan-200" />
+          </div>
           <button onClick={runQuery} className="h-9 px-4 inline-flex items-center gap-1.5 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600">
             <IconSearch width={16} height={16} /> {t('report.query')}
           </button>
