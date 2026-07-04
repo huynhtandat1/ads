@@ -12,6 +12,7 @@ import { AdvReportPage } from './pages/AdvReportPage';
 import { YiyiReportPage } from './pages/YiyiReportPage';
 import { MediaReportPage } from './pages/MediaReportPage';
 import { AggregateReportPage, type AggregateSpec } from './pages/AggregateReportPage';
+import { TotalProfitPage } from './pages/TotalProfitPage';
 import { SettlementPage } from './pages/SettlementPage';
 import { LogsPage } from './pages/LogsPage';
 import { RolesPage } from './pages/RolesPage';
@@ -27,11 +28,11 @@ const adOrderName = (r: Row) => {
 };
 
 const REPORTS: Record<string, AggregateSpec> = {
-  g4a: { screen: 'g4a', titleKey: 'menu.g4a', collections: ['importAI', 'importAdv', 'importMedia', 'importYiyi'], dim: (r: Row) => r.date, dimLabelKey: 'col.date', withTax: true },
   g4b: {
     screen: 'g4b', titleKey: 'menu.g4b', collections: ['importAI', 'importAdv', 'importMedia'],
     dim: adOrderName,
     dimLabelKey: 'col.adOrder',
+    withTax: true,
   },
 };
 
@@ -65,8 +66,7 @@ export default function App() {
               <Route path="import-media" element={<Guard screen="g3c"><MediaDataEntryPage /></Guard>} />
               <Route path="import-yiyi" element={<Guard screen="g3d"><YiyiDataEntryPage /></Guard>} />
 
-              {/* key: 2 route dùng chung component — buộc remount khi chuyển, mỗi báo cáo giữ state riêng */}
-              <Route path="report-profit" element={<Guard screen="g4a"><AggregateReportPage key="g4a" spec={REPORTS.g4a} /></Guard>} />
+              <Route path="report-profit" element={<Guard screen="g4a"><TotalProfitPage /></Guard>} />
               <Route path="report-order-profit" element={<Guard screen="g4b"><AggregateReportPage key="g4b" spec={REPORTS.g4b} /></Guard>} />
               <Route path="report-advertiser" element={<Guard screen="g4c"><AdvReportPage /></Guard>} />
               <Route path="report-media" element={<Guard screen="g4d"><MediaReportPage /></Guard>} />

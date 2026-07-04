@@ -55,6 +55,7 @@ export default {
     business: '业务', allDates: '全部日期', confirmFilter: '已确认', grandTotal: '总计',
     queryHint: '请选择日期范围并点击查询以查看数据。',
     traffic: '流量', unitPriceShort: '单价', profitUnitPrice: '利润单价',
+    profitToday: '今日利润', profitMonth: '本月利润',
     yiyiDesc: '按月跟踪 Yiyi 数据，汇总流量、应付金额、利润和总计。',
     year: '年', month: '月', exportCSV: '导出CSV', daysUnit: '天',
     invalidRows: '无效行数', validData: '数据有效',

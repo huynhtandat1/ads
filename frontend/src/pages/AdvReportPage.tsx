@@ -137,7 +137,7 @@ export function AdvReportPage() {
           </select>
           <select value={fType} onChange={(e) => setFType(e.target.value)} className={sel}>
             <option value="">{t('col.type')}</option>
-            {['CPM', 'CPA', 'CPS'].map((x) => <option key={x} value={x}>{x}</option>)}
+            {['CPM', 'CPC', 'CPA', 'CPS'].map((x) => <option key={x} value={x}>{x}</option>)}
           </select>
           <select value={fPrice} onChange={(e) => setFPrice(e.target.value)} className={sel}>
             <option value="">{t('report.unitPriceShort')}</option>

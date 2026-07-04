@@ -55,6 +55,7 @@ export default {
     business: 'Business', allDates: 'All Dates', confirmFilter: 'Confirmed', grandTotal: 'Grand Total',
     queryHint: 'Select a date range and click Query to view data.',
     traffic: 'Traffic', unitPriceShort: 'Unit Price', profitUnitPrice: 'Profit Unit Price',
+    profitToday: 'Profit Today', profitMonth: 'Profit This Month',
     yiyiDesc: 'Track Yiyi data by month — traffic, payable, profit and grand total.',
     year: 'Year', month: 'Month', exportCSV: 'Export CSV', daysUnit: 'days',
     invalidRows: 'invalid rows', validData: 'Valid data',

@@ -55,6 +55,7 @@ export default {
     business: 'Nghiệp vụ', allDates: 'Tất cả ngày', confirmFilter: 'Đã xác nhận', grandTotal: 'Tổng cộng',
     queryHint: 'Chọn khoảng ngày rồi bấm Truy vấn để xem dữ liệu.',
     traffic: 'Lưu lượng', unitPriceShort: 'Đơn giá', profitUnitPrice: 'Đơn giá lợi nhuận',
+    profitToday: 'Lợi nhuận hôm nay', profitMonth: 'Lợi nhuận tháng này',
     yiyiDesc: 'Theo dõi dữ liệu Yiyi theo tháng, tổng hợp traffic, số tiền phải trả, lợi nhuận và tổng cộng.',
     year: 'Năm', month: 'Tháng', exportCSV: 'Xuất CSV', daysUnit: 'ngày',
     invalidRows: 'Số dòng không hợp lệ', validData: 'Dữ liệu hợp lệ',
