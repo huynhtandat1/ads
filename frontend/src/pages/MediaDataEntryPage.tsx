@@ -29,6 +29,8 @@ export function MediaDataEntryPage() {
   const [fMedia, setFMedia] = useState('');
   const [fOrder, setFOrder] = useState('');
   const [fMediaId, setFMediaId] = useState('');
+  const [fType, setFType] = useState('');
+  const [fPrice, setFPrice] = useState('');
   const [fStatus, setFStatus] = useState<'all' | 'confirmed' | 'unconfirmed'>('all');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
@@ -46,7 +48,7 @@ export function MediaDataEntryPage() {
     setSavedIds(saved);
   };
   useEffect(load, [date]);
-  useEffect(() => { setPage(1); }, [date, fAdv, fAdId, fMedia, fOrder, fMediaId, fStatus, q]);
+  useEffect(() => { setPage(1); }, [date, fAdv, fAdId, fMedia, fOrder, fMediaId, fType, fPrice, fStatus, q]);
 
   const advOpts = getAll('advertisers');
   const adIdOpts = useMemo(() => getAll('adIds').filter((a) => !fAdv || String(a.advertiserId) === fAdv), [fAdv, mediaIdsAll]);
@@ -76,6 +78,8 @@ export function MediaDataEntryPage() {
       if (fMedia && String(m.mediaId) !== fMedia) return false;
       if (fOrder && String(m.mediaOrderId) !== fOrder) return false;
       if (fMediaId && String(m.id) !== fMediaId) return false;
+      if (fType && typeOf(m) !== fType) return false;
+      if (fPrice && String(m.unitPrice ?? '') !== fPrice) return false;
       // Mặc định hiện cả link đã 下线; fStatus điều khiển confirmed/unconfirmed.
       if (fStatus === 'confirmed' && !savedIds.has(m.id)) return false;
       if (fStatus === 'unconfirmed' && savedIds.has(m.id)) return false;
@@ -85,7 +89,12 @@ export function MediaDataEntryPage() {
       }
       return true;
     });
-  }, [mediaIdsAll, fAdv, fAdId, fMedia, fOrder, fMediaId, fStatus, q, savedIds]);
+  }, [mediaIdsAll, fAdv, fAdId, fMedia, fOrder, fMediaId, fType, fPrice, fStatus, q, savedIds]);
+
+  const priceOptions = useMemo(
+    () => Array.from(new Set(mediaIdsAll.map((m) => Number(m.unitPrice) || 0))).sort((a, b) => a - b),
+    [mediaIdsAll],
+  );
 
   // Lưu lượng/quyết toán lấy từ nhập liệu nhà QC theo ID quảng cáo (adIdId) + ngày.
   const advOf = (m: Row) => getAll('importAdv').find((r) => r.date === date && r.adIdId === m.adIdId);
@@ -135,7 +144,7 @@ export function MediaDataEntryPage() {
   const readVal = (v: number | '') => (v === '' || v == null ? <span className="text-gray-300">—</span> : <span className="text-gray-600">{Number(v).toLocaleString()}</span>);
 
   const headers = [
-    t('col.date'), t('col.media'), t('col.mediaOrder'), t('col.type'), t('col.mediaId'),
+    t('col.stt'), t('col.date'), t('col.media'), t('col.mediaOrder'), t('col.type'), t('col.mediaId'),
     t('entry.unitShare'), t('entry.traffic'), t('entry.settlement'), t('entry.coefficient'),
     t('entry.payable'), t('col.accountShare'), t('entry.netPay'), t('common.status'), t('common.actions'),
   ];
@@ -170,6 +179,14 @@ export function MediaDataEntryPage() {
             <option value="">{t('entry.chooseMediaId')}</option>
             {mediaIdOpts.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
           </select>
+          <select value={fType} onChange={(e) => setFType(e.target.value)} className={sel}>
+            <option value="">{t('col.type')}</option>
+            {['CPM', 'CPC', 'CPA', 'CPS'].map((x) => <option key={x} value={x}>{x}</option>)}
+          </select>
+          <select value={fPrice} onChange={(e) => setFPrice(e.target.value)} className={sel}>
+            <option value="">{t('report.unitPriceShort')}</option>
+            {priceOptions.map((p) => <option key={p} value={String(p)}>{p}</option>)}
+          </select>
           <select value={fStatus} onChange={(e) => setFStatus(e.target.value as typeof fStatus)} className={sel}>
             <option value="all">{t('entry.allStatus')}</option>
             <option value="confirmed">{t('entry.confirmed')}</option>
@@ -203,7 +220,7 @@ export function MediaDataEntryPage() {
               ) : (
                 <>
                   <tr className="bg-brand-dark2 text-white">
-                    <td className="px-3 py-2 font-semibold whitespace-nowrap" colSpan={5}>📅 {date}</td>
+                    <td className="px-3 py-2 font-semibold whitespace-nowrap" colSpan={6}>📅 {date}</td>
                     <td className="px-3 py-2" colSpan={6}>
                       <span className="text-gray-300 text-xs mr-2">{t('entry.dayTotal')}:</span>
                       <span className="font-bold text-cyan-300">{money(dayTotal)}</span>
@@ -218,12 +235,13 @@ export function MediaDataEntryPage() {
                     </td>
                   </tr>
 
-                  {pageRows.map((m) => {
+                  {pageRows.map((m, i) => {
                     const c = calc(m);
                     const isOnline = m.status !== false;
                     const isSaved = savedIds.has(m.id);
                     return (
                       <tr key={m.id} className="border-b border-gray-50 hover:bg-cyan-50/30">
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-400">{(curPage - 1) * pageSize + i + 1}</td>
                         <td className="px-3 py-2 whitespace-nowrap text-gray-600">{date}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{refName('media', m.mediaId)}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{refName('mediaOrders', m.mediaOrderId)}</td>
@@ -236,8 +254,8 @@ export function MediaDataEntryPage() {
                         <td className="px-3 py-2 text-right">{readVal(c.traffic)}</td>
                         <td className="px-3 py-2 text-right">{readVal(c.settlement)}</td>
                         <td className="px-3 py-2">
-                          <RateEditor value={c.coef} workingDate={date} disabled={!canEdit}
-                            onSet={(v, eff) => { setRate('mediaId', m.id, 'coefficient', v, eff); toast(t('entry.effSaved')); }} />
+                          <RateEditor value={Number((c.coef * 100).toFixed(2))} workingDate={date} suffix="%" disabled={!canEdit}
+                            onSet={(v, eff) => { setRate('mediaId', m.id, 'coefficient', v / 100, eff); toast(t('entry.effSaved')); }} />
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-right font-medium">
                           {c.payable == null ? <span className="text-gray-300">—</span> : <span className="text-gray-700">{money(c.payable)}</span>}

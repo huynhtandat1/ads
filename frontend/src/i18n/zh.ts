@@ -66,7 +66,7 @@ export default {
     allStatus: '全部状态', unitShare: '单价 / 分成比例',
     traffic: '流量数据', settlement: '结算数据 / 广告主金额', receivable: '应收金额',
     value: '数值', confirm: '确认数据', confirmed: '已确认', unconfirmed: '未确认',
-    online: '在线', offline: '离线', showOffline: '同时显示离线链接', latestData: '最近有数据的日期',
+    online: '在线', offline: '离线', showOffline: '同时显示离线链接',
     saveRow: '保存到系统', savedShort: '已保存', deleteRow: '删除数据', savedRow: '已保存到系统', forDate: '数据日期',
     aiFill: 'AI 自动填充', aiFilled: '已自动填充数据',
     chooseMedia: '选择媒体', chooseMediaOrder: '选择广告订单', chooseMediaId: '选择媒体ID',

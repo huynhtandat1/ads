@@ -31,6 +31,8 @@ export function AdvDataEntryPage({
   const [fAdv, setFAdv] = useState('');
   const [fOrder, setFOrder] = useState('');
   const [fAdId, setFAdId] = useState('');
+  const [fType, setFType] = useState('');
+  const [fPrice, setFPrice] = useState('');
   const [fStatus, setFStatus] = useState<'all' | 'online' | 'offline'>('all');
   const [q, setQ] = useState('');
 
@@ -98,6 +100,8 @@ export function AdvDataEntryPage({
       if (fAdv && String(ad.advertiserId) !== fAdv) return false;
       if (orderIdsMatchingFilter && !orderIdsMatchingFilter.has(ad.adOrderId as number)) return false;
       if (fAdId && String(ad.id) !== fAdId) return false;
+      if (fType && ad.type !== fType) return false;
+      if (fPrice && String(ad.unitPrice ?? '') !== fPrice) return false;
       const online = ad.status !== false;
       if (fStatus === 'online' && !online) return false;
       if (fStatus === 'offline' && online) return false;
@@ -107,7 +111,12 @@ export function AdvDataEntryPage({
       }
       return true;
     });
-  }, [adIdsAll, fAdv, orderIdsMatchingFilter, fAdId, fStatus, q]);
+  }, [adIdsAll, fAdv, orderIdsMatchingFilter, fAdId, fType, fPrice, fStatus, q]);
+
+  const priceOptions = useMemo(
+    () => Array.from(new Set(adIdsAll.map((a) => Number(a.unitPrice) || 0))).sort((a, b) => a - b),
+    [adIdsAll],
+  );
 
   const setCell = (id: number, field: keyof Draft, value: string) => {
     setDraft((d) => ({ ...d, [id]: { ...d[id], [field]: value === '' ? '' : Number(value) } }));
@@ -205,6 +214,14 @@ export function AdvDataEntryPage({
             <option value="">{t('entry.chooseAdId')}</option>
             {adIdOpts.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
           </select>
+          <select value={fType} onChange={(e) => setFType(e.target.value)} className={sel}>
+            <option value="">{t('col.type')}</option>
+            {['CPM', 'CPC', 'CPA', 'CPS'].map((x) => <option key={x} value={x}>{x}</option>)}
+          </select>
+          <select value={fPrice} onChange={(e) => setFPrice(e.target.value)} className={sel}>
+            <option value="">{t('report.unitPriceShort')}</option>
+            {priceOptions.map((p) => <option key={p} value={String(p)}>{p}</option>)}
+          </select>
           <select value={fStatus} onChange={(e) => setFStatus(e.target.value as typeof fStatus)} className={sel}>
             <option value="all">{t('entry.allStatus')}</option>
             <option value="online">{t('entry.online')}</option>
@@ -234,7 +251,7 @@ export function AdvDataEntryPage({
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
-                {[t('col.date'), t('col.advertiser'), t('col.adOrder'), t('col.type'), t('col.adId'),
+                {[t('col.stt'), t('col.date'), t('col.advertiser'), t('col.adOrder'), t('col.type'), t('col.adId'),
                   t('entry.unitShare'), t('entry.traffic'), t('entry.settlement'), t('entry.receivable'),
                   t('common.status'), t('common.actions')].map((h, i) => (
                   <th key={i} className="px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap">{h}</th>
@@ -243,9 +260,9 @@ export function AdvDataEntryPage({
             </thead>
             <tbody>
               {rows.length === 0 && (
-                <tr><td colSpan={11} className="px-3 py-12 text-center text-gray-400">{t('common.noData')}</td></tr>
+                <tr><td colSpan={12} className="px-3 py-12 text-center text-gray-400">{t('common.noData')}</td></tr>
               )}
-              {rows.map((ad) => {
+              {rows.map((ad, i) => {
                 const d = draft[ad.id] || { unitPrice: ad.unitPrice ?? '', traffic: '', settlement: '' };
                 const price = priceOf(ad);
                 const receivable = receivableOf(ad.type, { unitPrice: price, traffic: d.traffic, settlement: d.settlement });
@@ -253,6 +270,7 @@ export function AdvDataEntryPage({
                 const isSaved = savedIds.has(ad.id);
                 return (
                   <tr key={ad.id} className="border-b border-gray-50 hover:bg-cyan-50/30">
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-400">{i + 1}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-600">{date}</td>
                     <td className="px-3 py-2 whitespace-nowrap">{refName('advertisers', ad.advertiserId)}</td>
                     <td className="px-3 py-2 whitespace-nowrap">{refName('adOrders', ad.adOrderId)}</td>

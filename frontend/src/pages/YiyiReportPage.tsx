@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getAll } from '../data/store';
 import { exportCSV } from '../lib/export';
-import { LatestDataHint } from '../components/LatestDataHint';
 import { IconSearch, IconDownload, IconRefresh } from '../components/icons';
 
 const COLLECTION = 'importYiyi';
@@ -53,14 +52,14 @@ export function YiyiReportPage() {
   const daysInMonth = query ? new Date(query.year, query.month, 0).getDate() : 0;
 
   const HEADERS = [
-    t('col.date'), t('report.traffic'), t('report.unitPriceShort'), t('entry.payable'),
+    t('col.stt'), t('col.date'), t('report.traffic'), t('report.unitPriceShort'), t('entry.payable'),
     'YY-02-01', 'YY-02-02', 'YY-02-03', 'YY-02-04',
     t('report.profitUnitPrice'), t('col.profit'), t('report.grandTotal'),
   ];
 
   const doExport = () => {
-    const rows = data.map((r) => [
-      r.date, r.traffic, r.unitPrice, r.payable.toFixed(2),
+    const rows = data.map((r, i) => [
+      i + 1, r.date, r.traffic, r.unitPrice, r.payable.toFixed(2),
       r.ch['yy-02-01'], r.ch['yy-02-02'], r.ch['yy-02-03'], r.ch['yy-02-04'],
       r.profitUnitPrice, r.profit.toFixed(2), r.total.toFixed(2),
     ]);
@@ -92,8 +91,6 @@ export function YiyiReportPage() {
           <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className={sel}>
             {months.map((m) => <option key={m} value={m}>{t('report.month')} {m}</option>)}
           </select>
-          <LatestDataHint collections={[COLLECTION]}
-            onPick={(d) => { const y = Number(d.slice(0, 4)), m = Number(d.slice(5, 7)); setYear(y); setMonth(m); setQuery({ year: y, month: m }); }} />
           <button onClick={() => setQuery({ year, month })}
             className="h-9 px-4 inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600">
             <IconSearch width={16} height={16} /> {t('report.query')}
@@ -133,7 +130,7 @@ export function YiyiReportPage() {
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-cyan-50 border-b border-cyan-100">
                 {HEADERS.map((h, i) => (
-                  <th key={i} className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i > 0 ? 'text-right' : ''}`}>{h}</th>
+                  <th key={i} className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i > 1 ? 'text-right' : ''}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -143,6 +140,7 @@ export function YiyiReportPage() {
               ) : (
                 <>
                   <tr className="bg-brand-dark2 text-white font-semibold">
+                    <td className="px-3 py-2" />
                     <td className="px-3 py-2">Σ {t('report.grandTotal')}</td>
                     <td className="px-3 py-2 text-right">{totals.traffic.toLocaleString()}</td>
                     <td className="px-3 py-2 text-right">—</td>
@@ -152,8 +150,9 @@ export function YiyiReportPage() {
                     <td className="px-3 py-2 text-right">{money2(totals.profit)}</td>
                     <td className="px-3 py-2 text-right text-cyan-300">{money2(totals.total)}</td>
                   </tr>
-                  {data.map((r) => (
+                  {data.map((r, i) => (
                     <tr key={r.date} className="border-b border-gray-50 hover:bg-cyan-50/30">
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-400">{i + 1}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-gray-600">{r.date}</td>
                       <td className="px-3 py-2 text-right font-medium">{r.traffic.toLocaleString()}</td>
                       <td className="px-3 py-2 text-right text-gray-500">{r.unitPrice}</td>

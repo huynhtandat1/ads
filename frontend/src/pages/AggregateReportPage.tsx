@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { snapshot, useDB, effectiveValue, setRate, getAll, type Row } from '../data/store';
 import { exportCSV } from '../lib/export';
 import { RateEditor } from '../components/RateEditor';
-import { LatestDataHint } from '../components/LatestDataHint';
 import { IconSearch, IconDownload } from '../components/icons';
 import { monthRangeUntilYesterday, yesterdayStr, ymd } from '../lib/date';
 
@@ -73,11 +72,11 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
   const pickThisMonth = () => { const [f, tt] = monthRangeUntilYesterday(0); setFrom(f); setTo(tt); setAllDates(false); };
   const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); setAllDates(false); };
 
-  const HEADERS = [t(spec.dimLabelKey), t('col.revenue'), t('col.cost'), t('col.profit'),
+  const HEADERS = [t('col.stt'), t(spec.dimLabelKey), t('col.revenue'), t('col.cost'), t('col.profit'),
     ...(spec.withTax ? [t('col.tax'), t('col.afterTax')] : []), t('col.margin')];
 
   const doExport = () => {
-    const rows = groups.map((g) => [g.dim, g.revenue, g.cost, g.profit, ...(spec.withTax ? [g.tax, g.afterTax] : []), `${g.margin}%`]);
+    const rows = groups.map((g, i) => [i + 1, g.dim, g.revenue, g.cost, g.profit, ...(spec.withTax ? [g.tax, g.afterTax] : []), `${g.margin}%`]);
     exportCSV(spec.screen, HEADERS, rows);
   };
 
@@ -103,8 +102,6 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
           </div>
           <button onClick={pickThisMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.thisMonth')}</button>
           <button onClick={pickLastMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.lastMonth')}</button>
-          <LatestDataHint collections={spec.collections} current={to}
-            onPick={(d) => { setFrom(`${d.slice(0, 7)}-01`); setTo(d); setAllDates(false); }} />
           {spec.withTax && (
             <div className="flex items-end gap-1.5">
               <label className="block text-xs text-gray-500 mb-1">{t('col.tax')}:</label>
@@ -146,7 +143,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
                 {HEADERS.map((h, i) => (
-                  <th key={i} className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i > 0 ? 'text-right' : ''}`}>{h}</th>
+                  <th key={i} className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i > 1 ? 'text-right' : ''}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -158,6 +155,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
               ) : (
                 <>
                   <tr className="bg-brand-dark2 text-white font-semibold">
+                    <td className="px-3 py-2" />
                     <td className="px-3 py-2">Σ {t('report.grandTotal')} · {groups.length}</td>
                     <td className="px-3 py-2 text-right">{money(totals.revenue)}</td>
                     <td className="px-3 py-2 text-right">{money(totals.cost)}</td>
@@ -168,6 +166,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                   </tr>
                   {groups.map((g, i) => (
                     <tr key={i} className="border-b border-gray-50 hover:bg-cyan-50/30">
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-400">{i + 1}</td>
                       <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-700">{g.dim}</td>
                       <td className="px-3 py-2 text-right">{money(g.revenue)}</td>
                       <td className="px-3 py-2 text-right">{money(g.cost)}</td>

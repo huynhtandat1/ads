@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
 import { getAll, refName, type Row } from '../data/store';
 import { exportCSV } from '../lib/export';
-import { LatestDataHint } from '../components/LatestDataHint';
 import { IconSearch, IconDownload } from '../components/icons';
 import { monthRangeUntilYesterday, yesterdayStr } from '../lib/date';
 
@@ -22,19 +21,21 @@ export function AdvReportPage() {
   const [fOrder, setFOrder] = useState('');
   const [fAdId, setFAdId] = useState('');
   const [fType, setFType] = useState('');
+  const [fPrice, setFPrice] = useState('');
   const [fStatus, setFStatus] = useState<'all' | 'confirmed' | 'unconfirmed'>('all');
   const [q, setQ] = useState('');
   const [result, setResult] = useState<Row[] | null>(null); // null = chưa truy vấn
 
-  const runQuery = () => {
+  const filteredRows = useMemo(() => {
     const lc = q.trim().toLowerCase();
-    const data = getAll(COLLECTION).filter((r) => {
+    return getAll(COLLECTION).filter((r) => {
       if (!allDates && from && r.date < from) return false;
       if (!allDates && to && r.date > to) return false;
       if (fAdv && String(r.advertiserId) !== fAdv) return false;
       if (fOrder && String(r.adOrderId) !== fOrder) return false;
       if (fAdId && String(r.adIdId) !== fAdId) return false;
       if (fType && r.type !== fType) return false;
+      if (fPrice && String(r.unitPrice) !== fPrice) return false;
       if (fStatus === 'confirmed' && !r.status) return false;
       if (fStatus === 'unconfirmed' && r.status) return false;
       if (lc) {
@@ -43,10 +44,11 @@ export function AdvReportPage() {
       }
       return true;
     }).sort((a, b) => (a.date < b.date ? 1 : -1));
-    setResult(data);
-  };
+  }, [from, to, allDates, fAdv, fOrder, fAdId, fType, fPrice, fStatus, q]);
 
-  useEffect(() => { runQuery(); }, []); // tự truy vấn hôm qua khi vào trang
+  const runQuery = () => setResult(filteredRows);
+
+  useEffect(() => { setResult(filteredRows); }, [filteredRows]); // lọc ngay khi đổi điều kiện
 
   const pickThisMonth = () => { const [f, tt] = monthRangeUntilYesterday(0); setFrom(f); setTo(tt); setAllDates(false); };
   const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); setAllDates(false); };
@@ -65,19 +67,21 @@ export function AdvReportPage() {
   const adIdOptions = getAll('adIds').filter((a) =>
     (!fAdv || String(a.advertiserId) === fAdv) && (!fOrder || String(a.adOrderId) === fOrder),
   );
+  const priceOptions = Array.from(new Set(getAll(COLLECTION).map((r) => Number(r.unitPrice) || 0)))
+    .sort((a, b) => a - b);
   const totals = rows.reduce(
     (s, r) => ({ traffic: s.traffic + (Number(r.traffic) || 0), settlement: s.settlement + (Number(r.settlement) || 0), receivable: s.receivable + (Number(r.receivable) || 0) }),
     { traffic: 0, settlement: 0, receivable: 0 },
   );
 
   const HEADERS = [
-    t('col.date'), t('col.advertiser'), t('col.adOrder'), t('col.type'), t('col.adId'),
+    t('col.stt'), t('col.date'), t('col.advertiser'), t('col.adOrder'), t('col.type'), t('col.adId'),
     t('entry.unitShare'), t('entry.traffic'), t('entry.settlement'), t('entry.receivable'), t('common.status'),
   ];
 
   const doExport = () => {
-    const data = rows.map((r) => [
-      r.date, refName('advertisers', r.advertiserId), refName('adOrders', r.adOrderId), r.type, r.objectId,
+    const data = rows.map((r, i) => [
+      i + 1, r.date, refName('advertisers', r.advertiserId), refName('adOrders', r.adOrderId), r.type, r.objectId,
       r.unitPrice, r.traffic, r.settlement, r.receivable, r.status ? t('entry.confirmed') : t('entry.unconfirmed'),
     ]);
     exportCSV('advertiser_report', HEADERS, data);
@@ -108,8 +112,6 @@ export function AdvReportPage() {
           </div>
           <button onClick={pickThisMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.thisMonth')}</button>
           <button onClick={pickLastMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.lastMonth')}</button>
-          <LatestDataHint collections={[COLLECTION]} current={to}
-            onPick={(d) => { setFrom(`${d.slice(0, 7)}-01`); setTo(d); setAllDates(false); }} />
         </div>
 
         <div className="flex-1" />
@@ -136,6 +138,10 @@ export function AdvReportPage() {
           <select value={fType} onChange={(e) => setFType(e.target.value)} className={sel}>
             <option value="">{t('col.type')}</option>
             {['CPM', 'CPA', 'CPS'].map((x) => <option key={x} value={x}>{x}</option>)}
+          </select>
+          <select value={fPrice} onChange={(e) => setFPrice(e.target.value)} className={sel}>
+            <option value="">{t('report.unitPriceShort')}</option>
+            {priceOptions.map((p) => <option key={p} value={String(p)}>{p}</option>)}
           </select>
           <select value={fStatus} onChange={(e) => setFStatus(e.target.value as typeof fStatus)} className={sel}>
             <option value="all">{t('report.confirmFilter')}: {t('common.all')}</option>
@@ -164,7 +170,7 @@ export function AdvReportPage() {
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
                 {HEADERS.map((h, i) => (
-                  <th key={i} className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i >= 5 && i <= 8 ? 'text-right' : ''}`}>{h}</th>
+                  <th key={i} className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i >= 6 && i <= 9 ? 'text-right' : ''}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -177,14 +183,15 @@ export function AdvReportPage() {
                 <>
                   {/* Grand total row */}
                   <tr className="bg-brand-dark2 text-white font-semibold">
-                    <td className="px-3 py-2" colSpan={6}>Σ {t('report.grandTotal')} · {rows.length} {t('report.records')}</td>
+                    <td className="px-3 py-2" colSpan={7}>Σ {t('report.grandTotal')} · {rows.length} {t('report.records')}</td>
                     <td className="px-3 py-2 text-right">{totals.traffic.toLocaleString()}</td>
                     <td className="px-3 py-2 text-right">{money(totals.settlement)}</td>
                     <td className="px-3 py-2 text-right text-cyan-300">{money(totals.receivable)}</td>
                     <td className="px-3 py-2" />
                   </tr>
-                  {rows.map((r) => (
+                  {rows.map((r, i) => (
                     <tr key={r.id} className="border-b border-gray-50 hover:bg-cyan-50/30">
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-400">{i + 1}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-gray-600">{r.date}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{refName('advertisers', r.advertiserId)}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{refName('adOrders', r.adOrderId)}</td>

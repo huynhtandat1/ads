@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { effectiveValue, getAll, refName, useCollection, type Row } from '../data/store';
 import { receivableOf } from '../lib/billing';
 import { exportCSV } from '../lib/export';
-import { LatestDataHint } from '../components/LatestDataHint';
 import { IconSearch, IconDownload } from '../components/icons';
 import { monthRangeUntilYesterday, yesterdayStr } from '../lib/date';
 
@@ -38,6 +37,7 @@ export function MediaReportPage() {
   const [fOrder, setFOrder] = useState('');
   const [fMediaId, setFMediaId] = useState('');
   const [fType, setFType] = useState('');
+  const [fPrice, setFPrice] = useState('');
   const [fStatus, setFStatus] = useState<'all' | 'confirmed' | 'unconfirmed'>('all');
   const [q, setQ] = useState('');
   const [result, setResult] = useState<Row[] | null>(null);
@@ -58,6 +58,7 @@ export function MediaReportPage() {
       if (orderIdsMatchingFilter && !orderIdsMatchingFilter.has(r.mediaOrderId as number)) return false;
       if (fMediaId && String(r.mediaIdId) !== fMediaId) return false;
       if (fType && r.type !== fType) return false;
+      if (fPrice && String(r.unitPrice) !== fPrice) return false;
       if (fStatus === 'confirmed' && !r.status) return false;
       if (fStatus === 'unconfirmed' && r.status) return false;
       if (lc) {
@@ -66,7 +67,7 @@ export function MediaReportPage() {
       }
       return true;
     }).sort((a, b) => (a.date < b.date ? 1 : -1));
-  }, [from, to, allDates, fMedia, orderIdsMatchingFilter, fMediaId, fType, fStatus, q]);
+  }, [from, to, allDates, fMedia, orderIdsMatchingFilter, fMediaId, fType, fPrice, fStatus, q]);
 
   const runQuery = () => setResult(filteredRows);
 
@@ -89,6 +90,8 @@ export function MediaReportPage() {
   const mediaIdOptions = getAll('mediaIds').filter((m) =>
     (!fMedia || String(m.mediaId) === fMedia) && (!orderIdsMatchingFilter || orderIdsMatchingFilter.has(m.mediaOrderId as number)),
   );
+  const priceOptions = Array.from(new Set(getAll(COLLECTION).map((r) => Number(r.unitPrice) || 0)))
+    .sort((a, b) => a - b);
   const totals = rows.reduce((s, r) => {
     const c = compute(r);
     return {
@@ -100,17 +103,17 @@ export function MediaReportPage() {
   }, { traffic: 0, settlement: 0, receivable: 0, actual: 0 });
 
   const HEADERS = [
-    t('col.date'), t('col.media'), t('col.mediaOrder'), t('col.type'), t('col.mediaId'),
-    t('entry.unitShare'), t('entry.traffic'), t('entry.settlement'), t('entry.coefficient'),
+    t('col.stt'), t('col.date'), t('col.media'), t('col.mediaOrder'), t('col.type'), t('col.mediaId'),
+    t('entry.unitShare'), t('entry.traffic'), t('entry.settlement'),
     t('entry.receivable'), t('entry.shareRate'), t('entry.actual'), t('common.status'),
   ];
 
   const doExport = () => {
-    const data = rows.map((r) => {
+    const data = rows.map((r, i) => {
       const c = compute(r);
       return [
-        r.date, refName('media', r.mediaId), refName('mediaOrders', r.mediaOrderId), r.type, r.objectId,
-        r.unitPrice, r.traffic, r.settlement, c.coefficient, c.receivable, `${c.shareRate}%`, c.actual,
+        i + 1, r.date, refName('media', r.mediaId), refName('mediaOrders', r.mediaOrderId), r.type, r.objectId,
+        r.unitPrice, r.traffic, r.settlement, c.receivable, `${c.shareRate}%`, c.actual,
         r.status ? t('entry.confirmed') : t('entry.unconfirmed'),
       ];
     });
@@ -141,8 +144,6 @@ export function MediaReportPage() {
           </div>
           <button onClick={pickThisMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.thisMonth')}</button>
           <button onClick={pickLastMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.lastMonth')}</button>
-          <LatestDataHint collections={[COLLECTION]} current={to}
-            onPick={(d) => { setFrom(`${d.slice(0, 7)}-01`); setTo(d); setAllDates(false); }} />
         </div>
 
         <div className="flex-1" />
@@ -167,6 +168,10 @@ export function MediaReportPage() {
           <select value={fType} onChange={(e) => setFType(e.target.value)} className={sel}>
             <option value="">{t('col.type')}</option>
             {['CPM', 'CPA', 'CPS'].map((x) => <option key={x} value={x}>{x}</option>)}
+          </select>
+          <select value={fPrice} onChange={(e) => setFPrice(e.target.value)} className={sel}>
+            <option value="">{t('report.unitPriceShort')}</option>
+            {priceOptions.map((p) => <option key={p} value={String(p)}>{p}</option>)}
           </select>
           <select value={fStatus} onChange={(e) => setFStatus(e.target.value as typeof fStatus)} className={sel}>
             <option value="all">{t('report.confirmFilter')}: {t('common.all')}</option>
@@ -195,7 +200,7 @@ export function MediaReportPage() {
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
                 {HEADERS.map((h, i) => (
-                  <th key={i} className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i >= 5 && i <= 11 ? 'text-right' : ''}`}>{h}</th>
+                  <th key={i} className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i >= 6 && i <= 11 ? 'text-right' : ''}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -208,19 +213,19 @@ export function MediaReportPage() {
                 <>
                   {/* Grand total */}
                   <tr className="bg-brand-dark2 text-white font-semibold">
-                    <td className="px-3 py-2" colSpan={6}>Σ {t('report.grandTotal')} · {rows.length} {t('report.records')}</td>
+                    <td className="px-3 py-2" colSpan={7}>Σ {t('report.grandTotal')} · {rows.length} {t('report.records')}</td>
                     <td className="px-3 py-2 text-right">{totals.traffic.toLocaleString()}</td>
                     <td className="px-3 py-2 text-right">{money(totals.settlement)}</td>
-                    <td className="px-3 py-2 text-right">—</td>
                     <td className="px-3 py-2 text-right">{money(totals.receivable)}</td>
                     <td className="px-3 py-2 text-right">—</td>
                     <td className="px-3 py-2 text-right text-cyan-300">{money(totals.actual)}</td>
                     <td className="px-3 py-2" />
                   </tr>
-                  {rows.map((r) => {
+                  {rows.map((r, i) => {
                     const c = compute(r);
                     return (
                       <tr key={r.id} className="border-b border-gray-50 hover:bg-cyan-50/30">
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-400">{i + 1}</td>
                         <td className="px-3 py-2 whitespace-nowrap text-gray-600">{r.date}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{refName('media', r.mediaId)}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{refName('mediaOrders', r.mediaOrderId)}</td>
@@ -229,7 +234,6 @@ export function MediaReportPage() {
                         <td className="px-3 py-2 text-right">{r.unitPrice}</td>
                         <td className="px-3 py-2 text-right">{Number(r.traffic).toLocaleString()}</td>
                         <td className="px-3 py-2 text-right">{money(r.settlement)}</td>
-                        <td className="px-3 py-2 text-right text-gray-500">{c.coefficient}</td>
                         <td className="px-3 py-2 text-right font-medium text-gray-700">{money(c.receivable)}</td>
                         <td className="px-3 py-2 text-right text-gray-600">{c.shareRate}%</td>
                         <td className="px-3 py-2 text-right font-semibold text-emerald-600">{money(c.actual)}</td>
