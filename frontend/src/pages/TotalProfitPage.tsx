@@ -13,6 +13,9 @@ import { monthRangeUntilYesterday, yesterdayStr, ymd } from '../lib/date';
 const TAX_PCT = 6;
 const COLLECTIONS = ['importAI', 'importAdv', 'importMedia', 'importYiyi'];
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+// Thuế giữ 2 số lẻ theo đúng công thức spec "(Thu − Chi) × suất" — tài liệu không
+// quy định làm tròn nguyên; round nguyên từng dòng làm thuế nhỏ biến mất và lệch g4b.
+const round2 = (v: number) => Math.round(v * 100) / 100;
 
 interface DailyCell { biz: string; date: string; profit: number; tax: number }
 interface BizRow { biz: string; today: number; month: number; monthTax: number }
@@ -40,7 +43,8 @@ export function TotalProfitPage() {
   const daily = useMemo<DailyCell[]>(() => {
     // Giữ tên collection để perfOf loại doanh thu trùng của importMedia (chỉ tính chi).
     const src = COLLECTIONS.flatMap((c) => getAll(c).map((r) => ({ c, r })));
-    const map = new Map<string, { profit: number; tax: number }>();
+    // Gộp lợi nhuận theo (nghiệp vụ, ngày) TRƯỚC, thuế tính MỘT LẦN trên tổng ngày.
+    const map = new Map<string, number>();
     for (const { c, r } of src) {
       const biz = bizNameOf(r);
       if (!biz) continue;
@@ -48,18 +52,14 @@ export function TotalProfitPage() {
       if (from && date < from) continue;
       if (to && date > to) continue;
       const perf = perfOf(c, r);
-      const p = perf.revenue - perf.cost;
       const key = `${biz}|${date}`;
-      const g = map.get(key) || { profit: 0, tax: 0 };
-      g.profit += p;
-      const taxPct = effectiveValue('tax', 0, 'point', date, TAX_PCT);
-      g.tax += Math.round((p * taxPct) / 100);
-      map.set(key, g);
+      map.set(key, (map.get(key) || 0) + (perf.revenue - perf.cost));
     }
     return Array.from(map.entries())
-      .map(([k, g]) => {
+      .map(([k, profit]) => {
         const [biz, date] = k.split('|');
-        return { biz, date, profit: g.profit, tax: g.tax };
+        const taxPct = effectiveValue('tax', 0, 'point', date, TAX_PCT);
+        return { biz, date, profit, tax: round2((profit * taxPct) / 100) };
       })
       .sort((a, b) => a.date.localeCompare(b.date) || a.biz.localeCompare(b.biz));
   }, [from, to, db]);
@@ -67,7 +67,9 @@ export function TotalProfitPage() {
   // Bảng 2 — Tổng lợi nhuận THÁNG theo nghiệp vụ. Profit đã TRỪ thuế (đồng bộ g4b + spec).
   const { rows, todayDate } = useMemo(() => {
     const src = COLLECTIONS.flatMap((c) => getAll(c).map((r) => ({ c, r })));
-    const entries: { biz: string; date: string; p: number; tax: number }[] = [];
+    // Gộp lợi nhuận theo (nghiệp vụ, ngày) trước — thuế tính một lần trên tổng ngày
+    // (vẫn tôn trọng suất đổi giữa kỳ), khớp tuyệt đối với bảng 1 và g4b.
+    const dayMap = new Map<string, number>();
     for (const { c, r } of src) {
       const biz = bizNameOf(r);
       if (!biz) continue;
@@ -75,23 +77,29 @@ export function TotalProfitPage() {
       if (from && date < from) continue;
       if (to && date > to) continue;
       const perf = perfOf(c, r);
-      const p = perf.revenue - perf.cost;
-      const taxPct = effectiveValue('tax', 0, 'point', date, TAX_PCT);
-      entries.push({ biz, date, p, tax: Math.round((p * taxPct) / 100) });
+      const key = `${biz}|${date}`;
+      dayMap.set(key, (dayMap.get(key) || 0) + (perf.revenue - perf.cost));
     }
     // Cột "lợi nhuận ngày X" lấy ngày gần nhất CÓ dữ liệu trong kỳ — ngày cuối kỳ
     // thường chưa được nhập liệu nên so cứng với `to` sẽ luôn ra 0.
-    const lastDate = entries.reduce((m, e) => (e.date > m ? e.date : m), '');
+    const lastDate = Array.from(dayMap.keys()).reduce((m, k) => {
+      const d = k.slice(k.lastIndexOf('|') + 1);
+      return d > m ? d : m;
+    }, '');
     const map = new Map<string, { today: number; month: number; monthTax: number }>();
-    for (const e of entries) {
-      const g = map.get(e.biz) || { today: 0, month: 0, monthTax: 0 };
-      g.month += e.p;
-      g.monthTax += e.tax;
-      if (e.date === lastDate) g.today += e.p - e.tax;
-      map.set(e.biz, g);
+    for (const [k, p] of dayMap) {
+      const cut = k.lastIndexOf('|');
+      const biz = k.slice(0, cut), date = k.slice(cut + 1);
+      const taxPct = effectiveValue('tax', 0, 'point', date, TAX_PCT);
+      const tax = round2((p * taxPct) / 100);
+      const g = map.get(biz) || { today: 0, month: 0, monthTax: 0 };
+      g.month += p;
+      g.monthTax = round2(g.monthTax + tax);
+      if (date === lastDate) g.today += p - tax;
+      map.set(biz, g);
     }
     const out: BizRow[] = Array.from(map.entries())
-      .map(([biz, g]) => ({ biz, today: g.today, month: g.month - g.monthTax, monthTax: g.monthTax }))
+      .map(([biz, g]) => ({ biz, today: g.today, month: round2(g.month - g.monthTax), monthTax: g.monthTax }))
       .sort((a, b) => b.month - a.month);
     return { rows: out, todayDate: lastDate || to };
   }, [from, to, db]);

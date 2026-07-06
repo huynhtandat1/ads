@@ -17,6 +17,8 @@ export interface AggregateSpec {
 }
 
 const TAX_PCT = 6; // Điểm thuế mặc định 6% (có thể sửa theo hiệu lực ngày)
+// Thuế giữ 2 số lẻ theo công thức spec — tài liệu không quy định làm tròn nguyên.
+const round2 = (v: number) => Math.round(v * 100) / 100;
 const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
@@ -90,7 +92,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
     return Array.from(map.entries()).map(([dim, g]) => {
       const profit = g.revenue - g.cost;
       const taxPct = effectiveValue('tax', 0, 'point', isDate(dim) ? dim : params.to || todayStr, TAX_PCT);
-      const tax = Math.round((profit * taxPct) / 100);
+      const tax = round2((profit * taxPct) / 100);
       const idName = (m: Map<number, number>, collection: string) =>
         Array.from(m.entries())
           .map(([id, total]) => ({ id, name: refName(collection, id) || `#${id}`, total }))
