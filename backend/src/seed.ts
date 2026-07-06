@@ -51,7 +51,8 @@ function seedEntries(source: string, dates: string[], startId: number): Row[] {
       rows.push({
         id: id++, date: d, objectId: a.name, adIdId: a.adIdId, advertiserId: a.advertiserId,
         adOrderId: a.adOrderId, type: a.type, unitPrice: a.unitPrice, traffic, settlement,
-        receivable: amount, revenue: amount, cost: settlement, clicks: traffic, source, status: true,
+        // cost = 0: quyết toán là cơ sở tính phải thu, không phải chi phí (chi media ở importMedia).
+        receivable: amount, revenue: amount, cost: 0, clicks: traffic, source, status: true,
       });
     }
   }

@@ -184,7 +184,8 @@ function mediaActualOf(source: DB, r: Row): number {
     : fallbackShareRate;
   const payable = r.receivable != null ? Number(r.receivable) || 0 : Number(r.payable) || 0;
   if (!payable && r.receivable == null && r.payable == null) return Number(r.actual) || 0;
-  return Math.round(payable * (shareRate / 100));
+  // Giữ 2 số lẻ (đồng bộ frontend) — làm tròn nguyên từng dòng làm thực trả > phải trả.
+  return Math.round(payable * (shareRate / 100) * 100) / 100;
 }
 
 // Bộ đếm id log tăng đơn điệu (tránh Math.max(...spread) tràn stack và tránh trùng id).

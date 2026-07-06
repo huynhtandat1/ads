@@ -64,9 +64,9 @@ export function TotalProfitPage() {
   }, [from, to]);
 
   // Bảng 2 — Tổng lợi nhuận THÁNG theo nghiệp vụ. Profit đã TRỪ thuế (đồng bộ g4b + spec).
-  const rows = useMemo<BizRow[]>(() => {
+  const { rows, todayDate } = useMemo(() => {
     const src = COLLECTIONS.flatMap((c) => getAll(c).map((r) => ({ c, r })));
-    const map = new Map<string, { today: number; month: number; monthTax: number }>();
+    const entries: { biz: string; date: string; p: number; tax: number }[] = [];
     for (const { c, r } of src) {
       const biz = bizNameOf(r);
       if (!biz) continue;
@@ -76,16 +76,23 @@ export function TotalProfitPage() {
       const perf = perfOf(c, r);
       const p = perf.revenue - perf.cost;
       const taxPct = effectiveValue('tax', 0, 'point', date, TAX_PCT);
-      const tax = Math.round((p * taxPct) / 100);
-      const g = map.get(biz) || { today: 0, month: 0, monthTax: 0 };
-      g.month += p;
-      g.monthTax += tax;
-      if (date === to) g.today += p - tax;
-      map.set(biz, g);
+      entries.push({ biz, date, p, tax: Math.round((p * taxPct) / 100) });
     }
-    return Array.from(map.entries())
+    // Cột "lợi nhuận ngày X" lấy ngày gần nhất CÓ dữ liệu trong kỳ — ngày cuối kỳ
+    // thường chưa được nhập liệu nên so cứng với `to` sẽ luôn ra 0.
+    const lastDate = entries.reduce((m, e) => (e.date > m ? e.date : m), '');
+    const map = new Map<string, { today: number; month: number; monthTax: number }>();
+    for (const e of entries) {
+      const g = map.get(e.biz) || { today: 0, month: 0, monthTax: 0 };
+      g.month += e.p;
+      g.monthTax += e.tax;
+      if (e.date === lastDate) g.today += e.p - e.tax;
+      map.set(e.biz, g);
+    }
+    const out: BizRow[] = Array.from(map.entries())
       .map(([biz, g]) => ({ biz, today: g.today, month: g.month - g.monthTax, monthTax: g.monthTax }))
       .sort((a, b) => b.month - a.month);
+    return { rows: out, todayDate: lastDate || to };
   }, [from, to]);
 
   const totals = rows.reduce((s, r) => ({
@@ -114,7 +121,7 @@ export function TotalProfitPage() {
   const HEADERS = [
     t('col.stt'),
     t('report.business'),
-    t('report.profitToday', { to }),
+    t('report.profitToday', { to: todayDate }),
     t('col.tax'),
     t('report.profitMonth'),
   ];

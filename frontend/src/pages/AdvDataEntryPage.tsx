@@ -134,7 +134,9 @@ export function AdvDataEntryPage({
       date, objectId: ad.name, adIdId: ad.id, advertiserId: ad.advertiserId, adOrderId: ad.adOrderId,
       type: ad.type, unitPrice: price, traffic: Number(d.traffic) || 0,
       settlement: Number(d.settlement) || 0, receivable,
-      revenue: receivable, cost: Number(d.settlement) || 0, clicks: Number(d.traffic) || 0,
+      // cost = 0: phía NQC chỉ có THU (phải thu); quyết toán là CƠ SỞ tính phải thu,
+      // không phải chi phí. Chi cho media nằm ở importMedia (spec: Lợi nhuận = Thu − Chi media − Thuế).
+      revenue: receivable, cost: 0, clicks: Number(d.traffic) || 0,
       source, status: true,
     };
     const existing = getAll(COLLECTION).find((r) => r.date === date && (r.adIdId === ad.id || r.objectId === ad.name));

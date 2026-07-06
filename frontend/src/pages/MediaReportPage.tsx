@@ -10,16 +10,20 @@ const COLLECTION = 'importMedia';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 
+// Tiền tệ giữ 2 số lẻ — làm tròn về NGUYÊN từng dòng khiến "thực trả" (22) lớn hơn
+// cả "phải trả" (21,64) khi share 100% và tổng lệch với chi tiết/§3b của g4b.
+const money2 = (v: number) => Math.round(v * 100) / 100;
+
 function compute(r: Row) {
   const coefficient = Number(r.coefficient ?? 1) || 1;
   const fallbackBase = receivableOf(r.type, { unitPrice: r.unitPrice, traffic: r.traffic, settlement: r.settlement }) ?? 0;
-  const receivable = r.receivable != null ? Number(r.receivable) || 0 : Math.round(fallbackBase * coefficient);
+  const receivable = r.receivable != null ? Number(r.receivable) || 0 : money2(fallbackBase * coefficient);
   const mediaId = getAll('mediaIds').find((m) => m.id === r.mediaIdId);
   const fallbackShareRate = Number(mediaId?.profitShare ?? r.shareRate ?? 0) || 0;
   const shareRate = r.mediaIdId != null
     ? effectiveValue('mediaId', r.mediaIdId, 'profitShare', String(r.date || ''), fallbackShareRate)
     : fallbackShareRate;
-  const actual = Math.round(receivable * (shareRate / 100));
+  const actual = money2(receivable * (shareRate / 100));
   return { receivable, shareRate, coefficient, actual };
 }
 
