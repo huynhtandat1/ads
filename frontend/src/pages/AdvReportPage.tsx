@@ -8,6 +8,7 @@ import { monthRangeUntilYesterday, yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importAdv';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 
 export function AdvReportPage() {
   const { t } = useTranslation();
@@ -26,13 +27,20 @@ export function AdvReportPage() {
   const [q, setQ] = useState('');
   const [result, setResult] = useState<Row[] | null>(null); // null = chưa truy vấn
 
+  const orderIdsMatchingFilter = useMemo(() => {
+    if (!fOrder) return null;
+    const picked = getAll('adOrders').find((o) => String(o.id) === fOrder);
+    const name = norm(picked?.name);
+    return new Set(getAll('adOrders').filter((o) => norm(o.name) === name).map((o) => o.id));
+  }, [fOrder]);
+
   const filteredRows = useMemo(() => {
     const lc = q.trim().toLowerCase();
     return getAll(COLLECTION).filter((r) => {
       if (!allDates && from && r.date < from) return false;
       if (!allDates && to && r.date > to) return false;
       if (fAdv && String(r.advertiserId) !== fAdv) return false;
-      if (fOrder && String(r.adOrderId) !== fOrder) return false;
+      if (orderIdsMatchingFilter && !orderIdsMatchingFilter.has(r.adOrderId as number)) return false;
       if (fAdId && String(r.adIdId) !== fAdId) return false;
       if (fType && r.type !== fType) return false;
       if (fPrice && String(r.unitPrice) !== fPrice) return false;
@@ -44,7 +52,7 @@ export function AdvReportPage() {
       }
       return true;
     }).sort((a, b) => (a.date < b.date ? 1 : -1));
-  }, [from, to, allDates, fAdv, fOrder, fAdId, fType, fPrice, fStatus, q]);
+  }, [from, to, allDates, fAdv, orderIdsMatchingFilter, fAdId, fType, fPrice, fStatus, q]);
 
   const runQuery = () => setResult(filteredRows);
 
@@ -65,7 +73,7 @@ export function AdvReportPage() {
     });
   })();
   const adIdOptions = getAll('adIds').filter((a) =>
-    (!fAdv || String(a.advertiserId) === fAdv) && (!fOrder || String(a.adOrderId) === fOrder),
+    (!fAdv || String(a.advertiserId) === fAdv) && (!orderIdsMatchingFilter || orderIdsMatchingFilter.has(a.adOrderId as number)),
   );
   const priceOptions = Array.from(new Set(getAll(COLLECTION).map((r) => Number(r.unitPrice) || 0)))
     .sort((a, b) => a - b);
