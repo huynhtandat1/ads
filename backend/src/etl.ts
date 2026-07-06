@@ -116,7 +116,8 @@ async function main() {
   db.importYiyi = yiyiData.map((y) => {
     const p = priceByDate.get(y.d);
     const unitPrice = num(p?.unitPrice), profitUnitPrice = num(p?.profitUnitPrice), q = num(y.qty);
-    const payable = q * unitPrice, profit = q * profitUnitPrice;
+    // Đơn giá Yiyi là giá trên 1.000 lượt (như CPM), giữ 2 số lẻ.
+    const payable = Math.round((q * unitPrice) / 10) / 100, profit = Math.round((q * profitUnitPrice) / 10) / 100;
     return {
       id: y.id, date: y.d, objectId: y.channel, quantity: q, unitPrice, profitUnitPrice,
       payable, profit, revenue: payable + profit, cost: payable, clicks: q, source: 'Yiyi', status: true,

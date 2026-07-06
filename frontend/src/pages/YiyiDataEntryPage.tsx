@@ -8,6 +8,9 @@ import { yesterdayStr } from '../lib/date';
 const COLLECTION = 'importYiyi';
 const CHANNELS = ['yy-02-01', 'yy-02-02', 'yy-02-03', 'yy-02-04'];
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+// Đơn giá Yiyi là giá trên 1.000 lượt (như CPM): tiền = số lượng × giá ÷ 1000, giữ 2 số lẻ.
+const round2 = (v: number) => Math.round(v * 100) / 100;
+const yiyiMoney = (q: number, price: number) => round2((q * price) / 1000);
 
 export function YiyiDataEntryPage() {
   const { t } = useTranslation();
@@ -58,15 +61,15 @@ export function YiyiDataEntryPage() {
   const totalQty = CHANNELS.reduce((s, c) => s + (Number(qty[c]) || 0), 0);
   const enteredCount = CHANNELS.filter((c) => (Number(qty[c]) || 0) > 0).length;
   const allEnteredSaved = enteredCount > 0 && CHANNELS.every((c) => saved.has(c) || (Number(qty[c]) || 0) === 0);
-  const totalPayable = CHANNELS.reduce((s, c) => s + (Number(qty[c]) || 0) * up, 0);
-  const totalProfit = CHANNELS.reduce((s, c) => s + (Number(qty[c]) || 0) * pup, 0);
+  const totalPayable = CHANNELS.reduce((s, c) => s + yiyiMoney(Number(qty[c]) || 0, up), 0);
+  const totalProfit = CHANNELS.reduce((s, c) => s + yiyiMoney(Number(qty[c]) || 0, pup), 0);
 
   const save = () => {
     const records = getAll(COLLECTION);
     for (const c of CHANNELS) {
       const q = Number(qty[c]) || 0;
-      const payable = q * up;
-      const profit = q * pup;
+      const payable = yiyiMoney(q, up);
+      const profit = yiyiMoney(q, pup);
       const payload = {
         date, objectId: c, quantity: q, unitPrice: up, profitUnitPrice: pup,
         payable, profit, revenue: payable + profit, cost: payable, clicks: q,

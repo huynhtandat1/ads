@@ -97,7 +97,8 @@ function seedYiyiEntries(): Row[] {
     const date = `2026-06-${String(day).padStart(2, '0')}`;
     for (const c of channels) {
       const q = 200 + Math.floor(Math.random() * 1800);
-      const payable = q * unitPrice, profit = q * profitUnitPrice;
+      // Đơn giá Yiyi là giá trên 1.000 lượt (như CPM), giữ 2 số lẻ.
+      const payable = Math.round((q * unitPrice) / 10) / 100, profit = Math.round((q * profitUnitPrice) / 10) / 100;
       rows.push({
         id: id++, date, objectId: c, quantity: q, unitPrice, profitUnitPrice,
         payable, profit, revenue: payable + profit, cost: payable, clicks: q, source: 'Yiyi', status: true,
