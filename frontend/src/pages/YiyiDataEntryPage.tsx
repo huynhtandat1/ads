@@ -34,6 +34,16 @@ export function YiyiDataEntryPage() {
       nextQty[c] = rec?.quantity ?? 0;
       if (rec) { savedSet.add(c); up = rec.unitPrice ?? up; pup = rec.profitUnitPrice ?? pup; }
     }
+    // Kế thừa đơn giá: ngày CHƯA có bản ghi thì mặc định lấy đơn giá của ngày gần
+    // nhất trước đó (đỡ phải gõ lại mỗi ngày; quên gõ là phải trả/lợi nhuận = 0).
+    // Ngày đã lưu rồi thì tôn trọng giá trị đã lưu, kể cả 0.
+    if (savedSet.size === 0) {
+      let prev: Row | undefined;
+      for (const r of records) {
+        if (String(r.date) < date && (!prev || String(r.date) > String(prev.date))) prev = r;
+      }
+      if (prev) { up = Number(prev.unitPrice) || 0; pup = Number(prev.profitUnitPrice) || 0; }
+    }
     setQty(nextQty);
     setUnitPrice(up);
     setProfitUnitPrice(pup);
