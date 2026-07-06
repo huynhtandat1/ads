@@ -60,6 +60,7 @@ export default {
     year: 'Năm', month: 'Tháng', exportCSV: 'Xuất CSV', daysUnit: 'ngày',
     invalidRows: 'Số dòng không hợp lệ', validData: 'Dữ liệu hợp lệ',
     dailyProfit: 'Lợi nhuận theo ngày', detailRevenue: 'Thu từ nhà quảng cáo', detailCost: 'Chi cho media',
+    monthlyByBiz: 'Tổng lợi nhuận tháng theo nghiệp vụ', dailyByBiz: 'Lợi nhuận mỗi ngày theo nghiệp vụ',
   },
   import: { upload: 'Tải lên file', uploadHint: 'Kéo thả CSV/Excel hoặc bấm để chọn', addRecord: 'Thêm bản ghi', importedRecords: 'Bản ghi đã nhập' },
   entry: {
