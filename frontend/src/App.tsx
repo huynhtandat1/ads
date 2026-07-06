@@ -18,10 +18,13 @@ import { LogsPage } from './pages/LogsPage';
 import { RolesPage } from './pages/RolesPage';
 import { DataIsolationPage } from './pages/DataIsolationPage';
 import { getAll, type Row } from './data/store';
+import { YIYI_BIZ } from './lib/analytics';
 
 // 业务 = tên đơn quảng cáo (360 / sm / Qianwen...): gộp chung các 广告主 có cùng đơn,
 // không tách "advertiser / order" như trước (spec #9: 查询按业务分类).
+// Dữ liệu Yiyi không gắn đơn QC — tính vào nghiệp vụ 神马搜索 (phần CHI, xem perfOf).
 const adOrderName = (r: Row) => {
+  if (r.source === 'Yiyi') return YIYI_BIZ;
   if (!r.adOrderId) return '';
   const order = getAll('adOrders').find((o) => o.id === r.adOrderId);
   return order ? String(order.name) : '';
@@ -29,7 +32,7 @@ const adOrderName = (r: Row) => {
 
 const REPORTS: Record<string, AggregateSpec> = {
   g4b: {
-    screen: 'g4b', titleKey: 'menu.g4b', collections: ['importAI', 'importAdv', 'importMedia'],
+    screen: 'g4b', titleKey: 'menu.g4b', collections: ['importAI', 'importAdv', 'importMedia', 'importYiyi'],
     dim: adOrderName,
     dimLabelKey: 'col.adOrder',
     withTax: true,

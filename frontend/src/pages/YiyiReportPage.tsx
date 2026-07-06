@@ -42,8 +42,10 @@ export function YiyiReportPage() {
       const traffic = CHANNELS.reduce((s, c) => s + ch[c], 0);
       const unitPrice = recs[0]?.unitPrice ?? 0;
       const profitUnitPrice = recs[0]?.profitUnitPrice ?? 0;
-      const payable = round2((traffic * unitPrice) / 1000);
-      const profit = round2((traffic * profitUnitPrice) / 1000);
+      // Cộng theo TỪNG KÊNH đã làm tròn — khớp từng xu với số đã lưu ở g3d
+      // và phần chi Yiyi trong bảng lợi nhuận (tránh lệch 1 xu do làm tròn trên tổng).
+      const payable = CHANNELS.reduce((s, c2) => s + round2(((ch[c2] || 0) * unitPrice) / 1000), 0);
+      const profit = CHANNELS.reduce((s, c2) => s + round2(((ch[c2] || 0) * profitUnitPrice) / 1000), 0);
       out.push({ date, ch, traffic, unitPrice, profitUnitPrice, payable, profit, total: payable + profit });
     }
     return out;

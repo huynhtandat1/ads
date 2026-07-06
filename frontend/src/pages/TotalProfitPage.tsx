@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { effectiveValue, getAll, useDB, type Row } from '../data/store';
-import { perfOf } from '../lib/analytics';
+import { perfOf, YIYI_BIZ } from '../lib/analytics';
 import { exportCSV } from '../lib/export';
 import { IconDownload } from '../components/icons';
 import { monthRangeUntilYesterday, yesterdayStr, ymd } from '../lib/date';
@@ -22,6 +22,7 @@ interface DailyCell { biz: string; date: string; profit: number; tax: number }
 interface BizRow { biz: string; today: number; month: number; monthTax: number }
 
 const bizNameOf = (r: Row): string => {
+  if (r.source === 'Yiyi') return YIYI_BIZ; // Yiyi tính vào nghiệp vụ 神马搜索 (chi phí)
   if (!r.adOrderId) return '';
   const order = getAll('adOrders').find((o) => o.id === r.adOrderId);
   return order ? String(order.name) : '';
