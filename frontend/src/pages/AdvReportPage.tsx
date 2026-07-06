@@ -72,8 +72,11 @@ export function AdvReportPage() {
       return true;
     });
   })();
+  // ID quảng cáo phải khớp CẢ nhà QC (fAdv) lẫn đơn QC (orderIdsMatchingFilter) —
+  // chọn đơn QC gom cùng tên giữa nhiều nhà QC nên cần lọc theo tập id đó, không chỉ 1 id.
   const adIdOptions = getAll('adIds').filter((a) =>
-    (!fAdv || String(a.advertiserId) === fAdv) && (!orderIdsMatchingFilter || orderIdsMatchingFilter.has(a.adOrderId as number)),
+    (!fAdv || String(a.advertiserId) === fAdv) &&
+    (!orderIdsMatchingFilter || orderIdsMatchingFilter.has(a.adOrderId as number)),
   );
   const priceOptions = Array.from(new Set(getAll(COLLECTION).map((r) => Number(r.unitPrice) || 0)))
     .sort((a, b) => a - b);
@@ -135,6 +138,7 @@ export function AdvReportPage() {
             <option value="">{t('col.advertiser')}</option>
             {getAll('advertisers').map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
           </select>
+          {/* Đổi đơn QC → reset ID QC (không còn khớp) để tránh filter chết. */}
           <select value={fOrder} onChange={(e) => { setFOrder(e.target.value); setFAdId(''); }} className={sel}>
             <option value="">{t('col.adOrder')}</option>
             {orderOptions.map((o) => <option key={o.id} value={String(o.id)}>{o.name}</option>)}

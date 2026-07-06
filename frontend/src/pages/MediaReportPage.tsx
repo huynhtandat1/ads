@@ -157,6 +157,7 @@ export function MediaReportPage() {
             <option value="">{t('col.media')}</option>
             {getAll('media').map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
           </select>
+          {/* Đổi đơn QC media → reset media ID (không còn khớp) để tránh filter chết. */}
           <select value={fOrder} onChange={(e) => { setFOrder(e.target.value); setFMediaId(''); }} className={sel}>
             <option value="">{t('col.mediaOrder')}</option>
             {orderOptions.map((o) => <option key={o.id} value={String(o.id)}>{o.name}</option>)}
