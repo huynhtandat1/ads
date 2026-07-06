@@ -59,6 +59,7 @@ export default {
     yiyiDesc: 'Theo dõi dữ liệu Yiyi theo tháng, tổng hợp traffic, số tiền phải trả, lợi nhuận và tổng cộng.',
     year: 'Năm', month: 'Tháng', exportCSV: 'Xuất CSV', daysUnit: 'ngày',
     invalidRows: 'Số dòng không hợp lệ', validData: 'Dữ liệu hợp lệ',
+    dailyProfit: 'Lợi nhuận theo ngày', detailRevenue: 'Thu từ nhà quảng cáo', detailCost: 'Chi cho media',
   },
   import: { upload: 'Tải lên file', uploadHint: 'Kéo thả CSV/Excel hoặc bấm để chọn', addRecord: 'Thêm bản ghi', importedRecords: 'Bản ghi đã nhập' },
   entry: {

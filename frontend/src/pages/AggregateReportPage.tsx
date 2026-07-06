@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { snapshot, useDB, effectiveValue, setRate, getAll, type Row } from '../data/store';
+import { snapshot, useDB, effectiveValue, setRate, getAll, refName, type Row } from '../data/store';
 import { exportCSV } from '../lib/export';
 import { RateEditor } from '../components/RateEditor';
 import { IconSearch, IconDownload } from '../components/icons';
@@ -19,7 +19,21 @@ const TAX_PCT = 6; // Điểm thuế mặc định 6% (có thể sửa theo hi�
 const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
-interface GroupRow { dim: string; revenue: number; cost: number; profit: number; margin: number; tax: number; afterTax: number }
+interface GroupRow {
+  dim: string;
+  revenue: number;
+  cost: number;
+  profit: number;
+  margin: number;
+  tax: number;
+  afterTax: number;
+  // §1: lợi nhuận mỗi ngày của nghiệp vụ, sort ngày tăng dần.
+  daily: { date: string; profit: number }[];
+  // §3a: Σ phải thu của từng nhà QC trong nghiệp vụ, sort A→Z theo tên.
+  advertisers: { id: number; name: string; total: number }[];
+  // §3b: Σ thực trả của từng media trong nghiệp vụ, sort A→Z theo tên.
+  media: { id: number; name: string; total: number }[];
+}
 
 export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
   const { t } = useTranslation();
@@ -35,13 +49,23 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
   const [q, setQ] = useState('');
   const [queried, setQueried] = useState(true); // tự truy vấn hôm qua khi vào trang
   const [params, setParams] = useState({ from: yesterdayStr(), to: yesterdayStr(), allDates: false, fAdv: '', q: '' });
+  const [expanded, setExpanded] = useState<string | null>(null); // dim đang mở panel §1+§3
 
   const groups = useMemo<GroupRow[]>(() => {
     if (!queried) return [];
     const db = snapshot();
-    const src = spec.collections.flatMap((c) => db[c] || []);
+    // Gắn __src để phân biệt importAdv vs importMedia → §3a/§3b trích đúng nguồn.
+    const src: (Row & { __src: string })[] = spec.collections.flatMap(
+      (c) => (db[c] || []).map((r) => ({ ...r, __src: c })),
+    );
     const lc = params.q.trim().toLowerCase();
-    const map = new Map<string, { revenue: number; cost: number }>();
+    const map = new Map<string, {
+      revenue: number; cost: number;
+      daily: Map<string, number>;          // §1 — ngày → Σ profit
+      adv: Map<number, number>;            // §3a — advertiserId → Σ receivable
+      med: Map<number, number>;            // §3b — mediaId → Σ actual
+    }>();
+    const acc = (m: Map<number, number>, k: number, v: number) => m.set(k, (m.get(k) || 0) + v);
     for (const r of src) {
       if (!params.allDates && params.from && r.date < params.from) continue;
       if (!params.allDates && params.to && r.date > params.to) continue;
@@ -49,17 +73,31 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
       const dim = spec.dim(r);
       if (!dim) continue;
       if (lc && !dim.toLowerCase().includes(lc)) continue;
-      const g = map.get(dim) || { revenue: 0, cost: 0 };
-      g.revenue += Number(r.revenue) || 0;
-      g.cost += Number(r.cost) || 0;
+      const g = map.get(dim) || { revenue: 0, cost: 0, daily: new Map(), adv: new Map(), med: new Map() };
+      const rev = Number(r.revenue) || 0, cost = Number(r.cost) || 0;
+      g.revenue += rev;
+      g.cost += cost;
+      acc(g.daily, r.date, rev - cost);
+      if (r.__src === 'importAdv' && r.advertiserId != null) acc(g.adv, Number(r.advertiserId), Number(r.receivable ?? rev));
+      if (r.__src === 'importMedia' && r.mediaId != null) acc(g.med, Number(r.mediaId), Number(r.actual ?? cost));
       map.set(dim, g);
     }
     return Array.from(map.entries()).map(([dim, g]) => {
       const profit = g.revenue - g.cost;
-      // điểm thuế có hiệu lực theo ngày (nếu nhóm theo ngày), else theo hôm nay
       const taxPct = effectiveValue('tax', 0, 'point', isDate(dim) ? dim : params.to || todayStr, TAX_PCT);
       const tax = Math.round((profit * taxPct) / 100);
-      return { dim, revenue: g.revenue, cost: g.cost, profit, margin: g.revenue ? +((profit / g.revenue) * 100).toFixed(1) : 0, tax, afterTax: profit - tax };
+      const idName = (m: Map<number, number>, collection: string) =>
+        Array.from(m.entries())
+          .map(([id, total]) => ({ id, name: refName(collection, id) || `#${id}`, total }))
+          .sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' }));
+      return {
+        dim, revenue: g.revenue, cost: g.cost, profit,
+        margin: g.revenue ? +((profit / g.revenue) * 100).toFixed(1) : 0,
+        tax, afterTax: profit - tax,
+        daily: Array.from(g.daily.entries()).map(([date, p]) => ({ date, profit: p })).sort((a, b) => a.date.localeCompare(b.date)),
+        advertisers: idName(g.adv, 'advertisers'),
+        media: idName(g.med, 'media'),
+      };
     }).sort((a, b) => b.profit - a.profit);
   }, [queried, params, spec, todayStr]);
 
@@ -165,16 +203,113 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                     <td className="px-3 py-2 text-right">—</td>
                   </tr>
                   {groups.map((g, i) => (
-                    <tr key={i} className="border-b border-gray-50 hover:bg-cyan-50/30">
-                      <td className="px-3 py-2 whitespace-nowrap text-gray-400">{i + 1}</td>
-                      <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-700">{g.dim}</td>
-                      <td className="px-3 py-2 text-right">{money(g.revenue)}</td>
-                      <td className="px-3 py-2 text-right">{money(g.cost)}</td>
-                      <td className={`px-3 py-2 text-right font-medium ${g.profit >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>{money(g.profit)}</td>
-                      {spec.withTax && <td className="px-3 py-2 text-right text-rose-500">{money(g.tax)}</td>}
-                      {spec.withTax && <td className="px-3 py-2 text-right font-semibold text-emerald-700">{money(g.afterTax)}</td>}
-                      <td className="px-3 py-2 text-right text-gray-600">{g.margin}%</td>
-                    </tr>
+                    <Fragment key={i}>
+                      <tr
+                        onClick={() => setExpanded(expanded === g.dim ? null : g.dim)}
+                        className={`border-b border-gray-50 cursor-pointer transition-colors ${expanded === g.dim ? 'bg-cyan-50/60' : 'hover:bg-cyan-50/30'}`}
+                      >
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-400">
+                          <span className="inline-block w-3 mr-1 text-cyan-600">{expanded === g.dim ? '▾' : '▸'}</span>
+                          {i + 1}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-700">{g.dim}</td>
+                        <td className="px-3 py-2 text-right">{money(g.revenue)}</td>
+                        <td className="px-3 py-2 text-right">{money(g.cost)}</td>
+                        <td className={`px-3 py-2 text-right font-medium ${g.profit >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>{money(g.profit)}</td>
+                        {spec.withTax && <td className="px-3 py-2 text-right text-rose-500">{money(g.tax)}</td>}
+                        {spec.withTax && <td className="px-3 py-2 text-right font-semibold text-emerald-700">{money(g.afterTax)}</td>}
+                        <td className="px-3 py-2 text-right text-gray-600">{g.margin}%</td>
+                      </tr>
+                      {expanded === g.dim && (
+                        <tr className="bg-slate-50/70">
+                          <td colSpan={HEADERS.length} className="px-4 py-4">
+                            {/* Lưới 3 cột: §1 (ngày) | §3a (NQC) | §3b (media) */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              {/* §1 Lợi nhuận theo ngày */}
+                              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-50 border-b border-gray-200">
+                                  {t('report.dailyProfit')}
+                                </div>
+                                <table className="w-full text-sm">
+                                  <tbody>
+                                    {g.daily.length === 0 ? (
+                                      <tr><td colSpan={2} className="px-3 py-6 text-center text-gray-400">—</td></tr>
+                                    ) : (
+                                      <>
+                                        {g.daily.map((d) => (
+                                          <tr key={d.date} className="border-b border-gray-50">
+                                            <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{d.date}</td>
+                                            <td className={`px-3 py-1.5 text-right font-medium ${d.profit >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>{money(d.profit)}</td>
+                                          </tr>
+                                        ))}
+                                        <tr className="bg-brand-dark2 text-white font-semibold">
+                                          <td className="px-3 py-1.5">Σ {t('report.grandTotal')}</td>
+                                          <td className={`px-3 py-1.5 text-right ${g.profit >= 0 ? 'text-cyan-300' : 'text-rose-300'}`}>{money(g.daily.reduce((s, d) => s + d.profit, 0))}</td>
+                                        </tr>
+                                      </>
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
+
+                              {/* §3a Thu từ nhà quảng cáo */}
+                              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-50 border-b border-gray-200">
+                                  {t('report.detailRevenue')}
+                                </div>
+                                <table className="w-full text-sm">
+                                  <tbody>
+                                    {g.advertisers.length === 0 ? (
+                                      <tr><td colSpan={2} className="px-3 py-6 text-center text-gray-400">—</td></tr>
+                                    ) : (
+                                      <>
+                                        {g.advertisers.map((a) => (
+                                          <tr key={a.id} className="border-b border-gray-50">
+                                            <td className="px-3 py-1.5 whitespace-nowrap text-gray-700">{a.name}</td>
+                                            <td className="px-3 py-1.5 text-right font-medium text-emerald-600">{money(a.total)}</td>
+                                          </tr>
+                                        ))}
+                                        <tr className="bg-brand-dark2 text-white font-semibold">
+                                          <td className="px-3 py-1.5">Σ {t('report.grandTotal')}</td>
+                                          <td className="px-3 py-1.5 text-right text-cyan-300">{money(g.advertisers.reduce((s, a) => s + a.total, 0))}</td>
+                                        </tr>
+                                      </>
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
+
+                              {/* §3b Chi cho media */}
+                              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-50 border-b border-gray-200">
+                                  {t('report.detailCost')}
+                                </div>
+                                <table className="w-full text-sm">
+                                  <tbody>
+                                    {g.media.length === 0 ? (
+                                      <tr><td colSpan={2} className="px-3 py-6 text-center text-gray-400">—</td></tr>
+                                    ) : (
+                                      <>
+                                        {g.media.map((m) => (
+                                          <tr key={m.id} className="border-b border-gray-50">
+                                            <td className="px-3 py-1.5 whitespace-nowrap text-gray-700">{m.name}</td>
+                                            <td className="px-3 py-1.5 text-right font-medium text-rose-500">{money(m.total)}</td>
+                                          </tr>
+                                        ))}
+                                        <tr className="bg-brand-dark2 text-white font-semibold">
+                                          <td className="px-3 py-1.5">Σ {t('report.grandTotal')}</td>
+                                          <td className="px-3 py-1.5 text-right text-rose-300">{money(g.media.reduce((s, m) => s + m.total, 0))}</td>
+                                        </tr>
+                                      </>
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   ))}
                 </>
               )}

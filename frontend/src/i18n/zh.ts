@@ -59,6 +59,7 @@ export default {
     yiyiDesc: '按月跟踪 Yiyi 数据，汇总流量、应付金额、利润和总计。',
     year: '年', month: '月', exportCSV: '导出CSV', daysUnit: '天',
     invalidRows: '无效行数', validData: '数据有效',
+    dailyProfit: '每日利润', detailRevenue: '广告主收入', detailCost: '媒体支出',
   },
   import: { upload: '上传文件', uploadHint: '拖放 CSV/Excel 或点击选择', addRecord: '添加记录', importedRecords: '已录入记录' },
   entry: {
