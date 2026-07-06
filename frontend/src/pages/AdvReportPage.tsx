@@ -47,11 +47,17 @@ export function AdvReportPage() {
       if (fStatus === 'confirmed' && !r.status) return false;
       if (fStatus === 'unconfirmed' && r.status) return false;
       if (lc) {
-        const hay = `${r.objectId} ${refName('advertisers', r.advertiserId)} ${refName('adOrders', r.adOrderId)}`.toLowerCase();
+        // Tìm mờ theo spec: NQC / đơn QC / ID QC / loại / đơn giá (tỷ lệ chia).
+        const hay = `${r.objectId} ${refName('advertisers', r.advertiserId)} ${refName('adOrders', r.adOrderId)} ${r.type ?? ''} ${r.unitPrice ?? ''}`.toLowerCase();
         if (!hay.includes(lc)) return false;
       }
       return true;
-    }).sort((a, b) => (a.date < b.date ? 1 : -1));
+    }).sort((a, b) =>
+      // Ngày mới nhất trước; cùng ngày thì theo chữ cái đầu NQC → đơn QC → ID QC (spec).
+      String(b.date).localeCompare(String(a.date)) ||
+      norm(refName('advertisers', a.advertiserId)).localeCompare(norm(refName('advertisers', b.advertiserId))) ||
+      norm(refName('adOrders', a.adOrderId)).localeCompare(norm(refName('adOrders', b.adOrderId))) ||
+      norm(a.objectId).localeCompare(norm(b.objectId)));
   }, [from, to, allDates, fAdv, orderIdsMatchingFilter, fAdId, fType, fPrice, fStatus, q]);
 
   const runQuery = () => setResult(filteredRows);

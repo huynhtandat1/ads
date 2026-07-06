@@ -2,6 +2,17 @@ import { getAll, type Row } from '../data/store';
 
 export interface Totals { revenue: number; cost: number; profit: number; margin: number; records: number }
 
+// importMedia là phía CHI của cùng dòng số liệu đã ghi doanh thu ở importAdv
+// (ETL/seed/nhập liệu đều đặt importMedia.revenue = số phải thu của link tương ứng)
+// → khi gộp nhiều nghiệp vụ chỉ tính phần chi cho media, nếu không doanh thu bị
+// đếm hai lần và lợi nhuận bị thổi phồng (spec: Lợi nhuận = Thu NQC − Chi media − Thuế).
+export function perfOf(collection: string, r: Row): { revenue: number; cost: number } {
+  return {
+    revenue: collection === 'importMedia' ? 0 : Number(r.revenue) || 0,
+    cost: Number(r.cost) || 0,
+  };
+}
+
 export function sumPerf(rows: Row[]): Totals {
   const revenue = rows.reduce((s, r) => s + (Number(r.revenue) || 0), 0);
   const cost = rows.reduce((s, r) => s + (Number(r.cost) || 0), 0);
@@ -10,10 +21,8 @@ export function sumPerf(rows: Row[]): Totals {
 }
 
 export function allPerf(): Row[] {
-  return [
-    ...getAll('importAI'), ...getAll('importAdv'),
-    ...getAll('importMedia'), ...getAll('importYiyi'),
-  ];
+  return ['importAI', 'importAdv', 'importMedia', 'importYiyi'].flatMap((c) =>
+    getAll(c).map((r) => ({ ...r, ...perfOf(c, r) })));
 }
 
 export function filterByDate(rows: Row[], from?: string, to?: string): Row[] {

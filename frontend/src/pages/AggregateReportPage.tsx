@@ -5,6 +5,7 @@ import { exportCSV } from '../lib/export';
 import { RateEditor } from '../components/RateEditor';
 import { IconSearch, IconDownload } from '../components/icons';
 import { monthRangeUntilYesterday, yesterdayStr, ymd } from '../lib/date';
+import { perfOf } from '../lib/analytics';
 
 export interface AggregateSpec {
   screen: string;
@@ -74,7 +75,9 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
       if (!dim) continue;
       if (lc && !dim.toLowerCase().includes(lc)) continue;
       const g = map.get(dim) || { revenue: 0, cost: 0, daily: new Map(), adv: new Map(), med: new Map() };
-      const rev = Number(r.revenue) || 0, cost = Number(r.cost) || 0;
+      // perfOf: dòng importMedia chỉ đóng góp phần CHI — doanh thu của cùng link
+      // đã nằm trong importAdv, cộng cả hai sẽ đếm đôi doanh thu.
+      const { revenue: rev, cost } = perfOf(r.__src, r);
       g.revenue += rev;
       g.cost += cost;
       acc(g.daily, r.date, rev - cost);

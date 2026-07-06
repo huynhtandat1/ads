@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { effectiveValue, getAll, useDB, type Row } from '../data/store';
+import { perfOf } from '../lib/analytics';
 import { exportCSV } from '../lib/export';
 import { IconDownload } from '../components/icons';
 import { monthRangeUntilYesterday, yesterdayStr, ymd } from '../lib/date';
@@ -36,15 +37,17 @@ export function TotalProfitPage() {
 
   // Bảng 1 — Lợi nhuận MỖI NGÀY × NGHIỆP VỤ, sort ngày tăng dần.
   const daily = useMemo<DailyCell[]>(() => {
-    const src = COLLECTIONS.flatMap((c) => getAll(c));
+    // Giữ tên collection để perfOf loại doanh thu trùng của importMedia (chỉ tính chi).
+    const src = COLLECTIONS.flatMap((c) => getAll(c).map((r) => ({ c, r })));
     const map = new Map<string, { profit: number; tax: number }>();
-    for (const r of src) {
+    for (const { c, r } of src) {
       const biz = bizNameOf(r);
       if (!biz) continue;
       const date = String(r.date || '');
       if (from && date < from) continue;
       if (to && date > to) continue;
-      const p = (Number(r.revenue) || 0) - (Number(r.cost) || 0);
+      const perf = perfOf(c, r);
+      const p = perf.revenue - perf.cost;
       const key = `${biz}|${date}`;
       const g = map.get(key) || { profit: 0, tax: 0 };
       g.profit += p;
@@ -62,15 +65,16 @@ export function TotalProfitPage() {
 
   // Bảng 2 — Tổng lợi nhuận THÁNG theo nghiệp vụ. Profit đã TRỪ thuế (đồng bộ g4b + spec).
   const rows = useMemo<BizRow[]>(() => {
-    const src = COLLECTIONS.flatMap((c) => getAll(c));
+    const src = COLLECTIONS.flatMap((c) => getAll(c).map((r) => ({ c, r })));
     const map = new Map<string, { today: number; month: number; monthTax: number }>();
-    for (const r of src) {
+    for (const { c, r } of src) {
       const biz = bizNameOf(r);
       if (!biz) continue;
       const date = String(r.date || '');
       if (from && date < from) continue;
       if (to && date > to) continue;
-      const p = (Number(r.revenue) || 0) - (Number(r.cost) || 0);
+      const perf = perfOf(c, r);
+      const p = perf.revenue - perf.cost;
       const taxPct = effectiveValue('tax', 0, 'point', date, TAX_PCT);
       const tax = Math.round((p * taxPct) / 100);
       const g = map.get(biz) || { today: 0, month: 0, monthTax: 0 };

@@ -62,11 +62,17 @@ export function MediaReportPage() {
       if (fStatus === 'confirmed' && !r.status) return false;
       if (fStatus === 'unconfirmed' && r.status) return false;
       if (lc) {
-        const hay = `${r.objectId} ${refName('media', r.mediaId)} ${refName('mediaOrders', r.mediaOrderId)}`.toLowerCase();
+        // Tìm mờ theo spec: media / đơn QC media / media ID / loại / đơn giá / tỷ lệ chia.
+        const hay = `${r.objectId} ${refName('media', r.mediaId)} ${refName('mediaOrders', r.mediaOrderId)} ${r.type ?? ''} ${r.unitPrice ?? ''} ${r.shareRate ?? ''}`.toLowerCase();
         if (!hay.includes(lc)) return false;
       }
       return true;
-    }).sort((a, b) => (a.date < b.date ? 1 : -1));
+    }).sort((a, b) =>
+      // Ngày mới nhất trước; cùng ngày thì theo chữ cái đầu media → đơn QC media → media ID (spec).
+      String(b.date).localeCompare(String(a.date)) ||
+      norm(refName('media', a.mediaId)).localeCompare(norm(refName('media', b.mediaId))) ||
+      norm(refName('mediaOrders', a.mediaOrderId)).localeCompare(norm(refName('mediaOrders', b.mediaOrderId))) ||
+      norm(a.objectId).localeCompare(norm(b.objectId)));
   }, [from, to, allDates, fMedia, orderIdsMatchingFilter, fMediaId, fType, fPrice, fStatus, q]);
 
   const runQuery = () => setResult(filteredRows);
@@ -102,10 +108,12 @@ export function MediaReportPage() {
     };
   }, { traffic: 0, settlement: 0, receivable: 0, actual: 0 });
 
+  // Nhãn theo spec §Tra cứu dữ liệu media: đây là tiền TRẢ cho media
+  // (phải trả / tỷ lệ chia tài khoản / thực trả), không phải "phải thu/thực nhận".
   const HEADERS = [
     t('col.stt'), t('col.date'), t('col.media'), t('col.mediaOrder'), t('col.type'), t('col.mediaId'),
     t('entry.unitShare'), t('entry.traffic'), t('entry.settlement'),
-    t('entry.receivable'), t('entry.shareRate'), t('entry.actual'), t('common.status'),
+    t('entry.payable'), t('col.accountShare'), t('entry.netPay'), t('common.status'),
   ];
 
   const doExport = () => {
