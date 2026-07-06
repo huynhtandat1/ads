@@ -110,7 +110,7 @@ export function TotalProfitPage() {
   const HEADERS = [
     t('col.stt'),
     t('report.business'),
-    t('report.profitToday'),
+    t('report.profitToday', { to }),
     t('col.tax'),
     t('report.profitMonth'),
   ];
