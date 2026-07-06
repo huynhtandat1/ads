@@ -14,6 +14,13 @@ const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 // cả "phải trả" (21,64) khi share 100% và tổng lệch với chi tiết/§3b của g4b.
 const money2 = (v: number) => Math.round(v * 100) / 100;
 
+// Spec §10: cột Trạng thái đọc "từ trạng thái ID hiện tại" (Bật/Tắt trong danh mục),
+// không phải trạng thái xác nhận của dòng dữ liệu. ID đã bị xóa → rớt về status dòng.
+const midStatusOf = (r: Row): boolean => {
+  const mid = getAll('mediaIds').find((m) => m.id === r.mediaIdId || m.name === r.objectId);
+  return mid ? mid.status !== false : r.status !== false;
+};
+
 function compute(r: Row) {
   const coefficient = Number(r.coefficient ?? 1) || 1;
   const fallbackBase = receivableOf(r.type, { unitPrice: r.unitPrice, traffic: r.traffic, settlement: r.settlement }) ?? 0;
@@ -42,7 +49,7 @@ export function MediaReportPage() {
   const [fMediaId, setFMediaId] = useState('');
   const [fType, setFType] = useState('');
   const [fPrice, setFPrice] = useState('');
-  const [fStatus, setFStatus] = useState<'all' | 'confirmed' | 'unconfirmed'>('all');
+  const [fStatus, setFStatus] = useState<'all' | 'on' | 'off'>('all');
   const [q, setQ] = useState('');
   const [result, setResult] = useState<Row[] | null>(null);
 
@@ -63,8 +70,8 @@ export function MediaReportPage() {
       if (fMediaId && String(r.mediaIdId) !== fMediaId) return false;
       if (fType && r.type !== fType) return false;
       if (fPrice && String(r.unitPrice) !== fPrice) return false;
-      if (fStatus === 'confirmed' && !r.status) return false;
-      if (fStatus === 'unconfirmed' && r.status) return false;
+      if (fStatus === 'on' && !midStatusOf(r)) return false;
+      if (fStatus === 'off' && midStatusOf(r)) return false;
       if (lc) {
         // Tìm mờ theo spec: media / đơn QC media / media ID / loại / đơn giá / tỷ lệ chia.
         const hay = `${r.objectId} ${refName('media', r.mediaId)} ${refName('mediaOrders', r.mediaOrderId)} ${r.type ?? ''} ${r.unitPrice ?? ''} ${r.shareRate ?? ''}`.toLowerCase();
@@ -126,7 +133,7 @@ export function MediaReportPage() {
       return [
         i + 1, r.date, refName('media', r.mediaId), refName('mediaOrders', r.mediaOrderId), r.type, r.objectId,
         r.unitPrice, r.traffic, r.settlement, c.receivable, `${c.shareRate}%`, c.actual,
-        r.status ? t('entry.confirmed') : t('entry.unconfirmed'),
+        midStatusOf(r) ? t('common.on') : t('common.off'),
       ];
     });
     exportCSV('media_report', HEADERS, data);
@@ -187,9 +194,9 @@ export function MediaReportPage() {
             {priceOptions.map((p) => <option key={p} value={String(p)}>{p}</option>)}
           </select>
           <select value={fStatus} onChange={(e) => setFStatus(e.target.value as typeof fStatus)} className={sel}>
-            <option value="all">{t('report.confirmFilter')}: {t('common.all')}</option>
-            <option value="confirmed">{t('entry.confirmed')}</option>
-            <option value="unconfirmed">{t('entry.unconfirmed')}</option>
+            <option value="all">{t('common.status')}: {t('common.all')}</option>
+            <option value="on">{t('common.on')}</option>
+            <option value="off">{t('common.off')}</option>
           </select>
           <div className="relative">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />
@@ -251,8 +258,8 @@ export function MediaReportPage() {
                         <td className="px-3 py-2 text-right text-gray-600">{c.shareRate}%</td>
                         <td className="px-3 py-2 text-right font-semibold text-emerald-600">{money(c.actual)}</td>
                         <td className="px-3 py-2">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${r.status ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                            {r.status ? `✓ ${t('entry.confirmed')}` : t('entry.unconfirmed')}
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${midStatusOf(r) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {midStatusOf(r) ? t('common.on') : t('common.off')}
                           </span>
                         </td>
                       </tr>

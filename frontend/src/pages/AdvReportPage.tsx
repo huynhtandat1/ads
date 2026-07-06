@@ -10,6 +10,13 @@ const COLLECTION = 'importAdv';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 
+// Spec §9: cột Trạng thái đọc "từ trạng thái ID hiện tại" (Bật/Tắt trong danh mục),
+// không phải trạng thái xác nhận của dòng dữ liệu. ID đã bị xóa → rớt về status dòng.
+const adStatusOf = (r: Row): boolean => {
+  const ad = getAll('adIds').find((a) => a.id === r.adIdId || a.name === r.objectId);
+  return ad ? ad.status !== false : r.status !== false;
+};
+
 export function AdvReportPage() {
   const { t } = useTranslation();
   const { can } = useAuth();
@@ -26,7 +33,7 @@ export function AdvReportPage() {
   const [fAdId, setFAdId] = useState('');
   const [fType, setFType] = useState('');
   const [fPrice, setFPrice] = useState('');
-  const [fStatus, setFStatus] = useState<'all' | 'confirmed' | 'unconfirmed'>('all');
+  const [fStatus, setFStatus] = useState<'all' | 'on' | 'off'>('all');
   const [q, setQ] = useState('');
   const [result, setResult] = useState<Row[] | null>(null); // null = chưa truy vấn
 
@@ -47,8 +54,8 @@ export function AdvReportPage() {
       if (fAdId && String(r.adIdId) !== fAdId) return false;
       if (fType && r.type !== fType) return false;
       if (fPrice && String(r.unitPrice) !== fPrice) return false;
-      if (fStatus === 'confirmed' && !r.status) return false;
-      if (fStatus === 'unconfirmed' && r.status) return false;
+      if (fStatus === 'on' && !adStatusOf(r)) return false;
+      if (fStatus === 'off' && adStatusOf(r)) return false;
       if (lc) {
         // Tìm mờ theo spec: NQC / đơn QC / ID QC / loại / đơn giá (tỷ lệ chia).
         const hay = `${r.objectId} ${refName('advertisers', r.advertiserId)} ${refName('adOrders', r.adOrderId)} ${r.type ?? ''} ${r.unitPrice ?? ''}`.toLowerCase();
@@ -102,7 +109,7 @@ export function AdvReportPage() {
   const doExport = () => {
     const data = rows.map((r, i) => [
       i + 1, r.date, refName('advertisers', r.advertiserId), refName('adOrders', r.adOrderId), r.type, r.objectId,
-      r.unitPrice, r.traffic, r.settlement, r.receivable, r.status ? t('entry.confirmed') : t('entry.unconfirmed'),
+      r.unitPrice, r.traffic, r.settlement, r.receivable, adStatusOf(r) ? t('common.on') : t('common.off'),
     ]);
     exportCSV('advertiser_report', HEADERS, data);
   };
@@ -165,9 +172,9 @@ export function AdvReportPage() {
             {priceOptions.map((p) => <option key={p} value={String(p)}>{p}</option>)}
           </select>
           <select value={fStatus} onChange={(e) => setFStatus(e.target.value as typeof fStatus)} className={sel}>
-            <option value="all">{t('report.confirmFilter')}: {t('common.all')}</option>
-            <option value="confirmed">{t('entry.confirmed')}</option>
-            <option value="unconfirmed">{t('entry.unconfirmed')}</option>
+            <option value="all">{t('common.status')}: {t('common.all')}</option>
+            <option value="on">{t('common.on')}</option>
+            <option value="off">{t('common.off')}</option>
           </select>
           <div className="relative">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />
@@ -223,8 +230,8 @@ export function AdvReportPage() {
                       <td className="px-3 py-2 text-right">{money(r.settlement)}</td>
                       <td className="px-3 py-2 text-right font-semibold text-emerald-600">{money(r.receivable)}</td>
                       <td className="px-3 py-2">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${r.status ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                          {r.status ? `✓ ${t('entry.confirmed')}` : t('entry.unconfirmed')}
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${adStatusOf(r) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {adStatusOf(r) ? t('common.on') : t('common.off')}
                         </span>
                       </td>
                     </tr>
