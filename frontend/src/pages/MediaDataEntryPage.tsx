@@ -10,6 +10,7 @@ import { yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importMedia';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 
 const typeOf = (mid: Row): string => mid.type ?? getAll('adIds').find((a) => a.id === mid.adIdId)?.type ?? '-';
 
@@ -63,11 +64,20 @@ export function MediaDataEntryPage() {
       return true;
     });
   }, [fMedia, mediaIdsAll]);
+  // fOrder giữ id của 1 đơn đại diện, nhưng dropdown đã gộp theo TÊN → lọc phải khớp MỌI đơn
+  // cùng tên (đồng bộ với g3b ở AdvDataEntryPage) tránh sót media-id khi cùng tên đơn.
+  const mediaOrderIdsMatchingFilter = useMemo(() => {
+    if (!fOrder) return null;
+    const picked = getAll('mediaOrders').find((o) => String(o.id) === fOrder);
+    const name = norm(picked?.name);
+    return new Set(getAll('mediaOrders').filter((o) => norm(o.name) === name).map((o) => o.id));
+  }, [fOrder, mediaIdsAll]);
   const mediaIdOpts = useMemo(
     () => mediaIdsAll.filter((m) =>
       (!fAdv || String(m.advertiserId) === fAdv) && (!fAdId || String(m.adIdId) === fAdId) &&
-      (!fMedia || String(m.mediaId) === fMedia) && (!fOrder || String(m.mediaOrderId) === fOrder)),
-    [fAdv, fAdId, fMedia, fOrder, mediaIdsAll],
+      (!fMedia || String(m.mediaId) === fMedia) &&
+      (!mediaOrderIdsMatchingFilter || mediaOrderIdsMatchingFilter.has(m.mediaOrderId as number))),
+    [fAdv, fAdId, fMedia, mediaOrderIdsMatchingFilter, mediaIdsAll],
   );
 
   const rows = useMemo(() => {
@@ -76,7 +86,7 @@ export function MediaDataEntryPage() {
       if (fAdv && String(m.advertiserId) !== fAdv) return false;
       if (fAdId && String(m.adIdId) !== fAdId) return false;
       if (fMedia && String(m.mediaId) !== fMedia) return false;
-      if (fOrder && String(m.mediaOrderId) !== fOrder) return false;
+      if (mediaOrderIdsMatchingFilter && !mediaOrderIdsMatchingFilter.has(m.mediaOrderId as number)) return false;
       if (fMediaId && String(m.id) !== fMediaId) return false;
       if (fType && typeOf(m) !== fType) return false;
       if (fPrice && String(m.unitPrice ?? '') !== fPrice) return false;
@@ -89,7 +99,7 @@ export function MediaDataEntryPage() {
       }
       return true;
     });
-  }, [mediaIdsAll, fAdv, fAdId, fMedia, fOrder, fMediaId, fType, fPrice, fStatus, q, savedIds]);
+  }, [mediaIdsAll, fAdv, fAdId, fMedia, mediaOrderIdsMatchingFilter, fMediaId, fType, fPrice, fStatus, q, savedIds]);
 
   const priceOptions = useMemo(
     () => Array.from(new Set(mediaIdsAll.map((m) => Number(m.unitPrice) || 0))).sort((a, b) => a - b),
