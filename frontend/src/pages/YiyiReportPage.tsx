@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getAll } from '../data/store';
+import { useCollection } from '../data/store';
 import { exportCSV } from '../lib/export';
 import { IconSearch, IconDownload, IconRefresh } from '../components/icons';
 
@@ -16,6 +16,9 @@ interface DayRow {
 
 export function YiyiReportPage() {
   const { t } = useTranslation();
+  // Subscribe store để bảng tự tính lại khi nhập liệu ở trang khác (g3d) — trước đây
+  // đọc getAll một lần trong memo nên dữ liệu mới không hiện cho tới khi F5.
+  const records = useCollection(COLLECTION);
   const now = new Date();
   const yst = new Date(); yst.setDate(yst.getDate() - 1); // hôm qua (tháng chứa hôm qua)
   const [year, setYear] = useState(yst.getFullYear());
@@ -27,7 +30,6 @@ export function YiyiReportPage() {
 
   const data = useMemo<DayRow[]>(() => {
     if (!query) return [];
-    const records = getAll(COLLECTION);
     const days = new Date(query.year, query.month, 0).getDate();
     const out: DayRow[] = [];
     for (let d = 1; d <= days; d++) {
@@ -43,7 +45,7 @@ export function YiyiReportPage() {
       out.push({ date, ch, traffic, unitPrice, profitUnitPrice, payable, profit, total: payable + profit });
     }
     return out;
-  }, [query]);
+  }, [query, records]);
 
   const totals = data.reduce(
     (s, r) => ({ traffic: s.traffic + r.traffic, payable: s.payable + r.payable, profit: s.profit + r.profit, total: s.total + r.total }),

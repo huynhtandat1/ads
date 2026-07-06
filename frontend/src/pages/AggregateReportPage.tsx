@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { snapshot, useDB, effectiveValue, setRate, getAll, refName, type Row } from '../data/store';
+import { useDB, effectiveValue, setRate, getAll, refName, type Row } from '../data/store';
 import { exportCSV } from '../lib/export';
 import { RateEditor } from '../components/RateEditor';
 import { IconSearch, IconDownload } from '../components/icons';
@@ -40,7 +40,9 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
   const { t } = useTranslation();
   // Số hook phải CỐ ĐỊNH giữa các lần render (spec.collections dài ngắn khác nhau
   // giữa g4a/g4b) → subscribe cả DB bằng 1 hook thay vì useCollection trong vòng lặp.
-  useDB(); // gồm cả spec.collections lẫn 'rates' (điểm thuế theo hiệu lực ngày)
+  // Giữ giá trị trả về làm dep của memo: trước đây memo chỉ phụ thuộc bộ lọc nên
+  // sửa điểm thuế/nhập liệu mới không cập nhật bảng cho tới khi bấm truy vấn lại.
+  const dbAll = useDB(); // gồm cả spec.collections lẫn 'rates' (điểm thuế theo hiệu lực ngày)
   const todayStr = ymd(new Date());
 
   const [from, setFrom] = useState(yesterdayStr());
@@ -54,7 +56,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
 
   const groups = useMemo<GroupRow[]>(() => {
     if (!queried) return [];
-    const db = snapshot();
+    const db = dbAll;
     // Gắn __src để phân biệt importAdv vs importMedia → §3a/§3b trích đúng nguồn.
     const src: (Row & { __src: string })[] = spec.collections.flatMap(
       (c) => (db[c] || []).map((r) => ({ ...r, __src: c })),
@@ -102,7 +104,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
         media: idName(g.med, 'media'),
       };
     }).sort((a, b) => b.profit - a.profit);
-  }, [queried, params, spec, todayStr]);
+  }, [queried, params, spec, todayStr, dbAll]);
 
   const totals = groups.reduce((s, g) => ({
     revenue: s.revenue + g.revenue, cost: s.cost + g.cost, profit: s.profit + g.profit, tax: s.tax + g.tax, afterTax: s.afterTax + g.afterTax,

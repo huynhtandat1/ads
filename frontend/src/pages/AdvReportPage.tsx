@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
-import { getAll, refName, type Row } from '../data/store';
+import { getAll, refName, useDB, type Row } from '../data/store';
 import { exportCSV } from '../lib/export';
 import { IconSearch, IconDownload } from '../components/icons';
 import { monthRangeUntilYesterday, yesterdayStr } from '../lib/date';
@@ -14,6 +14,9 @@ export function AdvReportPage() {
   const { t } = useTranslation();
   const { can } = useAuth();
   const screen = 'g4c';
+  // Subscribe store để bảng tự cập nhật khi dữ liệu đổi từ trang khác (nhập liệu g3a/g3b)
+  // — trước đây trang này không subscribe nên phải F5 mới thấy số mới.
+  const db = useDB();
 
   const [from, setFrom] = useState(yesterdayStr());
   const [to, setTo] = useState(yesterdayStr());
@@ -32,7 +35,7 @@ export function AdvReportPage() {
     const picked = getAll('adOrders').find((o) => String(o.id) === fOrder);
     const name = norm(picked?.name);
     return new Set(getAll('adOrders').filter((o) => norm(o.name) === name).map((o) => o.id));
-  }, [fOrder]);
+  }, [fOrder, db]);
 
   const filteredRows = useMemo(() => {
     const lc = q.trim().toLowerCase();
@@ -58,7 +61,7 @@ export function AdvReportPage() {
       norm(refName('advertisers', a.advertiserId)).localeCompare(norm(refName('advertisers', b.advertiserId))) ||
       norm(refName('adOrders', a.adOrderId)).localeCompare(norm(refName('adOrders', b.adOrderId))) ||
       norm(a.objectId).localeCompare(norm(b.objectId)));
-  }, [from, to, allDates, fAdv, orderIdsMatchingFilter, fAdId, fType, fPrice, fStatus, q]);
+  }, [from, to, allDates, fAdv, orderIdsMatchingFilter, fAdId, fType, fPrice, fStatus, q, db]);
 
   const runQuery = () => setResult(filteredRows);
 

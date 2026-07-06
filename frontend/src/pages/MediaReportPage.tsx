@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { effectiveValue, getAll, refName, useCollection, type Row } from '../data/store';
+import { effectiveValue, getAll, refName, useDB, type Row } from '../data/store';
 import { receivableOf } from '../lib/billing';
 import { exportCSV } from '../lib/export';
 import { IconSearch, IconDownload } from '../components/icons';
@@ -30,9 +30,9 @@ function compute(r: Row) {
 export function MediaReportPage() {
   const { t } = useTranslation();
   const screen = 'g4d';
-  useCollection(COLLECTION);
-  useCollection('mediaIds');
-  useCollection('rates');
+  // Subscribe cả store + đưa vào deps memo: trước đây memo chỉ phụ thuộc bộ lọc nên
+  // dữ liệu nhập mới (g3c) không hiện cho tới khi F5/đổi bộ lọc.
+  const db = useDB();
 
   const [from, setFrom] = useState(yesterdayStr());
   const [to, setTo] = useState(yesterdayStr());
@@ -51,7 +51,7 @@ export function MediaReportPage() {
     const picked = getAll('mediaOrders').find((o) => String(o.id) === fOrder);
     const name = norm(picked?.name);
     return new Set(getAll('mediaOrders').filter((o) => norm(o.name) === name).map((o) => o.id));
-  }, [fOrder]);
+  }, [fOrder, db]);
 
   const filteredRows = useMemo(() => {
     const lc = q.trim().toLowerCase();
@@ -77,7 +77,7 @@ export function MediaReportPage() {
       norm(refName('media', a.mediaId)).localeCompare(norm(refName('media', b.mediaId))) ||
       norm(refName('mediaOrders', a.mediaOrderId)).localeCompare(norm(refName('mediaOrders', b.mediaOrderId))) ||
       norm(a.objectId).localeCompare(norm(b.objectId)));
-  }, [from, to, allDates, fMedia, orderIdsMatchingFilter, fMediaId, fType, fPrice, fStatus, q]);
+  }, [from, to, allDates, fMedia, orderIdsMatchingFilter, fMediaId, fType, fPrice, fStatus, q, db]);
 
   const runQuery = () => setResult(filteredRows);
 

@@ -25,7 +25,8 @@ const bizNameOf = (r: Row): string => {
 
 export function TotalProfitPage() {
   const { t } = useTranslation();
-  useDB();
+  // Đưa db vào deps memo để bảng tự tính lại khi dữ liệu/thuế đổi (kể cả từ trang khác).
+  const db = useDB();
 
   const [from, setFrom] = useState(`${yesterdayStr().slice(0, 7)}-01`);
   const [to, setTo] = useState(yesterdayStr());
@@ -61,7 +62,7 @@ export function TotalProfitPage() {
         return { biz, date, profit: g.profit, tax: g.tax };
       })
       .sort((a, b) => a.date.localeCompare(b.date) || a.biz.localeCompare(b.biz));
-  }, [from, to]);
+  }, [from, to, db]);
 
   // Bảng 2 — Tổng lợi nhuận THÁNG theo nghiệp vụ. Profit đã TRỪ thuế (đồng bộ g4b + spec).
   const { rows, todayDate } = useMemo(() => {
@@ -93,7 +94,7 @@ export function TotalProfitPage() {
       .map(([biz, g]) => ({ biz, today: g.today, month: g.month - g.monthTax, monthTax: g.monthTax }))
       .sort((a, b) => b.month - a.month);
     return { rows: out, todayDate: lastDate || to };
-  }, [from, to]);
+  }, [from, to, db]);
 
   const totals = rows.reduce((s, r) => ({
     today: s.today + r.today, month: s.month + r.month, monthTax: s.monthTax + r.monthTax,
