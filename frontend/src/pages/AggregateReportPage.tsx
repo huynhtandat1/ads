@@ -91,11 +91,11 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
     }
     return Array.from(map.entries()).map(([dim, g]) => {
       const profit = g.revenue - g.cost;
-      // Thuế = Σ thuế TỪNG NGÀY (round2 mỗi ngày theo suất hiệu lực của ngày đó) —
-      // cùng một phép tính với g4a nên hai màn khớp tuyệt đối, và đúng cả khi
-      // suất đổi giữa kỳ (trước đây áp suất của ngày cuối kỳ cho cả kỳ).
+      // Thuế = Σ (lợi nhuận ngày × suất hiệu lực ngày đó) để THÔ, làm tròn MỘT lần —
+      // cùng phép tính với g4a nên hai màn khớp tuyệt đối, đúng khi suất đổi giữa kỳ,
+      // và không lệch xu kiểu Σround(ngày) ≠ round(Σ) (0,75 vs 0,76).
       const tax = round2(Array.from(g.daily.entries()).reduce(
-        (s, [date, p]) => s + round2((p * effectiveValue('tax', 0, 'point', isDate(date) ? date : params.to || todayStr, TAX_PCT)) / 100),
+        (s, [date, p]) => s + (p * effectiveValue('tax', 0, 'point', isDate(date) ? date : params.to || todayStr, TAX_PCT)) / 100,
         0,
       ));
       const idName = (m: Map<number, number>, collection: string) =>

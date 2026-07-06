@@ -13,8 +13,9 @@ import { monthRangeUntilYesterday, yesterdayStr, ymd } from '../lib/date';
 const TAX_PCT = 6;
 const COLLECTIONS = ['importAI', 'importAdv', 'importMedia', 'importYiyi'];
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
-// Thuế giữ 2 số lẻ theo đúng công thức spec "(Thu − Chi) × suất" — tài liệu không
-// quy định làm tròn nguyên; round nguyên từng dòng làm thuế nhỏ biến mất và lệch g4b.
+// Thuế = (Thu − Chi) × suất theo spec, giữ 2 số lẻ. Thuế từng ngày để THÔ khi cộng
+// dồn, chỉ làm tròn MỘT LẦN ở tổng — làm tròn từng ngày rồi cộng sẽ lệch vài xu
+// (Σround(ngày×6%) ≠ round(Σ×6%), vd 0,75 thay vì 0,76).
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
 interface DailyCell { biz: string; date: string; profit: number; tax: number }
@@ -59,7 +60,8 @@ export function TotalProfitPage() {
       .map(([k, profit]) => {
         const [biz, date] = k.split('|');
         const taxPct = effectiveValue('tax', 0, 'point', date, TAX_PCT);
-        return { biz, date, profit, tax: round2((profit * taxPct) / 100) };
+        // Thuế ngày để thô — money() lo phần hiển thị; tổng chỉ làm tròn 1 lần.
+        return { biz, date, profit, tax: (profit * taxPct) / 100 };
       })
       .sort((a, b) => a.date.localeCompare(b.date) || a.biz.localeCompare(b.biz));
   }, [from, to, db]);
@@ -91,15 +93,21 @@ export function TotalProfitPage() {
       const cut = k.lastIndexOf('|');
       const biz = k.slice(0, cut), date = k.slice(cut + 1);
       const taxPct = effectiveValue('tax', 0, 'point', date, TAX_PCT);
-      const tax = round2((p * taxPct) / 100);
+      // Cộng thuế thô từng ngày; làm tròn duy nhất 1 lần khi ra kết quả.
+      const tax = (p * taxPct) / 100;
       const g = map.get(biz) || { today: 0, month: 0, monthTax: 0 };
       g.month += p;
-      g.monthTax = round2(g.monthTax + tax);
+      g.monthTax += tax;
       if (date === lastDate) g.today += p - tax;
       map.set(biz, g);
     }
     const out: BizRow[] = Array.from(map.entries())
-      .map(([biz, g]) => ({ biz, today: g.today, month: round2(g.month - g.monthTax), monthTax: g.monthTax }))
+      .map(([biz, g]) => ({
+        biz,
+        today: round2(g.today),
+        month: round2(g.month - round2(g.monthTax)),
+        monthTax: round2(g.monthTax),
+      }))
       .sort((a, b) => b.month - a.month);
     return { rows: out, todayDate: lastDate || to };
   }, [from, to, db]);
