@@ -4,6 +4,7 @@ import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, refName, effectiveValue, setRate, type Row } from '../data/store';
 import { receivableOf, type BillingInputs } from '../lib/billing';
+import { round3 } from '../lib/format';
 import { RateEditor } from '../components/RateEditor';
 import { IconSearch, IconDownload, IconUpload } from '../components/icons';
 import { yesterdayStr } from '../lib/date';
@@ -129,7 +130,7 @@ export function AdvDataEntryPage({
   const saveRow = (ad: Row) => {
     const d = draft[ad.id] || { unitPrice: '', traffic: '', settlement: '' };
     const price = priceOf(ad);
-    const receivable = receivableOf(ad.type, { unitPrice: price, traffic: d.traffic, settlement: d.settlement }) ?? 0;
+    const receivable = round3(receivableOf(ad.type, { unitPrice: price, traffic: d.traffic, settlement: d.settlement }) ?? 0);
     const payload = {
       date, objectId: ad.name, adIdId: ad.id, advertiserId: ad.advertiserId, adOrderId: ad.adOrderId,
       type: ad.type, unitPrice: price, traffic: Number(d.traffic) || 0,

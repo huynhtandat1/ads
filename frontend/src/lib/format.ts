@@ -20,3 +20,6 @@ export function formatId(id: number | string): string {
 export function money(v: number): string {
   return '¥' + Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
+
+// Làm tròn dùng trong TÍNH TOÁN: giữ 3 chữ số thập phân. Hiển thị vẫn 2 chữ số (money()).
+export const round3 = (v: number) => Math.round(v * 1000) / 1000;

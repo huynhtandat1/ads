@@ -190,8 +190,8 @@ function mediaActualOf(source: DB, r: Row): number {
     : fallbackShareRate;
   const payable = r.receivable != null ? Number(r.receivable) || 0 : Number(r.payable) || 0;
   if (!payable && r.receivable == null && r.payable == null) return Number(r.actual) || 0;
-  // Giữ 2 số lẻ (đồng bộ frontend) — làm tròn nguyên từng dòng làm thực trả > phải trả.
-  return Math.round(payable * (shareRate / 100) * 100) / 100;
+  // Tính giữ 3 số lẻ (đồng bộ frontend); nơi hiển thị tự rút về 2 số lẻ.
+  return Math.round(payable * (shareRate / 100) * 1000) / 1000;
 }
 
 // Bộ đếm id log tăng đơn điệu (tránh Math.max(...spread) tràn stack và tránh trùng id).
@@ -268,13 +268,14 @@ app.get('/api/settlement/preview', auth, (req, res) => {
     const total = (scoped.importMedia || [])
       .filter((r) => (!media || r.mediaId === media.id) && (!from || r.date >= from) && (!to || r.date <= to))
       .reduce((s, r) => s + mediaActualOf(scoped, r), 0);
-    return res.json({ total: Math.round(total) });
+    // Tính giữ 3 số lẻ; frontend hiển thị 2 số lẻ.
+    return res.json({ total: Math.round(total * 1000) / 1000 });
   }
   const adv = (scoped.advertisers || []).find((a) => a.name === target);
   const total = (scoped.importAdv || [])
     .filter((r) => (!adv || r.advertiserId === adv.id) && (!from || r.date >= from) && (!to || r.date <= to))
     .reduce((s, r) => s + (Number(r.receivable) || 0), 0);
-  res.json({ total: Math.round(total) });
+  res.json({ total: Math.round(total * 1000) / 1000 });
 });
 
 // Chỉ cho phép ghi vào các collection đã biết (tránh bơm rác vào các collection tùy ý).

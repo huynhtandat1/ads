@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCollection } from '../data/store';
+import { round3 } from '../lib/format';
 import { exportCSV } from '../lib/export';
 import { IconSearch, IconDownload, IconRefresh } from '../components/icons';
 
@@ -8,8 +9,6 @@ const COLLECTION = 'importYiyi';
 const CHANNELS = ['yy-02-01', 'yy-02-02', 'yy-02-03', 'yy-02-04'];
 const pad = (n: number) => String(n).padStart(2, '0');
 const money2 = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-// Đơn giá Yiyi là giá trên 1.000 lượt (như CPM): tiền = lưu lượng × giá ÷ 1000, giữ 2 số lẻ.
-const round2 = (v: number) => Math.round(v * 100) / 100;
 
 interface DayRow {
   date: string; ch: Record<string, number>; traffic: number;
@@ -42,10 +41,10 @@ export function YiyiReportPage() {
       const traffic = CHANNELS.reduce((s, c) => s + ch[c], 0);
       const unitPrice = recs[0]?.unitPrice ?? 0;
       const profitUnitPrice = recs[0]?.profitUnitPrice ?? 0;
-      // Cộng theo TỪNG KÊNH đã làm tròn — khớp từng xu với số đã lưu ở g3d
-      // và phần chi Yiyi trong bảng lợi nhuận (tránh lệch 1 xu do làm tròn trên tổng).
-      const payable = CHANNELS.reduce((s, c2) => s + round2(((ch[c2] || 0) * unitPrice) / 1000), 0);
-      const profit = CHANNELS.reduce((s, c2) => s + round2(((ch[c2] || 0) * profitUnitPrice) / 1000), 0);
+      // Cộng theo TỪNG KÊNH đã làm tròn 3 số lẻ — khớp với số đã lưu ở g3d và phần chi
+      // Yiyi trong bảng lợi nhuận (hiển thị money2() rút về 2 số lẻ).
+      const payable = CHANNELS.reduce((s, c2) => s + round3(((ch[c2] || 0) * unitPrice) / 1000), 0);
+      const profit = CHANNELS.reduce((s, c2) => s + round3(((ch[c2] || 0) * profitUnitPrice) / 1000), 0);
       out.push({ date, ch, traffic, unitPrice, profitUnitPrice, payable, profit, total: payable + profit });
     }
     return out;

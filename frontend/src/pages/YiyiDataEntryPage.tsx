@@ -3,14 +3,15 @@ import { useTranslation } from 'react-i18next';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, type Row } from '../data/store';
+import { round3 } from '../lib/format';
 import { yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importYiyi';
 const CHANNELS = ['yy-02-01', 'yy-02-02', 'yy-02-03', 'yy-02-04'];
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
-// Đơn giá Yiyi là giá trên 1.000 lượt (như CPM): tiền = số lượng × giá ÷ 1000, giữ 2 số lẻ.
-const round2 = (v: number) => Math.round(v * 100) / 100;
-const yiyiMoney = (q: number, price: number) => round2((q * price) / 1000);
+// Đơn giá Yiyi là giá trên 1.000 lượt (như CPM): tiền = số lượng × giá ÷ 1000.
+// Tính giữ 3 số lẻ; hiển thị money() rút về 2 số lẻ.
+const yiyiMoney = (q: number, price: number) => round3((q * price) / 1000);
 
 export function YiyiDataEntryPage() {
   const { t } = useTranslation();

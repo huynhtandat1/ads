@@ -8,6 +8,7 @@ import { useCollection, getAll, create, update, type Row } from '../data/store';
 import { api } from '../api';
 import { IconPlus, IconPencil, IconEye } from '../components/icons';
 import { yesterdayStr } from '../lib/date';
+import { money } from '../lib/format';
 
 interface Props { screen: string; collection: string; titleKey: string; targetFrom: string; previewType: 'adv' | 'media' }
 
@@ -54,7 +55,7 @@ export function SettlementPage({ screen, collection, titleKey, targetFrom, previ
       key: 'actions', label: t('common.actions'), align: 'center',
       render: (r) => (
         <div className="flex items-center justify-center gap-2">
-          <button onClick={() => alert(`${r.code}\n${r.target}\n${r.period}\n¥${Number(r.totalAmount).toLocaleString()}`)}
+          <button onClick={() => alert(`${r.code}\n${r.target}\n${r.period}\n${money(Number(r.totalAmount))}`)}
             className="p-1.5 rounded-lg text-cyan-600 hover:bg-cyan-50"><IconEye width={16} height={16} /></button>
           {canEdit && <button onClick={() => setEditing(r)} className="p-1.5 rounded-lg text-orange-500 hover:bg-orange-50"><IconPencil width={16} height={16} /></button>}
         </div>
@@ -172,7 +173,7 @@ function GenerateModal({ collection, targetFrom, previewType, onClose, onDone }:
           <div className="rounded-lg bg-cyan-50 border border-cyan-100 p-4">
             <div className="text-xs text-gray-500">{t('col.totalAmount')} · {t('settle.auto')}</div>
             <div className="text-2xl font-bold text-cyan-700 mt-1">
-              {loading ? '…' : total == null ? '—' : '¥' + total.toLocaleString()}
+              {loading ? '…' : total == null ? '—' : money(total)}
             </div>
           </div>
           <div>

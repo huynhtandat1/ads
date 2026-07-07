@@ -6,6 +6,7 @@ import { RateEditor } from '../components/RateEditor';
 import { IconSearch, IconDownload } from '../components/icons';
 import { monthRangeUntilYesterday, yesterdayStr, ymd } from '../lib/date';
 import { perfOf } from '../lib/analytics';
+import { round3 } from '../lib/format';
 
 export interface AggregateSpec {
   screen: string;
@@ -17,8 +18,6 @@ export interface AggregateSpec {
 }
 
 const TAX_PCT = 6; // Điểm thuế mặc định 6% (có thể sửa theo hiệu lực ngày)
-// Thuế giữ 2 số lẻ theo công thức spec — tài liệu không quy định làm tròn nguyên.
-const round2 = (v: number) => Math.round(v * 100) / 100;
 const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
@@ -91,10 +90,10 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
     }
     return Array.from(map.entries()).map(([dim, g]) => {
       const profit = g.revenue - g.cost;
-      // Thuế = Σ (lợi nhuận ngày × suất hiệu lực ngày đó) để THÔ, làm tròn MỘT lần —
-      // cùng phép tính với g4a nên hai màn khớp tuyệt đối, đúng khi suất đổi giữa kỳ,
-      // và không lệch xu kiểu Σround(ngày) ≠ round(Σ) (0,75 vs 0,76).
-      const tax = round2(Array.from(g.daily.entries()).reduce(
+      // Thuế = Σ (lợi nhuận ngày × suất hiệu lực ngày đó) để THÔ, làm tròn 3 số lẻ MỘT lần
+      // (hiển thị money() còn 2) — cùng phép tính với g4a nên hai màn khớp, đúng khi suất
+      // đổi giữa kỳ, không lệch kiểu Σround(ngày) ≠ round(Σ).
+      const tax = round3(Array.from(g.daily.entries()).reduce(
         (s, [date, p]) => s + (p * effectiveValue('tax', 0, 'point', isDate(date) ? date : params.to || todayStr, TAX_PCT)) / 100,
         0,
       ));

@@ -4,13 +4,13 @@ import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, refName, effectiveValue, setRate, type Row } from '../data/store';
 import { receivableOf } from '../lib/billing';
+import { round3 } from '../lib/format';
 import { RateEditor } from '../components/RateEditor';
 import { IconSearch, IconDownload } from '../components/icons';
 import { yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importMedia';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
-const round2 = (v: number) => Math.round(v * 100) / 100;
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 
 const typeOf = (mid: Row): string => mid.type ?? getAll('adIds').find((a) => a.id === mid.adIdId)?.type ?? '-';
@@ -115,11 +115,12 @@ export function MediaDataEntryPage() {
     // LÀM TRÒN XUỐNG (bỏ phần lẻ) — không tính lượt chưa đủ (1750×0.85=1487,5 → 1487);
     // quyết toán là tiền nên giữ 2 số lẻ.
     const traffic = rawTraffic == null ? '' : Math.floor(rawTraffic * coef);
-    const settlement = rawSettlement == null ? '' : round2(rawSettlement * coef);
-    // Phải trả tính từ base ĐÃ áp hệ số (không nhân hệ số lần nữa).
+    const settlement = rawSettlement == null ? '' : round3(rawSettlement * coef);
+    // Phải trả tính từ base ĐÃ áp hệ số (không nhân hệ số lần nữa). Tính giữ 3 số lẻ,
+    // hiển thị money() lo phần rút về 2 số lẻ.
     const receivable = receivableOf(type, { unitPrice, traffic, settlement });
-    const payable = receivable == null ? null : round2(receivable);          // Số tiền phải trả
-    const netPay = payable == null ? null : round2(payable * (accountShare / 100)); // Số tiền thực trả
+    const payable = receivable == null ? null : round3(receivable);          // Số tiền phải trả
+    const netPay = payable == null ? null : round3(payable * (accountShare / 100)); // Số tiền thực trả
     return { type, traffic, settlement, unitPrice, coef, accountShare, payable, netPay };
   };
 

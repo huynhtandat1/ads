@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { effectiveValue, getAll, refName, useDB, type Row } from '../data/store';
 import { receivableOf } from '../lib/billing';
+import { round3 } from '../lib/format';
 import { exportCSV } from '../lib/export';
 import { IconSearch, IconDownload } from '../components/icons';
 import { monthRangeUntilYesterday, yesterdayStr } from '../lib/date';
@@ -10,9 +11,8 @@ const COLLECTION = 'importMedia';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 
-// Tiền tệ giữ 2 số lẻ — làm tròn về NGUYÊN từng dòng khiến "thực trả" (22) lớn hơn
-// cả "phải trả" (21,64) khi share 100% và tổng lệch với chi tiết/§3b của g4b.
-const money2 = (v: number) => Math.round(v * 100) / 100;
+// Tính toán giữ 3 số lẻ; hiển thị money() rút về 2 số lẻ. (Trước đây làm tròn nguyên
+// từng dòng khiến "thực trả" 22 > "phải trả" 21,64 khi share 100%.)
 
 // Spec §10: cột Trạng thái đọc "từ trạng thái ID hiện tại" (Bật/Tắt trong danh mục),
 // không phải trạng thái xác nhận của dòng dữ liệu. ID đã bị xóa → rớt về status dòng.
@@ -24,13 +24,13 @@ const midStatusOf = (r: Row): boolean => {
 function compute(r: Row) {
   const coefficient = Number(r.coefficient ?? 1) || 1;
   const fallbackBase = receivableOf(r.type, { unitPrice: r.unitPrice, traffic: r.traffic, settlement: r.settlement }) ?? 0;
-  const receivable = r.receivable != null ? Number(r.receivable) || 0 : money2(fallbackBase * coefficient);
+  const receivable = r.receivable != null ? Number(r.receivable) || 0 : round3(fallbackBase * coefficient);
   const mediaId = getAll('mediaIds').find((m) => m.id === r.mediaIdId);
   const fallbackShareRate = Number(mediaId?.profitShare ?? r.shareRate ?? 0) || 0;
   const shareRate = r.mediaIdId != null
     ? effectiveValue('mediaId', r.mediaIdId, 'profitShare', String(r.date || ''), fallbackShareRate)
     : fallbackShareRate;
-  const actual = money2(receivable * (shareRate / 100));
+  const actual = round3(receivable * (shareRate / 100));
   return { receivable, shareRate, coefficient, actual };
 }
 

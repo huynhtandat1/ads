@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { effectiveValue, getAll, useDB, type Row } from '../data/store';
 import { perfOf, YIYI_BIZ } from '../lib/analytics';
+import { round3 } from '../lib/format';
 import { exportCSV } from '../lib/export';
 import { IconDownload } from '../components/icons';
 import { monthRangeUntilYesterday, yesterdayStr, ymd } from '../lib/date';
@@ -13,10 +14,6 @@ import { monthRangeUntilYesterday, yesterdayStr, ymd } from '../lib/date';
 const TAX_PCT = 6;
 const COLLECTIONS = ['importAI', 'importAdv', 'importMedia', 'importYiyi'];
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
-// Thuế = (Thu − Chi) × suất theo spec, giữ 2 số lẻ. Thuế từng ngày để THÔ khi cộng
-// dồn, chỉ làm tròn MỘT LẦN ở tổng — làm tròn từng ngày rồi cộng sẽ lệch vài xu
-// (Σround(ngày×6%) ≠ round(Σ×6%), vd 0,75 thay vì 0,76).
-const round2 = (v: number) => Math.round(v * 100) / 100;
 
 interface DailyCell { biz: string; date: string; profit: number; tax: number }
 interface BizRow { biz: string; today: number; month: number; monthTax: number }
@@ -65,8 +62,8 @@ export function TotalProfitPage() {
       .map(([k, profit]) => {
         const [biz, date] = k.split('|');
         const taxPct = effectiveValue('tax', 0, 'point', date, TAX_PCT);
-        // Thuế ngày để thô — money() lo phần hiển thị; tổng chỉ làm tròn 1 lần.
-        return { biz, date, profit, tax: (profit * taxPct) / 100 };
+        // Thuế ngày làm tròn 3 số lẻ (tính toán); money() lo phần hiển thị 2 số lẻ.
+        return { biz, date, profit, tax: round3((profit * taxPct) / 100) };
       })
       .sort((a, b) => a.date.localeCompare(b.date) || a.biz.localeCompare(b.biz));
   }, [from, to, db]);
@@ -96,7 +93,7 @@ export function TotalProfitPage() {
       const cut = k.lastIndexOf('|');
       const biz = k.slice(0, cut), date = k.slice(cut + 1);
       const taxPct = effectiveValue('tax', 0, 'point', date, TAX_PCT);
-      // Cộng thuế thô từng ngày; làm tròn duy nhất 1 lần khi ra kết quả.
+      // Cộng thuế thô từng ngày; làm tròn 3 số lẻ khi ra kết quả (hiển thị money() còn 2).
       const tax = (p * taxPct) / 100;
       const g = map.get(biz) || { today: 0, month: 0, monthTax: 0 };
       g.month += p;
@@ -107,9 +104,9 @@ export function TotalProfitPage() {
     const out: BizRow[] = Array.from(map.entries())
       .map(([biz, g]) => ({
         biz,
-        today: round2(g.today),
-        month: round2(g.month - round2(g.monthTax)),
-        monthTax: round2(g.monthTax),
+        today: round3(g.today),
+        month: round3(g.month - round3(g.monthTax)),
+        monthTax: round3(g.monthTax),
       }))
       .sort((a, b) => b.month - a.month);
     return { rows: out, todayDate: dayCol };
