@@ -23,8 +23,12 @@ interface BizRow { biz: string; today: number; month: number; monthTax: number }
 
 const bizNameOf = (r: Row): string => {
   if (r.source === 'Yiyi') return YIYI_BIZ; // Yiyi tính vào nghiệp vụ 神马搜索 (chi phí)
-  if (!r.adOrderId) return '';
-  const order = getAll('adOrders').find((o) => o.id === r.adOrderId);
+  // Nghiệp vụ theo đơn QC của ID QUẢNG CÁO (khóa chung thu↔chi); hồ sơ Media ID có thể
+  // ghi lệch đơn QC so với adId, dùng r.adOrderId sẽ tách chi media khỏi doanh thu.
+  const adId = r.adIdId != null ? getAll('adIds').find((a) => a.id === r.adIdId) : undefined;
+  const orderId = adId?.adOrderId ?? r.adOrderId;
+  if (orderId == null) return '';
+  const order = getAll('adOrders').find((o) => o.id === orderId);
   return order ? String(order.name) : '';
 };
 

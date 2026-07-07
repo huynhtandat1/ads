@@ -23,10 +23,15 @@ import { YIYI_BIZ } from './lib/analytics';
 // 业务 = tên đơn quảng cáo (360 / sm / Qianwen...): gộp chung các 广告主 có cùng đơn,
 // không tách "advertiser / order" như trước (spec #9: 查询按业务分类).
 // Dữ liệu Yiyi không gắn đơn QC — tính vào nghiệp vụ 神马搜索 (phần CHI, xem perfOf).
+// Nghiệp vụ bám theo đơn QC của ID QUẢNG CÁO (khóa chung nối thu NQC ↔ chi media),
+// KHÔNG dùng r.adOrderId của dòng media vì hồ sơ Media ID có thể ghi lệch đơn QC so
+// với adId → khiến chi phí media rơi sang nghiệp vụ khác với doanh thu ("chi phí ảo").
 const adOrderName = (r: Row) => {
   if (r.source === 'Yiyi') return YIYI_BIZ;
-  if (!r.adOrderId) return '';
-  const order = getAll('adOrders').find((o) => o.id === r.adOrderId);
+  const adId = r.adIdId != null ? getAll('adIds').find((a) => a.id === r.adIdId) : undefined;
+  const orderId = adId?.adOrderId ?? r.adOrderId;
+  if (orderId == null) return '';
+  const order = getAll('adOrders').find((o) => o.id === orderId);
   return order ? String(order.name) : '';
 };
 
