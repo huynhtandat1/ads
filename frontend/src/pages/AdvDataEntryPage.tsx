@@ -7,7 +7,7 @@ import { receivableOf, type BillingInputs } from '../lib/billing';
 import { round3 } from '../lib/format';
 import { RateEditor } from '../components/RateEditor';
 import { IconSearch, IconDownload, IconUpload } from '../components/icons';
-import { yesterdayStr } from '../lib/date';
+import { inRange, monthRangeUntilYesterday, yesterdayStr } from '../lib/date';
 
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
@@ -28,7 +28,10 @@ export function AdvDataEntryPage({
   useCollection('rates'); // lịch sử đơn giá theo ngày
   const adIdsAll = useCollection('adIds');
 
-  const [date, setDate] = useState(yesterdayStr());
+  const [from, setFrom] = useState(yesterdayStr());
+  const [to, setTo] = useState(yesterdayStr());
+  const pickThisMonth = () => { const [f, tt] = monthRangeUntilYesterday(0); setFrom(f); setTo(tt); };
+  const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); };
   const [fAdv, setFAdv] = useState('');
   const [fOrder, setFOrder] = useState('');
   const [fAdId, setFAdId] = useState('');
@@ -37,33 +40,44 @@ export function AdvDataEntryPage({
   const [fStatus, setFStatus] = useState<'all' | 'online' | 'offline'>('all');
   const [q, setQ] = useState('');
 
-  const [draft, setDraft] = useState<Record<number, Draft>>({});
-  const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
-  const [editing, setEditing] = useState<{ id: number; field: 'traffic' | 'settlement' } | null>(null);
+  const [draft, setDraft] = useState<Record<string, Draft>>({});
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [editing, setEditing] = useState<{ key: string; field: 'traffic' | 'settlement' } | null>(null);
 
   const canCreate = can(screen, 'create');
   const canEdit = can(screen, 'edit');
 
-  // Load saved values for the selected date into the editable grid.
+  // Load saved values for the selected range into the editable grid.
+  // Mỗi record (id × date) trong [from, to] trở thành 1 dòng; nếu ad không có record nào
+  // trong range, vẫn show 1 dòng mới với cellDate = from (giống hành vi cũ khi khoảng = 1 ngày).
   const load = () => {
-    const next: Record<number, Draft> = {};
-    const saved = new Set<number>();
+    const next: Record<string, Draft> = {};
+    const saved = new Set<string>();
     const records = getAll(COLLECTION);
+    const lo = from, hi = to;
     for (const ad of getAll('adIds')) {
-      const rec = records.find((r) => r.date === date && (r.adIdId === ad.id || r.objectId === ad.name));
-      next[ad.id] = {
-        unitPrice: rec?.unitPrice ?? ad.unitPrice ?? '',
-        traffic: rec?.traffic ?? rec?.clicks ?? '',
-        settlement: rec?.settlement ?? '',
-      };
-      if (rec) saved.add(ad.id);
+      const recs = records.filter((r) => inRange(String(r.date || ''), lo, hi) && (r.adIdId === ad.id || r.objectId === ad.name));
+      // Nếu có record thì 1 dòng / record (sort theo ngày); nếu không có thì 1 dòng từ from.
+      const dates: string[] = recs.length > 0
+        ? Array.from(new Set(recs.map((r) => String(r.date)))).sort()
+        : [lo];
+      for (const d of dates) {
+        const rec = recs.find((r) => String(r.date) === d);
+        const key = `${ad.id}|${d}`;
+        next[key] = {
+          unitPrice: rec?.unitPrice ?? ad.unitPrice ?? '',
+          traffic: rec?.traffic ?? rec?.clicks ?? '',
+          settlement: rec?.settlement ?? '',
+        };
+        if (rec) saved.add(key);
+      }
     }
     setDraft(next);
     setSavedIds(saved);
     setEditing(null);
   };
 
-  useEffect(load, [date]); // reload when date changes
+  useEffect(load, [from, to]); // reload when range changes
 
   // Cascading dropdown option lists
   const advOpts = getAll('advertisers');
@@ -114,25 +128,47 @@ export function AdvDataEntryPage({
     });
   }, [adIdsAll, fAdv, orderIdsMatchingFilter, fAdId, fType, fPrice, fStatus, q]);
 
+  // Mỗi dòng = 1 (ad, cellDate) lấy từ draft keys; sort theo ngày rồi ad.
+  const cellRows = useMemo(() => {
+    const out: { ad: Row; cellDate: string; key: string }[] = [];
+    const adById = new Map(rows.map((ad) => [String(ad.id), ad] as const));
+    const keys = Object.keys(draft).sort((a, b) => {
+      const da = a.split('|')[1] ?? '';
+      const db = b.split('|')[1] ?? '';
+      if (da !== db) return da.localeCompare(db);
+      return a.localeCompare(b);
+    });
+    for (const k of keys) {
+      const sep = k.indexOf('|');
+      const adId = k.slice(0, sep);
+      const cellDate = k.slice(sep + 1);
+      const ad = adById.get(adId);
+      if (!ad) continue; // ad đã bị ẩn bởi filter
+      out.push({ ad, cellDate, key: k });
+    }
+    return out;
+  }, [rows, draft]);
+
   const priceOptions = useMemo(
     () => Array.from(new Set(adIdsAll.map((a) => Number(a.unitPrice) || 0))).sort((a, b) => a - b),
     [adIdsAll],
   );
 
-  const setCell = (id: number, field: keyof Draft, value: string) => {
-    setDraft((d) => ({ ...d, [id]: { ...d[id], [field]: value === '' ? '' : Number(value) } }));
-    setSavedIds((s) => { const next = new Set(s); next.delete(id); return next; });
+  const setCell = (key: string, field: keyof Draft, value: string) => {
+    setDraft((d) => ({ ...d, [key]: { ...d[key], [field]: value === '' ? '' : Number(value) } }));
+    setSavedIds((s) => { const next = new Set(s); next.delete(key); return next; });
   };
 
   // Đơn giá/Tỷ lệ có hiệu lực tại ngày đang nhập (theo lịch sử versioning).
-  const priceOf = (ad: Row) => effectiveValue('adId', ad.id, 'unitPrice', date, Number(ad.unitPrice) || 0);
+  const priceOf = (ad: Row, workingDate: string) => effectiveValue('adId', ad.id, 'unitPrice', workingDate, Number(ad.unitPrice) || 0);
 
-  const saveRow = (ad: Row) => {
-    const d = draft[ad.id] || { unitPrice: '', traffic: '', settlement: '' };
-    const price = priceOf(ad);
+  const saveRow = (ad: Row, cellDate: string) => {
+    const key = `${ad.id}|${cellDate}`;
+    const d = draft[key] || { unitPrice: '', traffic: '', settlement: '' };
+    const price = priceOf(ad, cellDate);
     const receivable = round3(receivableOf(ad.type, { unitPrice: price, traffic: d.traffic, settlement: d.settlement }) ?? 0);
     const payload = {
-      date, objectId: ad.name, adIdId: ad.id, advertiserId: ad.advertiserId, adOrderId: ad.adOrderId,
+      date: cellDate, objectId: ad.name, adIdId: ad.id, advertiserId: ad.advertiserId, adOrderId: ad.adOrderId,
       type: ad.type, unitPrice: price, traffic: Number(d.traffic) || 0,
       settlement: Number(d.settlement) || 0, receivable,
       // cost = 0: phía NQC chỉ có THU (phải thu); quyết toán là CƠ SỞ tính phải thu,
@@ -140,20 +176,22 @@ export function AdvDataEntryPage({
       revenue: receivable, cost: 0, clicks: Number(d.traffic) || 0,
       source, status: true,
     };
-    const existing = getAll(COLLECTION).find((r) => r.date === date && (r.adIdId === ad.id || r.objectId === ad.name));
+    const existing = getAll(COLLECTION).find((r) => String(r.date) === cellDate && (r.adIdId === ad.id || r.objectId === ad.name));
     if (existing) update(COLLECTION, existing.id, payload);
     else create(COLLECTION, payload as Omit<Row, 'id'>);
-    setSavedIds((s) => new Set(s).add(ad.id));
+    setSavedIds((s) => new Set(s).add(key));
     toast(t('entry.savedRow'));
   };
 
   // AI auto-fill: simulate fetching traffic/settlement from an external source for visible rows.
+  // Ghi vào dòng đầu tiên (cellDate = from) của mỗi ad đang hiển thị.
   const aiFill = () => {
     setDraft((d) => {
       const next = { ...d };
       for (const ad of rows) {
-        const cur = next[ad.id] || { unitPrice: ad.unitPrice ?? '', traffic: '', settlement: '' };
-        next[ad.id] = {
+        const key = `${ad.id}|${from}`;
+        const cur = next[key] || { unitPrice: ad.unitPrice ?? '', traffic: '', settlement: '' };
+        next[key] = {
           unitPrice: cur.unitPrice === '' ? (ad.unitPrice ?? 0) : cur.unitPrice,
           traffic: 800 + Math.floor(Math.random() * 6000),
           settlement: 1000 + Math.floor(Math.random() * 9000),
@@ -167,27 +205,27 @@ export function AdvDataEntryPage({
   const sel = "h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-200";
 
   // Click-to-enter cell for traffic / settlement
-  const valueCell = (ad: Row, field: 'traffic' | 'settlement') => {
-    const v = draft[ad.id]?.[field];
-    const isEditing = editing?.id === ad.id && editing.field === field;
+  const valueCell = (key: string, field: 'traffic' | 'settlement') => {
+    const v = draft[key]?.[field];
+    const isEditing = editing?.key === key && editing.field === field;
     if (isEditing) {
       return (
         <input autoFocus type="number" defaultValue={v === '' || v == null ? '' : String(v)}
-          onBlur={(e) => { setCell(ad.id, field, e.target.value); setEditing(null); }}
+          onBlur={(e) => { setCell(key, field, e.target.value); setEditing(null); }}
           onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
           className="w-24 h-7 px-2 rounded border border-cyan-300 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200" />
       );
     }
     if (v === '' || v == null) {
       return (
-        <button disabled={!canEdit} onClick={() => setEditing({ id: ad.id, field })}
+        <button disabled={!canEdit} onClick={() => setEditing({ key, field })}
           className="h-7 px-2 rounded border border-dashed border-gray-300 text-xs text-gray-400 hover:border-cyan-300 hover:text-cyan-500 disabled:opacity-50">
           + {t('entry.value')}
         </button>
       );
     }
     return (
-      <button disabled={!canEdit} onClick={() => setEditing({ id: ad.id, field })}
+      <button disabled={!canEdit} onClick={() => setEditing({ key, field })}
         className="h-7 px-2 rounded text-sm font-medium text-gray-700 hover:bg-cyan-50 disabled:opacity-60">
         {Number(v).toLocaleString()}
       </button>
@@ -201,10 +239,14 @@ export function AdvDataEntryPage({
         <div>
           <div className="text-xs font-semibold tracking-widest text-cyan-500">{t('entry.eyebrow')}</div>
           <h1 className="text-xl font-bold text-gray-800">{t(titleKey)}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{t('entry.forDate')}: <span className="font-medium text-gray-700">{date}</span></p>
+          <p className="text-sm text-gray-500 mt-0.5">{t('entry.forDate')}: <span className="font-medium text-gray-700">{from}{from !== to ? ` ~ ${to}` : ''}</span></p>
         </div>
         <div className="flex flex-wrap items-center gap-2 justify-end">
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={sel} />
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={sel} />
+          <span className="text-gray-400">—</span>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={sel} />
+          <button onClick={pickThisMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.thisMonth')}</button>
+          <button onClick={pickLastMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.lastMonth')}</button>
           <select value={fAdv} onChange={(e) => { setFAdv(e.target.value); setFOrder(''); setFAdId(''); }} className={sel}>
             <option value="">{t('entry.chooseAdv')}</option>
             {advOpts.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
@@ -262,29 +304,29 @@ export function AdvDataEntryPage({
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 && (
+              {cellRows.length === 0 && (
                 <tr><td colSpan={12} className="px-3 py-12 text-center text-gray-400">{t('common.noData')}</td></tr>
               )}
-              {rows.map((ad, i) => {
-                const d = draft[ad.id] || { unitPrice: ad.unitPrice ?? '', traffic: '', settlement: '' };
-                const price = priceOf(ad);
+              {cellRows.map(({ ad, cellDate, key }, i) => {
+                const d = draft[key] || { unitPrice: ad.unitPrice ?? '', traffic: '', settlement: '' };
+                const price = priceOf(ad, cellDate);
                 const receivable = receivableOf(ad.type, { unitPrice: price, traffic: d.traffic, settlement: d.settlement });
                 const isOnline = ad.status !== false;
-                const isSaved = savedIds.has(ad.id);
+                const isSaved = savedIds.has(key);
                 return (
-                  <tr key={ad.id} className="border-b border-gray-50 hover:bg-cyan-50/30">
+                  <tr key={key} className="border-b border-gray-50 hover:bg-cyan-50/30">
                     <td className="px-3 py-2 whitespace-nowrap text-gray-400">{i + 1}</td>
-                    <td className="px-3 py-2 whitespace-nowrap text-gray-600">{date}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-600">{cellDate}</td>
                     <td className="px-3 py-2 whitespace-nowrap">{refName('advertisers', ad.advertiserId)}</td>
                     <td className="px-3 py-2 whitespace-nowrap">{refName('adOrders', ad.adOrderId)}</td>
                     <td className="px-3 py-2"><span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium">{ad.type}</span></td>
                     <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-700">{ad.name}</td>
                     <td className="px-3 py-2">
-                      <RateEditor value={price} workingDate={date} suffix={ad.type === 'CPS' ? '%' : ''} integer={ad.type === 'CPS'} disabled={!canEdit}
+                      <RateEditor value={price} workingDate={cellDate} suffix={ad.type === 'CPS' ? '%' : ''} integer={ad.type === 'CPS'} disabled={!canEdit}
                         onSet={(v, eff) => { setRate('adId', ad.id, 'unitPrice', v, eff); toast(t('entry.effSaved')); }} />
                     </td>
-                    <td className="px-3 py-2">{valueCell(ad, 'traffic')}</td>
-                    <td className="px-3 py-2">{valueCell(ad, 'settlement')}</td>
+                    <td className="px-3 py-2">{valueCell(key, 'traffic')}</td>
+                    <td className="px-3 py-2">{valueCell(key, 'settlement')}</td>
                     <td className="px-3 py-2 whitespace-nowrap font-semibold text-right">
                       {receivable == null ? <span className="text-gray-300">—</span> : <span className="text-emerald-600">{money(receivable)}</span>}
                     </td>
@@ -297,7 +339,7 @@ export function AdvDataEntryPage({
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1.5 whitespace-nowrap">
                         {canCreate || canEdit ? (
-                          <button onClick={() => saveRow(ad)}
+                          <button onClick={() => saveRow(ad, cellDate)}
                             className={`h-7 px-2.5 rounded-lg text-xs font-medium ${isSaved ? 'bg-gray-100 text-emerald-700' : 'bg-emerald-500 text-white hover:bg-emerald-600'}`}>
                             {isSaved ? t('entry.savedShort') : t('entry.saveRow')}
                           </button>

@@ -7,7 +7,7 @@ import { receivableOf } from '../lib/billing';
 import { round3 } from '../lib/format';
 import { RateEditor } from '../components/RateEditor';
 import { IconSearch, IconDownload } from '../components/icons';
-import { yesterdayStr } from '../lib/date';
+import { inRange, monthRangeUntilYesterday, yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importMedia';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -27,7 +27,10 @@ export function MediaDataEntryPage() {
   useCollection('rates');     // lịch sử đơn giá/hệ số/tỷ lệ chia TK
   const mediaIdsAll = useCollection('mediaIds');
 
-  const [date, setDate] = useState(yesterdayStr());
+  const [from, setFrom] = useState(yesterdayStr());
+  const [to, setTo] = useState(yesterdayStr());
+  const pickThisMonth = () => { const [f, tt] = monthRangeUntilYesterday(0); setFrom(f); setTo(tt); };
+  const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); };
   const [fMedia, setFMedia] = useState('');
   const [fOrder, setFOrder] = useState('');
   const [fMediaId, setFMediaId] = useState('');
@@ -36,21 +39,26 @@ export function MediaDataEntryPage() {
   const [fStatus, setFStatus] = useState<'all' | 'confirmed' | 'unconfirmed'>('all');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
-  const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
   const canCreate = can(screen, 'create');
   const canEdit = can(screen, 'edit');
 
   const load = () => {
-    const saved = new Set<number>();
+    const saved = new Set<string>();
     const records = getAll(COLLECTION);
+    const lo = from, hi = to;
     for (const m of getAll('mediaIds')) {
-      if (records.find((r) => r.date === date && (r.mediaIdId === m.id || r.objectId === m.name))) saved.add(m.id);
+      // Lưu dấu (id × date) đã có record trong khoảng; dùng cho cả filter status và nút "Đã lưu".
+      for (const r of records) {
+        if (!inRange(String(r.date || ''), lo, hi)) continue;
+        if (r.mediaIdId === m.id || r.objectId === m.name) saved.add(`${m.id}|${String(r.date)}`);
+      }
     }
     setSavedIds(saved);
   };
-  useEffect(load, [date]);
-  useEffect(() => { setPage(1); }, [date, fMedia, fOrder, fMediaId, fType, fPrice, fStatus, q]);
+  useEffect(load, [from, to]);
+  useEffect(() => { setPage(1); }, [from, to, fMedia, fOrder, fMediaId, fType, fPrice, fStatus, q]);
 
   const mediaOpts = getAll('media');
   const orderOpts = useMemo(() => {
@@ -86,9 +94,9 @@ export function MediaDataEntryPage() {
       if (fMediaId && String(m.id) !== fMediaId) return false;
       if (fType && typeOf(m) !== fType) return false;
       if (fPrice && String(m.unitPrice ?? '') !== fPrice) return false;
-      // Mặc định hiện cả link đã 下线; fStatus điều khiển confirmed/unconfirmed.
-      if (fStatus === 'confirmed' && !savedIds.has(m.id)) return false;
-      if (fStatus === 'unconfirmed' && savedIds.has(m.id)) return false;
+      // Mặc định hiện cả link đã 下线; fStatus điều khiển confirmed/unconfirmed — theo id đã có ít nhất 1 record trong khoảng.
+      if (fStatus === 'confirmed' && ![...savedIds].some((k) => k.startsWith(`${m.id}|`))) return false;
+      if (fStatus === 'unconfirmed' && [...savedIds].some((k) => k.startsWith(`${m.id}|`))) return false;
       if (lc) {
         const hay = `${m.name} ${refName('media', m.mediaId)} ${refName('mediaOrders', m.mediaOrderId)} ${refName('advertisers', m.advertiserId)} ${refName('adOrders', m.adOrderId)} ${refName('adIds', m.adIdId)}`.toLowerCase();
         if (!hay.includes(lc)) return false;
@@ -97,22 +105,43 @@ export function MediaDataEntryPage() {
     });
   }, [mediaIdsAll, fMedia, mediaOrderIdsMatchingFilter, fMediaId, fType, fPrice, fStatus, q, savedIds]);
 
+  const pageSize = 10;
+
+  // Mỗi dòng = 1 (mediaId, ngày có record trong [from, to]); nếu ad không có record nào thì 1 dòng từ from.
+  const cellRows = useMemo(() => {
+    const records = getAll(COLLECTION);
+    const out: { m: Row; cellDate: string; key: string }[] = [];
+    for (const m of rows) {
+      const recs = records.filter((r) => inRange(String(r.date || ''), from, to) && (r.mediaIdId === m.id || r.objectId === m.name));
+      const dates: string[] = recs.length > 0
+        ? Array.from(new Set(recs.map((r) => String(r.date)))).sort()
+        : [from];
+      for (const d of dates) out.push({ m, cellDate: d, key: `${m.id}|${d}` });
+    }
+    return out;
+  }, [rows, from, to]);
+
+  const totalRows = cellRows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  const curPage = Math.min(page, totalPages);
+  const pageRows = cellRows.slice((curPage - 1) * pageSize, curPage * pageSize);
+
   const priceOptions = useMemo(
     () => Array.from(new Set(mediaIdsAll.map((m) => Number(m.unitPrice) || 0))).sort((a, b) => a - b),
     [mediaIdsAll],
   );
 
-  // Lưu lượng/quyết toán lấy từ nhập liệu nhà QC theo ID quảng cáo (adIdId) + ngày.
-  const advOf = (m: Row) => getAll('importAdv').find((r) => r.date === date && r.adIdId === m.adIdId);
+  // Lưu lượng/quyết toán lấy từ nhập liệu nhà QC theo ID quảng cáo (adIdId) + ngày của dòng.
+  const advOf = (m: Row, cellDate: string) => getAll('importAdv').find((r) => String(r.date) === cellDate && r.adIdId === m.adIdId);
 
-  const calc = (m: Row) => {
-    const adv = advOf(m);
+  const calc = (m: Row, cellDate: string) => {
+    const adv = advOf(m, cellDate);
     const rawTraffic = adv ? Number(adv.traffic ?? adv.clicks ?? 0) : null;
     const rawSettlement = adv ? Number(adv.settlement ?? 0) : null;
     const type = typeOf(m);
-    const unitPrice = effectiveValue('mediaId', m.id, 'unitPrice', date, Number(m.unitPrice) || 0);
-    const coef = effectiveValue('mediaId', m.id, 'coefficient', date, 1);
-    const accountShare = effectiveValue('mediaId', m.id, 'profitShare', date, Number(m.profitShare) || 0);
+    const unitPrice = effectiveValue('mediaId', m.id, 'unitPrice', cellDate, Number(m.unitPrice) || 0);
+    const coef = effectiveValue('mediaId', m.id, 'coefficient', cellDate, 1);
+    const accountShare = effectiveValue('mediaId', m.id, 'profitShare', cellDate, Number(m.profitShare) || 0);
     // Hệ số dữ liệu scale trực tiếp vào DỮ LIỆU:
     //   - Lưu lượng CPM/CPC/CPA = lượt (đếm) → NQC × hệ số, LÀM TRÒN XUỐNG (Math.floor)
     //     không tính lượt chưa đủ (1750×0.85=1487,5 → 1487).
@@ -129,16 +158,12 @@ export function MediaDataEntryPage() {
     return { type, traffic, settlement, unitPrice, coef, accountShare, payable, netPay };
   };
 
-  const pageSize = 10;
-  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
-  const curPage = Math.min(page, totalPages);
-  const pageRows = rows.slice((curPage - 1) * pageSize, curPage * pageSize);
-  const dayTotal = rows.reduce((s, m) => s + (calc(m).netPay ?? 0), 0);
+  const dayTotal = cellRows.reduce((s, { m, cellDate }) => s + (calc(m, cellDate).netPay ?? 0), 0);
 
-  const buildPayload = (m: Row) => {
-    const c = calc(m);
+  const buildPayload = (m: Row, cellDate: string) => {
+    const c = calc(m, cellDate);
     return {
-      date, objectId: m.name, mediaIdId: m.id, mediaId: m.mediaId, mediaOrderId: m.mediaOrderId, adIdId: m.adIdId,
+      date: cellDate, objectId: m.name, mediaIdId: m.id, mediaId: m.mediaId, mediaOrderId: m.mediaOrderId, adIdId: m.adIdId,
       advertiserId: m.advertiserId, adOrderId: m.adOrderId,
       type: c.type, unitPrice: c.unitPrice, traffic: Number(c.traffic) || 0, settlement: Number(c.settlement) || 0,
       coefficient: c.coef, payable: c.payable ?? 0, shareRate: c.accountShare, actual: c.netPay ?? 0, receivable: c.payable ?? 0,
@@ -146,15 +171,15 @@ export function MediaDataEntryPage() {
     };
   };
 
-  const saveRow = (m: Row) => {
-    const existing = getAll(COLLECTION).find((r) => r.date === date && (r.mediaIdId === m.id || r.objectId === m.name));
-    if (existing) update(COLLECTION, existing.id, buildPayload(m));
-    else create(COLLECTION, buildPayload(m) as Omit<Row, 'id'>);
-    setSavedIds((s) => new Set(s).add(m.id));
+  const saveRow = (m: Row, cellDate: string) => {
+    const existing = getAll(COLLECTION).find((r) => String(r.date) === cellDate && (r.mediaIdId === m.id || r.objectId === m.name));
+    if (existing) update(COLLECTION, existing.id, buildPayload(m, cellDate));
+    else create(COLLECTION, buildPayload(m, cellDate) as Omit<Row, 'id'>);
+    setSavedIds((s) => new Set(s).add(`${m.id}|${cellDate}`));
     toast(t('entry.savedRow'));
   };
 
-  const confirmAll = () => { rows.forEach(saveRow); toast(t('entry.savedAll')); };
+  const confirmAll = () => { cellRows.forEach(({ m, cellDate }) => saveRow(m, cellDate)); toast(t('entry.savedAll')); };
 
   const sel = "h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-200";
   const readVal = (v: number | string) => (v === '' || v == null ? <span className="text-gray-300">—</span> : <span className="text-gray-600">{Number(v).toLocaleString()}</span>);
@@ -171,10 +196,14 @@ export function MediaDataEntryPage() {
         <div>
           <div className="text-xs font-semibold tracking-widest text-cyan-500">{t('entry.eyebrow')}</div>
           <h1 className="text-xl font-bold text-gray-800">{t('menu.g3c')}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{t('entry.forDate')}: <span className="font-medium text-gray-700">{date}</span> · <span className="text-gray-400">{t('entry.traffic')}/{t('entry.settlement')} {t('entry.fromAdv')}</span></p>
+          <p className="text-sm text-gray-500 mt-0.5">{t('entry.forDate')}: <span className="font-medium text-gray-700">{from}{from !== to ? ` ~ ${to}` : ''}</span> · <span className="text-gray-400">{t('entry.traffic')}/{t('entry.settlement')} {t('entry.fromAdv')}</span></p>
         </div>
         <div className="flex flex-wrap items-center gap-2 justify-end">
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={sel} />
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={sel} />
+          <span className="text-gray-400">—</span>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={sel} />
+          <button onClick={pickThisMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.thisMonth')}</button>
+          <button onClick={pickLastMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.lastMonth')}</button>
           <select value={fMedia} onChange={(e) => { setFMedia(e.target.value); setFOrder(''); setFMediaId(''); }} className={sel}>
             <option value="">{t('entry.chooseMedia')}</option>
             {mediaOpts.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
@@ -223,12 +252,12 @@ export function MediaDataEntryPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 ? (
+              {cellRows.length === 0 ? (
                 <tr><td colSpan={headers.length} className="px-3 py-12 text-center text-gray-400">{t('common.noData')}</td></tr>
               ) : (
                 <>
                   <tr className="bg-brand-dark2 text-white">
-                    <td className="px-3 py-2 font-semibold whitespace-nowrap" colSpan={6}>📅 {date}</td>
+                    <td className="px-3 py-2 font-semibold whitespace-nowrap" colSpan={6}>📅 {from}{from !== to ? ` ~ ${to}` : ''}</td>
                     <td className="px-3 py-2" colSpan={6}>
                       <span className="text-gray-300 text-xs mr-2">{t('entry.dayTotal')}:</span>
                       <span className="font-bold text-cyan-300">{money(dayTotal)}</span>
@@ -243,33 +272,33 @@ export function MediaDataEntryPage() {
                     </td>
                   </tr>
 
-                  {pageRows.map((m, i) => {
-                    const c = calc(m);
+                  {pageRows.map(({ m, cellDate, key }, i) => {
+                    const c = calc(m, cellDate);
                     const isOnline = m.status !== false;
-                    const isSaved = savedIds.has(m.id);
+                    const isSaved = savedIds.has(key);
                     return (
-                      <tr key={m.id} className="border-b border-gray-50 hover:bg-cyan-50/30">
+                      <tr key={key} className="border-b border-gray-50 hover:bg-cyan-50/30">
                         <td className="px-3 py-2 whitespace-nowrap text-gray-400">{(curPage - 1) * pageSize + i + 1}</td>
-                        <td className="px-3 py-2 whitespace-nowrap text-gray-600">{date}</td>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-600">{cellDate}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{refName('media', m.mediaId)}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{refName('mediaOrders', m.mediaOrderId)}</td>
                         <td className="px-3 py-2"><span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium">{c.type}</span></td>
                         <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-700">{m.name}</td>
                         <td className="px-3 py-2">
-                          <RateEditor value={c.unitPrice} workingDate={date} suffix={c.type === 'CPS' ? '%' : ''} integer={c.type === 'CPS'} disabled={!canEdit}
+                          <RateEditor value={c.unitPrice} workingDate={cellDate} suffix={c.type === 'CPS' ? '%' : ''} integer={c.type === 'CPS'} disabled={!canEdit}
                             onSet={(v, eff) => { setRate('mediaId', m.id, 'unitPrice', v, eff); toast(t('entry.effSaved')); }} />
                         </td>
                         <td className="px-3 py-2 text-right">{c.type === 'CPS' ? money2(Number(c.traffic) || 0) : readVal(c.traffic)}</td>
                         <td className="px-3 py-2 text-right">{readVal(c.settlement)}</td>
                         <td className="px-3 py-2">
-                          <RateEditor value={Number((c.coef * 100).toFixed(2))} workingDate={date} suffix="%" disabled={!canEdit}
+                          <RateEditor value={Number((c.coef * 100).toFixed(2))} workingDate={cellDate} suffix="%" disabled={!canEdit}
                             onSet={(v, eff) => { setRate('mediaId', m.id, 'coefficient', v / 100, eff); toast(t('entry.effSaved')); }} />
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-right font-medium">
                           {c.payable == null ? <span className="text-gray-300">—</span> : <span className="text-gray-700">{money(c.payable)}</span>}
                         </td>
                         <td className="px-3 py-2 text-center">
-                          <RateEditor value={c.accountShare} workingDate={date} suffix="%" disabled={!canEdit}
+                          <RateEditor value={c.accountShare} workingDate={cellDate} suffix="%" disabled={!canEdit}
                             onSet={(v, eff) => { setRate('mediaId', m.id, 'profitShare', v, eff); toast(t('entry.effSaved')); }} />
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-right font-semibold">
@@ -284,7 +313,7 @@ export function MediaDataEntryPage() {
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-1.5 whitespace-nowrap">
                             {(canCreate || canEdit) && (
-                              <button onClick={() => saveRow(m)}
+                              <button onClick={() => saveRow(m, cellDate)}
                                 className={`h-7 px-2.5 rounded-lg text-xs font-medium ${isSaved ? 'bg-gray-100 text-emerald-700' : 'bg-emerald-500 text-white hover:bg-emerald-600'}`}>
                                 {isSaved ? t('entry.savedShort') : t('entry.saveRow')}
                               </button>
@@ -300,7 +329,7 @@ export function MediaDataEntryPage() {
           </table>
         </div>
         <div className="flex items-center justify-between p-4 text-sm text-gray-500 border-t border-gray-100">
-          <span>{t('common.total')} {rows.length} {t('common.rows')}</span>
+          <span>{t('common.total')} {totalRows} {t('common.rows')}</span>
           <div className="flex items-center gap-1">
             <button disabled={curPage <= 1} onClick={() => setPage(curPage - 1)}
               className="h-8 px-3 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50">‹</button>

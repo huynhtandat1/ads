@@ -59,7 +59,7 @@ export default {
     yiyiDesc: 'Track Yiyi data by month — traffic, payable, profit and grand total.',
     year: 'Year', month: 'Month', exportCSV: 'Export CSV', daysUnit: 'days',
     invalidRows: 'invalid rows', validData: 'Valid data',
-    dailyProfit: 'Daily profit', detailRevenue: 'Revenue from advertisers', detailCost: 'Cost to media',
+    dailyProfit: 'Daily profit', detailRevenue: 'Revenue from advertisers', detailCost: 'Cost to media', hiddenMediaCost: 'Yiyi cost',
     monthlyByBiz: 'Monthly profit by business', dailyByBiz: 'Daily profit by business',
   },
   import: { upload: 'Upload File', uploadHint: 'Drag & drop CSV/Excel or click to select', addRecord: 'Add Record', importedRecords: 'Imported Records' },

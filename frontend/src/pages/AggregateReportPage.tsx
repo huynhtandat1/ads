@@ -35,6 +35,8 @@ interface GroupRow {
   advertisers: { id: number; name: string; total: number }[];
   // §3b: Σ thực trả của từng media trong nghiệp vụ, sort A→Z theo tên.
   media: { id: number; name: string; total: number }[];
+  // Phần cost đã tính vào tổng nhưng chưa hiện trong bảng breakdown §3b.
+  hiddenMediaCost: number;
 }
 
 export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
@@ -101,13 +103,19 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
         Array.from(m.entries())
           .map(([id, total]) => ({ id, name: refName(collection, id) || `#${id}`, total }))
           .sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' }));
+      const media = idName(g.med, 'media');
+      // Tổng cost đã hiển thị ở cột "Chi phí". Breakdown §3b trước đây chỉ liệt kê media
+      // map được theo mediaId, nên phần còn lại (Yiyi/cost chưa phân loại/thiếu mediaId)
+      // bị ẩn. Hiển thị phần chênh lệch này thành 1 dòng riêng.
+      const hiddenMediaCost = round3(g.cost - media.reduce((s, m) => s + m.total, 0));
       return {
         dim, revenue: g.revenue, cost: g.cost, profit,
         margin: g.revenue ? +((profit / g.revenue) * 100).toFixed(1) : 0,
         tax, afterTax: profit - tax,
         daily: Array.from(g.daily.entries()).map(([date, p]) => ({ date, profit: p })).sort((a, b) => a.date.localeCompare(b.date)),
         advertisers: idName(g.adv, 'advertisers'),
-        media: idName(g.med, 'media'),
+        media,
+        hiddenMediaCost,
       };
     }).sort((a, b) => b.profit - a.profit);
   }, [queried, params, spec, todayStr, dbAll]);
@@ -297,7 +305,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                                 </div>
                                 <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
                                   <tbody>
-                                    {g.media.length === 0 ? (
+                                    {g.media.length === 0 && !g.hiddenMediaCost ? (
                                       <tr><td colSpan={2} className="px-3 py-6 text-center text-gray-400">—</td></tr>
                                     ) : (
                                       <>
@@ -307,9 +315,15 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                                             <td className="px-3 py-1.5 text-right font-medium text-rose-500">{money(m.total)}</td>
                                           </tr>
                                         ))}
+                                        {!!g.hiddenMediaCost && (
+                                          <tr className="border-b border-gray-50 bg-amber-50/60">
+                                            <td className="px-3 py-1.5 whitespace-nowrap text-amber-700">{t('report.hiddenMediaCost')}</td>
+                                            <td className="px-3 py-1.5 text-right font-medium text-rose-500">{money(g.hiddenMediaCost)}</td>
+                                          </tr>
+                                        )}
                                         <tr className="bg-brand-dark2 text-white font-semibold">
                                           <td className="px-3 py-1.5">Σ {t('report.grandTotal')}</td>
-                                          <td className="px-3 py-1.5 text-right text-rose-300">{money(g.media.reduce((s, m) => s + m.total, 0))}</td>
+                                          <td className="px-3 py-1.5 text-right text-rose-300">{money(g.media.reduce((s, m) => s + m.total, 0) + g.hiddenMediaCost)}</td>
                                         </tr>
                                       </>
                                     )}

@@ -1,4 +1,5 @@
 import { getAll, type Row } from '../data/store';
+import { round3 } from './format';
 
 export interface Totals { revenue: number; cost: number; profit: number; margin: number; records: number }
 
@@ -10,10 +11,16 @@ export const YIYI_BIZ = '神马搜索';
 // (ETL/seed/nhập liệu đều đặt importMedia.revenue = số phải thu của link tương ứng)
 // → khi gộp nhiều nghiệp vụ chỉ tính phần chi cho media, nếu không doanh thu bị
 // đếm hai lần và lợi nhuận bị thổi phồng (spec: Lợi nhuận = Thu NQC − Chi media − Thuế).
-// importYiyi: revenue lưu = "tổng cộng" (phải trả + lợi nhuận) → tính hết vào CHI.
+// importYiyi: phải khớp Báo cáo Yiyi — tính lại từ quantity × đơn giá/1000,
+// làm tròn 3 số lẻ từng phần rồi cộng (không dùng revenue lưu sẵn có thể lệch lịch sử).
 export function perfOf(collection: string, r: Row): { revenue: number; cost: number } {
   if (collection === 'importMedia') return { revenue: 0, cost: Number(r.cost) || 0 };
-  if (collection === 'importYiyi') return { revenue: 0, cost: Number(r.revenue) || 0 };
+  if (collection === 'importYiyi') {
+    const q = Number(r.quantity ?? r.clicks ?? 0) || 0;
+    const payable = round3((q * (Number(r.unitPrice) || 0)) / 1000);
+    const profit = round3((q * (Number(r.profitUnitPrice) || 0)) / 1000);
+    return { revenue: 0, cost: payable + profit };
+  }
   return { revenue: Number(r.revenue) || 0, cost: Number(r.cost) || 0 };
 }
 

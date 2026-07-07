@@ -4,7 +4,7 @@ import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, type Row } from '../data/store';
 import { round3 } from '../lib/format';
-import { yesterdayStr } from '../lib/date';
+import { monthRangeUntilYesterday, yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importYiyi';
 const CHANNELS = ['yy-02-01', 'yy-02-02', 'yy-02-03', 'yy-02-04'];
@@ -12,6 +12,28 @@ const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimu
 // Đơn giá Yiyi là giá trên 1.000 lượt (như CPM): tiền = số lượng × giá ÷ 1000.
 // Tính giữ 3 số lẻ; hiển thị money() rút về 2 số lẻ.
 const yiyiMoney = (q: number, price: number) => round3((q * price) / 1000);
+
+// Liệt kê ngày trong [from, to] (inclusive). Trả về `[]` nếu from > to.
+function useDatesInRange(from: string, to: string): string[] {
+  const out: string[] = [];
+  if (!from || !to || from > to) return out;
+  const [fy, fm, fd] = from.split('-').map(Number);
+  const [ty, tm, td] = to.split('-').map(Number);
+  const cur = new Date(fy, fm - 1, fd);
+  const end = new Date(ty, tm - 1, td);
+  while (cur <= end) {
+    const y = cur.getFullYear();
+    const m = String(cur.getMonth() + 1).padStart(2, '0');
+    const d = String(cur.getDate()).padStart(2, '0');
+    out.push(`${y}-${m}-${d}`);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return out;
+}
+
+function emptyQty(dates: string[]): Record<string, Record<string, number | ''>> {
+  return Object.fromEntries(dates.map((d) => [d, Object.fromEntries(CHANNELS.map((c) => [c, 0]))]));
+}
 
 export function YiyiDataEntryPage() {
   const { t } = useTranslation();
@@ -22,29 +44,43 @@ export function YiyiDataEntryPage() {
 
   const canSave = can(screen, 'create') || can(screen, 'edit');
 
-  const [date, setDate] = useState(yesterdayStr());
-  const [qty, setQty] = useState<Record<string, number | ''>>(() => Object.fromEntries(CHANNELS.map((c) => [c, 0])));
+  const [from, setFrom] = useState(yesterdayStr());
+  const [to, setTo] = useState(yesterdayStr());
+  const pickThisMonth = () => { const [f, tt] = monthRangeUntilYesterday(0); setFrom(f); setTo(tt); };
+  const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); };
+  // Danh sách ngày hiển thị trong khoảng [from, to].
+  const datesInRange = useDatesInRange(from, to);
+  // qty[date][channel] = số lượng; unitPrice/profitUnitPrice đặt chung cho cả khoảng (giống hành vi cũ).
+  const [qty, setQty] = useState<Record<string, Record<string, number | ''>>>(() => emptyQty(datesInRange));
   const [unitPrice, setUnitPrice] = useState<number | ''>(0);
   const [profitUnitPrice, setProfitUnitPrice] = useState<number | ''>(0);
-  const [saved, setSaved] = useState<Set<string>>(new Set());
+  const [saved, setSaved] = useState<Set<string>>(new Set()); // key = `${date}|${channel}`
 
   const load = () => {
     const records = getAll(COLLECTION);
-    const nextQty: Record<string, number | ''> = {};
+    const nextQty = emptyQty(datesInRange);
     const savedSet = new Set<string>();
     let up: number | '' = 0, pup: number | '' = 0;
-    for (const c of CHANNELS) {
-      const rec = records.find((r) => r.date === date && r.objectId === c);
-      nextQty[c] = rec?.quantity ?? 0;
-      if (rec) { savedSet.add(c); up = rec.unitPrice ?? up; pup = rec.profitUnitPrice ?? pup; }
+    // Lấy đơn giá từ ngày mới nhất có record trong khoảng (đủ dùng cho cả range).
+    let latestPriceRec: Row | undefined;
+    for (const d of datesInRange) {
+      for (const c of CHANNELS) {
+        const rec = records.find((r) => String(r.date) === d && r.objectId === c);
+        nextQty[d][c] = rec?.quantity ?? 0;
+        if (rec) {
+          savedSet.add(`${d}|${c}`);
+          if (!latestPriceRec || String(rec.date) > String(latestPriceRec.date)) latestPriceRec = rec;
+        }
+      }
     }
-    // Kế thừa đơn giá: ngày CHƯA có bản ghi thì mặc định lấy đơn giá của ngày gần
-    // nhất trước đó (đỡ phải gõ lại mỗi ngày; quên gõ là phải trả/lợi nhuận = 0).
-    // Ngày đã lưu rồi thì tôn trọng giá trị đã lưu, kể cả 0.
-    if (savedSet.size === 0) {
+    if (latestPriceRec) {
+      up = Number(latestPriceRec.unitPrice) || 0;
+      pup = Number(latestPriceRec.profitUnitPrice) || 0;
+    } else {
+      // Kế thừa đơn giá: nếu cả range chưa có bản ghi → lấy ngày gần nhất trước `from`.
       let prev: Row | undefined;
       for (const r of records) {
-        if (String(r.date) < date && (!prev || String(r.date) > String(prev.date))) prev = r;
+        if (String(r.date) < from && (!prev || String(r.date) > String(prev.date))) prev = r;
       }
       if (prev) { up = Number(prev.unitPrice) || 0; pup = Number(prev.profitUnitPrice) || 0; }
     }
@@ -54,34 +90,56 @@ export function YiyiDataEntryPage() {
     setSaved(savedSet);
   };
 
-  useEffect(load, [date]);
+  useEffect(load, [from, to]);
 
-  // Realtime totals
+  // Realtime totals: cộng dồn cả khoảng.
   const up = Number(unitPrice) || 0;
   const pup = Number(profitUnitPrice) || 0;
-  const totalQty = CHANNELS.reduce((s, c) => s + (Number(qty[c]) || 0), 0);
-  const enteredCount = CHANNELS.filter((c) => (Number(qty[c]) || 0) > 0).length;
-  const allEnteredSaved = enteredCount > 0 && CHANNELS.every((c) => saved.has(c) || (Number(qty[c]) || 0) === 0);
-  const totalPayable = CHANNELS.reduce((s, c) => s + yiyiMoney(Number(qty[c]) || 0, up), 0);
-  const totalProfit = CHANNELS.reduce((s, c) => s + yiyiMoney(Number(qty[c]) || 0, pup), 0);
+  let totalQty = 0, enteredCellCount = 0, savedCellCount = 0;
+  const dayTotals: { date: string; payable: number; profit: number }[] = [];
+  for (const d of datesInRange) {
+    let dayQty = 0, dayPayable = 0, dayProfit = 0;
+    for (const c of CHANNELS) {
+      const q = Number(qty[d]?.[c]) || 0;
+      dayQty += q;
+      dayPayable += yiyiMoney(q, up);
+      dayProfit += yiyiMoney(q, pup);
+      if (q > 0) enteredCellCount++;
+      if (saved.has(`${d}|${c}`)) savedCellCount++;
+    }
+    totalQty += dayQty;
+    dayTotals.push({ date: d, payable: round3(dayPayable), profit: round3(dayProfit) });
+  }
+  const totalPayable = round3(dayTotals.reduce((s, d) => s + d.payable, 0));
+  const totalProfit = round3(dayTotals.reduce((s, d) => s + d.profit, 0));
+  const allEnteredSaved = enteredCellCount > 0 && enteredCellCount === savedCellCount;
 
   const save = () => {
     const records = getAll(COLLECTION);
-    for (const c of CHANNELS) {
-      const q = Number(qty[c]) || 0;
-      const payable = yiyiMoney(q, up);
-      const profit = yiyiMoney(q, pup);
-      const payload = {
-        date, objectId: c, quantity: q, unitPrice: up, profitUnitPrice: pup,
-        payable, profit, revenue: payable + profit, cost: payable, clicks: q,
-        source: 'Yiyi', status: true,
-      };
-      const existing = records.find((r) => r.date === date && r.objectId === c);
-      if (existing) update(COLLECTION, existing.id, payload);
-      else create(COLLECTION, payload as Omit<Row, 'id'>);
+    let written = 0;
+    for (const d of datesInRange) {
+      for (const c of CHANNELS) {
+        const q = Number(qty[d]?.[c]) || 0;
+        if (q === 0) continue; // bỏ qua ngày không có số lượng
+        const payable = yiyiMoney(q, up);
+        const profit = yiyiMoney(q, pup);
+        const payload = {
+          date: d, objectId: c, quantity: q, unitPrice: up, profitUnitPrice: pup,
+          payable, profit, revenue: payable + profit, cost: payable, clicks: q,
+          source: 'Yiyi', status: true,
+        };
+        const existing = records.find((r) => String(r.date) === d && r.objectId === c);
+        if (existing) update(COLLECTION, existing.id, payload);
+        else create(COLLECTION, payload as Omit<Row, 'id'>);
+        written++;
+      }
     }
-    setSaved(new Set(CHANNELS));
-    toast(t('entry.savedRow'));
+    setSaved((s) => {
+      const next = new Set(s);
+      for (const d of datesInRange) for (const c of CHANNELS) if ((Number(qty[d]?.[c]) || 0) > 0) next.add(`${d}|${c}`);
+      return next;
+    });
+    toast(written === 0 ? t('entry.savedRow') : `${t('entry.savedRow')} · ${written}`);
   };
 
   const card = "rounded-xl border border-cyan-100 bg-gradient-to-br from-cyan-50 to-sky-50 p-5";
@@ -94,11 +152,16 @@ export function YiyiDataEntryPage() {
         <div>
           <div className="text-xs font-semibold tracking-widest text-cyan-500">{t('entry.eyebrow')}</div>
           <h1 className="text-xl font-bold text-gray-800">{t('menu.g3d')}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{t('entry.forDate')}: <span className="font-medium text-gray-700">{date}</span></p>
+          <p className="text-sm text-gray-500 mt-0.5">{t('entry.forDate')}: <span className="font-medium text-gray-700">{from}{from !== to ? ` ~ ${to}` : ''}</span></p>
         </div>
         <div className="flex flex-wrap items-center gap-2 justify-end">
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
             className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white" />
+          <span className="text-gray-400">—</span>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
+            className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white" />
+          <button onClick={pickThisMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.thisMonth')}</button>
+          <button onClick={pickLastMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.lastMonth')}</button>
         </div>
       </div>
 
@@ -107,7 +170,7 @@ export function YiyiDataEntryPage() {
         <div className={card}>
           <div className="text-sm text-gray-500">{t('col.quantity')}</div>
           <div className="text-3xl font-bold text-gray-800 mt-1">{totalQty.toLocaleString()}</div>
-          <div className="text-xs text-cyan-600 mt-1">{enteredCount}/4 {t('entry.channels')}</div>
+          <div className="text-xs text-cyan-600 mt-1">{enteredCellCount}/{CHANNELS.length * datesInRange.length} {t('entry.channels')}</div>
         </div>
         <div className={card}>
           <div className="text-sm text-gray-500">{t('entry.payable')}</div>
@@ -128,24 +191,28 @@ export function YiyiDataEntryPage() {
           <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
             <thead>
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-100">
+                <th className="px-4 py-3 font-semibold uppercase text-xs tracking-wide">{t('col.date')}</th>
                 <th className="px-4 py-3 font-semibold uppercase text-xs tracking-wide">{t('entry.channel')}</th>
                 <th className="px-4 py-3 font-semibold uppercase text-xs tracking-wide w-48">{t('col.quantity')}</th>
                 <th className="px-4 py-3 font-semibold uppercase text-xs tracking-wide text-center">{t('common.status')}</th>
               </tr>
             </thead>
             <tbody>
-              {CHANNELS.map((c) => {
-                const entered = (Number(qty[c]) || 0) > 0;
-                const isSaved = saved.has(c) && entered;
+              {datesInRange.flatMap((d) => CHANNELS.map((c) => {
+                const q = Number(qty[d]?.[c]) || 0;
+                const entered = q > 0;
+                const isSaved = saved.has(`${d}|${c}`) && entered;
                 return (
-                  <tr key={c} className="border-b border-gray-50">
+                  <tr key={`${d}|${c}`} className="border-b border-gray-50">
+                    <td className="px-4 py-3 text-gray-600">{d}</td>
                     <td className="px-4 py-3 font-medium text-gray-700 font-mono">{c}</td>
                     <td className="px-4 py-3">
                       <input type="number" min={0} disabled={!canSave}
-                        value={qty[c] === '' ? '' : String(qty[c])}
+                        value={qty[d]?.[c] === '' || qty[d]?.[c] == null ? '' : String(qty[d][c])}
                         onChange={(e) => {
-                          setQty((s) => ({ ...s, [c]: e.target.value === '' ? '' : Number(e.target.value) }));
-                          setSaved((s) => { const next = new Set(s); next.delete(c); return next; });
+                          const v = e.target.value === '' ? '' : Number(e.target.value);
+                          setQty((s) => ({ ...s, [d]: { ...(s[d] || {}), [c]: v } }));
+                          setSaved((s) => { const next = new Set(s); next.delete(`${d}|${c}`); return next; });
                         }}
                         className={inp} />
                     </td>
@@ -159,7 +226,7 @@ export function YiyiDataEntryPage() {
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>

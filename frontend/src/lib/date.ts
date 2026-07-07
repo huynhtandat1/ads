@@ -20,3 +20,6 @@ export function monthRangeUntilYesterday(offset: number): [string, string] {
   const first = new Date(n.getFullYear(), n.getMonth() + offset, 1);
   return [ymd(first), yesterdayStr()];
 }
+
+/** Đúng chuỗi ISO `YYYY-MM-DD` nên so sánh string hoạt động như so sánh ngày. */
+export const inRange = (d: string, from: string, to: string) => d >= from && d <= to;
