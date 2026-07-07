@@ -25,10 +25,11 @@ export function RateEditor({ value, workingDate, suffix = '', disabled, integer,
   const [laterDate, setLaterDate] = useState(tomorrow(workingDate));
 
   const start = () => { setVal(String(value)); setMode('now'); setLaterDate(tomorrow(workingDate)); setOpen(true); };
+  // Bấm Lưu hoặc bấm RA NGOÀI popover đều lưu; chỉ ghi phiên bản mới khi giá trị
+  // thực sự đổi (mở xem rồi bấm ra ngoài không tạo rate rác). Nút Hủy mới là bỏ qua.
   const save = () => {
     const v = Number(val);
-    if (isNaN(v)) return;
-    onSet(v, mode === 'now' ? workingDate : laterDate);
+    if (!isNaN(v) && val.trim() !== '' && v !== value) onSet(v, mode === 'now' ? workingDate : laterDate);
     setOpen(false);
   };
 
@@ -40,7 +41,7 @@ export function RateEditor({ value, workingDate, suffix = '', disabled, integer,
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="fixed inset-0 z-40" onClick={save} />
           <div className="absolute z-50 mt-1 left-0 w-60 bg-white rounded-lg border border-gray-200 shadow-xl p-3 text-left">
             <div className="relative mb-2">
               <input type="number" step={integer ? 1 : 0.01} autoFocus value={val}
