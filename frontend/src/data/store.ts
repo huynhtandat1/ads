@@ -164,14 +164,21 @@ export function effectiveValue(entityType: string, entityId: number | string, fi
   const key = rateKey(entityType, entityId, field);
   let best: Row | null = null;
   for (const r of db.rates || []) {
-    if (r.key === key && r.effectiveFrom <= date && (!best || r.effectiveFrom >= best.effectiveFrom)) best = r;
+    if (r.key !== key || r.effectiveFrom > date) continue;
+    // Cùng effectiveFrom (vd sửa 2 lần cùng ngày) → lấy bản GHI SAU (id lớn hơn),
+    // nếu không sửa lần 2 sẽ bị bản cũ đè lên và hiển thị giá trị trước đó.
+    if (!best || r.effectiveFrom > best.effectiveFrom || (r.effectiveFrom === best.effectiveFrom && r.id > best.id)) best = r;
   }
   return best ? Number(best.value) : fallback;
 }
 
-/** Tạo phiên bản mới cho 1 trường, có hiệu lực từ 'effectiveFrom'. */
+/** Đặt giá trị có hiệu lực từ 'effectiveFrom'. Trùng (key, effectiveFrom) thì CẬP NHẬT
+ *  bản cũ thay vì tạo mới — tránh sinh rate trùng khiến sửa lần 2 không ăn. */
 export function setRate(entityType: string, entityId: number | string, field: string, value: number, effectiveFrom: string) {
-  create('rates', { key: rateKey(entityType, entityId, field), value, effectiveFrom });
+  const key = rateKey(entityType, entityId, field);
+  const existing = (db.rates || []).find((r) => r.key === key && r.effectiveFrom === effectiveFrom);
+  if (existing) update('rates', existing.id, { value });
+  else create('rates', { key, value, effectiveFrom });
 }
 
 /** Reactive hook: rows of a collection, re-renders on change. */

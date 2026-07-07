@@ -175,7 +175,9 @@ function effectiveValue(source: DB, entityType: string, entityId: number | strin
   const key = rateKey(entityType, entityId, field);
   let best: Row | undefined;
   for (const r of source.rates || []) {
-    if (r.key === key && r.effectiveFrom <= date && (!best || r.effectiveFrom >= best.effectiveFrom)) best = r;
+    if (r.key !== key || r.effectiveFrom > date) continue;
+    // Cùng effectiveFrom → lấy bản ghi sau (id lớn hơn), khớp với frontend.
+    if (!best || r.effectiveFrom > best.effectiveFrom || (r.effectiveFrom === best.effectiveFrom && Number(r.id) > Number(best.id))) best = r;
   }
   return best ? Number(best.value) : fallback;
 }
