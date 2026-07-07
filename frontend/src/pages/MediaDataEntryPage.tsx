@@ -11,6 +11,8 @@ import { yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importMedia';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Traffic CPS = giá trị đơn hàng (tiền) → luôn 2 chữ số thập phân, KHÔNG ký hiệu ¥.
+const money2 = (v: number) => Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 
 const typeOf = (mid: Row): string => mid.type ?? getAll('adIds').find((a) => a.id === mid.adIdId)?.type ?? '-';
@@ -111,10 +113,13 @@ export function MediaDataEntryPage() {
     const unitPrice = effectiveValue('mediaId', m.id, 'unitPrice', date, Number(m.unitPrice) || 0);
     const coef = effectiveValue('mediaId', m.id, 'coefficient', date, 1);
     const accountShare = effectiveValue('mediaId', m.id, 'profitShare', date, Number(m.profitShare) || 0);
-    // Hệ số dữ liệu scale trực tiếp vào DỮ LIỆU: lưu lượng media = lưu lượng NQC × hệ số,
-    // LÀM TRÒN XUỐNG (bỏ phần lẻ) — không tính lượt chưa đủ (1750×0.85=1487,5 → 1487);
-    // quyết toán là tiền nên giữ 2 số lẻ.
-    const traffic = rawTraffic == null ? '' : Math.floor(rawTraffic * coef);
+    // Hệ số dữ liệu scale trực tiếp vào DỮ LIỆU:
+    //   - Lưu lượng CPM/CPC/CPA = lượt (đếm) → NQC × hệ số, LÀM TRÒN XUỐNG (Math.floor)
+    //     không tính lượt chưa đủ (1750×0.85=1487,5 → 1487).
+    //   - Lưu lượng CPS = TIỀN (giá trị đơn hàng) → giữ 3 số lẻ (round3) để cộng dồn
+    //     chính xác; hiển thị money() rút về 2 số lẻ.
+    // Quyết toán là tiền nên cũng giữ 3 số lẻ.
+    const traffic = rawTraffic == null ? '' : (type === 'CPS' ? round3(rawTraffic * coef) : Math.floor(rawTraffic * coef));
     const settlement = rawSettlement == null ? '' : round3(rawSettlement * coef);
     // Phải trả tính từ base ĐÃ áp hệ số (không nhân hệ số lần nữa). Tính giữ 3 số lẻ,
     // hiển thị money() lo phần rút về 2 số lẻ.
@@ -254,7 +259,7 @@ export function MediaDataEntryPage() {
                           <RateEditor value={c.unitPrice} workingDate={date} suffix={c.type === 'CPS' ? '%' : ''} integer={c.type === 'CPS'} disabled={!canEdit}
                             onSet={(v, eff) => { setRate('mediaId', m.id, 'unitPrice', v, eff); toast(t('entry.effSaved')); }} />
                         </td>
-                        <td className="px-3 py-2 text-right">{readVal(c.traffic)}</td>
+                        <td className="px-3 py-2 text-right">{c.type === 'CPS' ? money2(Number(c.traffic) || 0) : readVal(c.traffic)}</td>
                         <td className="px-3 py-2 text-right">{readVal(c.settlement)}</td>
                         <td className="px-3 py-2">
                           <RateEditor value={Number((c.coef * 100).toFixed(2))} workingDate={date} suffix="%" disabled={!canEdit}
