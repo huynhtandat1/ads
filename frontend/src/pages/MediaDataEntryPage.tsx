@@ -25,8 +25,6 @@ export function MediaDataEntryPage() {
   const mediaIdsAll = useCollection('mediaIds');
 
   const [date, setDate] = useState(yesterdayStr());
-  const [fAdv, setFAdv] = useState('');
-  const [fAdId, setFAdId] = useState('');
   const [fMedia, setFMedia] = useState('');
   const [fOrder, setFOrder] = useState('');
   const [fMediaId, setFMediaId] = useState('');
@@ -49,10 +47,8 @@ export function MediaDataEntryPage() {
     setSavedIds(saved);
   };
   useEffect(load, [date]);
-  useEffect(() => { setPage(1); }, [date, fAdv, fAdId, fMedia, fOrder, fMediaId, fType, fPrice, fStatus, q]);
+  useEffect(() => { setPage(1); }, [date, fMedia, fOrder, fMediaId, fType, fPrice, fStatus, q]);
 
-  const advOpts = getAll('advertisers');
-  const adIdOpts = useMemo(() => getAll('adIds').filter((a) => !fAdv || String(a.advertiserId) === fAdv), [fAdv, mediaIdsAll]);
   const mediaOpts = getAll('media');
   const orderOpts = useMemo(() => {
     const seen = new Set<string>();
@@ -74,17 +70,14 @@ export function MediaDataEntryPage() {
   }, [fOrder, mediaIdsAll]);
   const mediaIdOpts = useMemo(
     () => mediaIdsAll.filter((m) =>
-      (!fAdv || String(m.advertiserId) === fAdv) && (!fAdId || String(m.adIdId) === fAdId) &&
       (!fMedia || String(m.mediaId) === fMedia) &&
       (!mediaOrderIdsMatchingFilter || mediaOrderIdsMatchingFilter.has(m.mediaOrderId as number))),
-    [fAdv, fAdId, fMedia, mediaOrderIdsMatchingFilter, mediaIdsAll],
+    [fMedia, mediaOrderIdsMatchingFilter, mediaIdsAll],
   );
 
   const rows = useMemo(() => {
     const lc = q.trim().toLowerCase();
     return mediaIdsAll.filter((m) => {
-      if (fAdv && String(m.advertiserId) !== fAdv) return false;
-      if (fAdId && String(m.adIdId) !== fAdId) return false;
       if (fMedia && String(m.mediaId) !== fMedia) return false;
       if (mediaOrderIdsMatchingFilter && !mediaOrderIdsMatchingFilter.has(m.mediaOrderId as number)) return false;
       if (fMediaId && String(m.id) !== fMediaId) return false;
@@ -99,7 +92,7 @@ export function MediaDataEntryPage() {
       }
       return true;
     });
-  }, [mediaIdsAll, fAdv, fAdId, fMedia, mediaOrderIdsMatchingFilter, fMediaId, fType, fPrice, fStatus, q, savedIds]);
+  }, [mediaIdsAll, fMedia, mediaOrderIdsMatchingFilter, fMediaId, fType, fPrice, fStatus, q, savedIds]);
 
   const priceOptions = useMemo(
     () => Array.from(new Set(mediaIdsAll.map((m) => Number(m.unitPrice) || 0))).sort((a, b) => a - b),
@@ -169,14 +162,6 @@ export function MediaDataEntryPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2 justify-end">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={sel} />
-          <select value={fAdv} onChange={(e) => { setFAdv(e.target.value); setFAdId(''); setFMediaId(''); }} className={sel}>
-            <option value="">{t('entry.chooseAdv')}</option>
-            {advOpts.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
-          </select>
-          <select value={fAdId} onChange={(e) => { setFAdId(e.target.value); setFMediaId(''); }} className={sel}>
-            <option value="">{t('entry.chooseAdId')}</option>
-            {adIdOpts.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
-          </select>
           <select value={fMedia} onChange={(e) => { setFMedia(e.target.value); setFOrder(''); setFMediaId(''); }} className={sel}>
             <option value="">{t('entry.chooseMedia')}</option>
             {mediaOpts.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
