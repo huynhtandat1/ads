@@ -67,6 +67,10 @@ const COLLECTION_SCREEN: Record<string, string> = {
   importAI: 'g3a', importAdv: 'g3b', importMedia: 'g3c', importYiyi: 'g3d',
   settleAdv: 'g5a', settleMedia: 'g5b',
   users: 'g7a', roles: 'g7b', logs: 'g6', quarantine: 'g7c',
+  // Versioning đơn giá/hệ số/tỷ lệ chia/điểm thuế (RateEditor). Thiếu dòng này thì
+  // mọi chỉnh sửa "hiệu lực ngay/về sau" bị server 404 và UI lặng lẽ rollback.
+  // Gắn quyền theo g4b (nơi spec đặt nút sửa điểm thuế): OPERATOR sửa được, VIEWER không.
+  rates: 'g4b',
 };
 const ACTION: Record<string, string> = { POST: 'create', PUT: 'edit', DELETE: 'delete' };
 
