@@ -10,6 +10,7 @@ import { yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importMedia';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+const round2 = (v: number) => Math.round(v * 100) / 100;
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 
 const typeOf = (mid: Row): string => mid.type ?? getAll('adIds').find((a) => a.id === mid.adIdId)?.type ?? '-';
@@ -111,15 +112,20 @@ export function MediaDataEntryPage() {
 
   const calc = (m: Row) => {
     const adv = advOf(m);
-    const traffic = adv ? (adv.traffic ?? adv.clicks ?? '') : '';
-    const settlement = adv ? (adv.settlement ?? '') : '';
+    const rawTraffic = adv ? Number(adv.traffic ?? adv.clicks ?? 0) : null;
+    const rawSettlement = adv ? Number(adv.settlement ?? 0) : null;
     const type = typeOf(m);
     const unitPrice = effectiveValue('mediaId', m.id, 'unitPrice', date, Number(m.unitPrice) || 0);
     const coef = effectiveValue('mediaId', m.id, 'coefficient', date, 1);
     const accountShare = effectiveValue('mediaId', m.id, 'profitShare', date, Number(m.profitShare) || 0);
+    // Hệ số dữ liệu scale trực tiếp vào DỮ LIỆU: lưu lượng media = round(lưu lượng NQC ×
+    // hệ số) — số nguyên (không có lượt lẻ); quyết toán là tiền nên giữ 2 số lẻ.
+    const traffic = rawTraffic == null ? '' : Math.round(rawTraffic * coef);
+    const settlement = rawSettlement == null ? '' : round2(rawSettlement * coef);
+    // Phải trả tính từ base ĐÃ áp hệ số (không nhân hệ số lần nữa).
     const receivable = receivableOf(type, { unitPrice, traffic, settlement });
-    const payable = receivable == null ? null : receivable * coef;       // Số tiền phải trả
-    const netPay = payable == null ? null : payable * (accountShare / 100); // Số tiền thực trả
+    const payable = receivable == null ? null : round2(receivable);          // Số tiền phải trả
+    const netPay = payable == null ? null : round2(payable * (accountShare / 100)); // Số tiền thực trả
     return { type, traffic, settlement, unitPrice, coef, accountShare, payable, netPay };
   };
 
@@ -151,7 +157,7 @@ export function MediaDataEntryPage() {
   const confirmAll = () => { rows.forEach(saveRow); toast(t('entry.savedAll')); };
 
   const sel = "h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-200";
-  const readVal = (v: number | '') => (v === '' || v == null ? <span className="text-gray-300">—</span> : <span className="text-gray-600">{Number(v).toLocaleString()}</span>);
+  const readVal = (v: number | string) => (v === '' || v == null ? <span className="text-gray-300">—</span> : <span className="text-gray-600">{Number(v).toLocaleString()}</span>);
 
   const headers = [
     t('col.stt'), t('col.date'), t('col.media'), t('col.mediaOrder'), t('col.type'), t('col.mediaId'),
