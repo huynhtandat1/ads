@@ -83,12 +83,10 @@ export function TotalProfitPage() {
       const key = `${biz}|${date}`;
       dayMap.set(key, (dayMap.get(key) || 0) + (perf.revenue - perf.cost));
     }
-    // Cột "lợi nhuận ngày X" lấy ngày gần nhất CÓ dữ liệu trong kỳ — ngày cuối kỳ
-    // thường chưa được nhập liệu nên so cứng với `to` sẽ luôn ra 0.
-    const lastDate = Array.from(dayMap.keys()).reduce((m, k) => {
-      const d = k.slice(k.lastIndexOf('|') + 1);
-      return d > m ? d : m;
-    }, '');
+    // Cột "lợi nhuận ngày X" LUÔN là NGÀY HÔM QUA theo lịch (hôm nay 07 → cột 06,
+    // hôm nay 08 → cột 07) — chưa nhập liệu ngày đó thì hiện 0, không trượt về
+    // ngày gần nhất có dữ liệu.
+    const dayCol = yesterdayStr();
     const map = new Map<string, { today: number; month: number; monthTax: number }>();
     for (const [k, p] of dayMap) {
       const cut = k.lastIndexOf('|');
@@ -99,7 +97,7 @@ export function TotalProfitPage() {
       const g = map.get(biz) || { today: 0, month: 0, monthTax: 0 };
       g.month += p;
       g.monthTax += tax;
-      if (date === lastDate) g.today += p - tax;
+      if (date === dayCol) g.today += p - tax;
       map.set(biz, g);
     }
     const out: BizRow[] = Array.from(map.entries())
@@ -110,7 +108,7 @@ export function TotalProfitPage() {
         monthTax: round2(g.monthTax),
       }))
       .sort((a, b) => b.month - a.month);
-    return { rows: out, todayDate: lastDate || to };
+    return { rows: out, todayDate: dayCol };
   }, [from, to, db]);
 
   const totals = rows.reduce((s, r) => ({
