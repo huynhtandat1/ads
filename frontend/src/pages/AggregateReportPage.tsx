@@ -19,7 +19,7 @@ export interface AggregateSpec {
 
 const TAX_PCT = 6; // Điểm thuế mặc định 6% (có thể sửa theo hiệu lực ngày)
 const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
-const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 interface GroupRow {
   dim: string;
@@ -188,7 +188,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="overflow-auto max-h-[calc(100vh-260px)]">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
                 {HEADERS.map((h, i) => (
@@ -241,7 +241,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                                 <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-50 border-b border-gray-200">
                                   {t('report.dailyProfit')}
                                 </div>
-                                <table className="w-full text-sm">
+                                <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
                                   <tbody>
                                     {g.daily.length === 0 ? (
                                       <tr><td colSpan={2} className="px-3 py-6 text-center text-gray-400">—</td></tr>
@@ -268,7 +268,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                                 <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-50 border-b border-gray-200">
                                   {t('report.detailRevenue')}
                                 </div>
-                                <table className="w-full text-sm">
+                                <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
                                   <tbody>
                                     {g.advertisers.length === 0 ? (
                                       <tr><td colSpan={2} className="px-3 py-6 text-center text-gray-400">—</td></tr>
@@ -295,7 +295,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                                 <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-50 border-b border-gray-200">
                                   {t('report.detailCost')}
                                 </div>
-                                <table className="w-full text-sm">
+                                <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
                                   <tbody>
                                     {g.media.length === 0 ? (
                                       <tr><td colSpan={2} className="px-3 py-6 text-center text-gray-400">—</td></tr>

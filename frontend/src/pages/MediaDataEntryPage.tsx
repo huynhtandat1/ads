@@ -10,7 +10,7 @@ import { IconSearch, IconDownload } from '../components/icons';
 import { yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importMedia';
-const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 
 const typeOf = (mid: Row): string => mid.type ?? getAll('adIds').find((a) => a.id === mid.adIdId)?.type ?? '-';
@@ -209,7 +209,7 @@ export function MediaDataEntryPage() {
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="overflow-auto max-h-[calc(100vh-220px)]">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-200 bg-brand-dark border-b border-brand-dark2">
                 {headers.map((h, i) => (

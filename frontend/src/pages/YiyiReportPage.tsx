@@ -131,7 +131,7 @@ export function YiyiReportPage() {
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="overflow-auto max-h-[calc(100vh-360px)]">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-cyan-50 border-b border-cyan-100">
                 {HEADERS.map((h, i) => (

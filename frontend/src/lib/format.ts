@@ -16,9 +16,9 @@ export function formatId(id: number | string): string {
   return hashed.toString(36).toUpperCase().padStart(6, '0');
 }
 
-// Định dạng tiền tệ: tối đa 2 chữ số thập phân (tránh hiển thị .151 do dữ liệu lẻ).
+// Định dạng tiền tệ: LUÔN 2 chữ số thập phân (2 → 2.00, 2.1 → 2.10).
 export function money(v: number): string {
-  return '¥' + Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  return '¥' + Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 // Làm tròn dùng trong TÍNH TOÁN: giữ 3 chữ số thập phân. Hiển thị vẫn 2 chữ số (money()).

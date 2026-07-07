@@ -8,7 +8,7 @@ import { yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importYiyi';
 const CHANNELS = ['yy-02-01', 'yy-02-02', 'yy-02-03', 'yy-02-04'];
-const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 // Đơn giá Yiyi là giá trên 1.000 lượt (như CPM): tiền = số lượng × giá ÷ 1000.
 // Tính giữ 3 số lẻ; hiển thị money() rút về 2 số lẻ.
 const yiyiMoney = (q: number, price: number) => round3((q * price) / 1000);
@@ -125,7 +125,7 @@ export function YiyiDataEntryPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left: 4 channels */}
         <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
             <thead>
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-100">
                 <th className="px-4 py-3 font-semibold uppercase text-xs tracking-wide">{t('entry.channel')}</th>

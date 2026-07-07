@@ -13,7 +13,7 @@ import { monthRangeUntilYesterday, yesterdayStr, ymd } from '../lib/date';
 // Thuế 6% theo versioning `tax:0:point` — đồng bộ với g4b (AggregateReportPage).
 const TAX_PCT = 6;
 const COLLECTIONS = ['importAI', 'importAdv', 'importMedia', 'importYiyi'];
-const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 interface DailyCell { biz: string; date: string; profit: number; tax: number }
 interface BizRow { biz: string; today: number; month: number; monthTax: number }
@@ -188,7 +188,7 @@ export function TotalProfitPage() {
           {t('report.monthlyByBiz')}
         </div>
         <div className="overflow-auto max-h-[calc(50vh-100px)]">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
                 {HEADERS.map((h, i) => (
@@ -229,7 +229,7 @@ export function TotalProfitPage() {
           {t('report.dailyByBiz')}
         </div>
         <div className="overflow-auto max-h-[calc(50vh-100px)]">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
                 <th className="px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap">{t('col.date')}</th>

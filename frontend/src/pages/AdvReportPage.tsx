@@ -7,7 +7,7 @@ import { IconSearch, IconDownload } from '../components/icons';
 import { monthRangeUntilYesterday, yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importAdv';
-const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 
 // Spec §9: cột Trạng thái đọc "từ trạng thái ID hiện tại" (Bật/Tắt trong danh mục),
@@ -194,7 +194,7 @@ export function AdvReportPage() {
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="overflow-auto max-h-[calc(100vh-260px)]">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
                 {HEADERS.map((h, i) => (
