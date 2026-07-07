@@ -118,9 +118,10 @@ export function MediaDataEntryPage() {
     const unitPrice = effectiveValue('mediaId', m.id, 'unitPrice', date, Number(m.unitPrice) || 0);
     const coef = effectiveValue('mediaId', m.id, 'coefficient', date, 1);
     const accountShare = effectiveValue('mediaId', m.id, 'profitShare', date, Number(m.profitShare) || 0);
-    // Hệ số dữ liệu scale trực tiếp vào DỮ LIỆU: lưu lượng media = round(lưu lượng NQC ×
-    // hệ số) — số nguyên (không có lượt lẻ); quyết toán là tiền nên giữ 2 số lẻ.
-    const traffic = rawTraffic == null ? '' : Math.round(rawTraffic * coef);
+    // Hệ số dữ liệu scale trực tiếp vào DỮ LIỆU: lưu lượng media = lưu lượng NQC × hệ số,
+    // LÀM TRÒN XUỐNG (bỏ phần lẻ) — không tính lượt chưa đủ (1750×0.85=1487,5 → 1487);
+    // quyết toán là tiền nên giữ 2 số lẻ.
+    const traffic = rawTraffic == null ? '' : Math.floor(rawTraffic * coef);
     const settlement = rawSettlement == null ? '' : round2(rawSettlement * coef);
     // Phải trả tính từ base ĐÃ áp hệ số (không nhân hệ số lần nữa).
     const receivable = receivableOf(type, { unitPrice, traffic, settlement });
