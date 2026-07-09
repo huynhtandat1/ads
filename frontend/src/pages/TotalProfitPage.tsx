@@ -4,8 +4,9 @@ import { effectiveValue, getAll, useDB, type Row } from '../data/store';
 import { perfOf, YIYI_BIZ } from '../lib/analytics';
 import { round3 } from '../lib/format';
 import { exportCSV } from '../lib/export';
+import { DateRangePicker } from '../components/DateRangePicker';
 import { IconDownload } from '../components/icons';
-import { monthRangeUntilYesterday, yesterdayStr, ymd } from '../lib/date';
+import { yesterdayStr, ymd } from '../lib/date';
 
 // "Lợi nhuận tổng" (spec g4a): 2 bảng theo đặc tả PDF §Bảng tổng lợi nhuận
 //   1. Lợi nhuận mỗi NGÀY theo từng nghiệp vụ
@@ -37,8 +38,6 @@ export function TotalProfitPage() {
   const [from, setFrom] = useState(`${yesterdayStr().slice(0, 7)}-01`);
   const [to, setTo] = useState(yesterdayStr());
 
-  const pickThisMonth = () => { const [f, tt] = monthRangeUntilYesterday(0); setFrom(f); setTo(tt); };
-  const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); };
 
   const todayStr = ymd(new Date());
 
@@ -148,8 +147,6 @@ export function TotalProfitPage() {
     exportCSV('total_profit', HEADERS, data);
   };
 
-  const sel = "h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-200";
-
   return (
     <div>
       <div className="mb-4">
@@ -166,15 +163,9 @@ export function TotalProfitPage() {
         <div className="flex items-end gap-2">
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t('col.date')}</label>
-            <div className="flex items-center gap-1.5">
-              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={sel} />
-              <span className="text-gray-400">—</span>
-              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={sel} />
-            </div>
+            <DateRangePicker from={from} to={to} onFromChange={setFrom} onToChange={setTo} />
           </div>
-          <button onClick={pickThisMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.thisMonth')}</button>
-          <button onClick={pickLastMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.lastMonth')}</button>
-        </div>
+                  </div>
         <div className="flex-1" />
         <button onClick={doExport} disabled={rows.length === 0}
           className="h-9 px-4 inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">

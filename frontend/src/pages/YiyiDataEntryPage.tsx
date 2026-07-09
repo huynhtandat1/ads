@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '../components/Toast';
+import { DateRangePicker } from '../components/DateRangePicker';
 import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, type Row } from '../data/store';
 import { round3 } from '../lib/format';
-import { monthRangeUntilYesterday, useDatesInRange, yesterdayStr } from '../lib/date';
+import { useDatesInRange, yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importYiyi';
 const CHANNELS = ['yy-02-01', 'yy-02-02', 'yy-02-03', 'yy-02-04'];
@@ -28,8 +29,6 @@ export function YiyiDataEntryPage() {
 
   const [from, setFrom] = useState(yesterdayStr());
   const [to, setTo] = useState(yesterdayStr());
-  const pickThisMonth = () => { const [f, tt] = monthRangeUntilYesterday(0); setFrom(f); setTo(tt); };
-  const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); };
   // Danh sách ngày hiển thị trong khoảng [from, to].
   const datesInRange = useDatesInRange(from, to);
   // qty[date][channel] = số lượng; unitPrice/profitUnitPrice đặt chung cho cả khoảng (giống hành vi cũ).
@@ -137,13 +136,7 @@ export function YiyiDataEntryPage() {
           <p className="text-sm text-gray-500 mt-0.5">{t('entry.forDate')}: <span className="font-medium text-gray-700">{from}{from !== to ? ` ~ ${to}` : ''}</span></p>
         </div>
         <div className="flex flex-wrap items-center gap-2 justify-end">
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-            className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white" />
-          <span className="text-gray-400">—</span>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
-            className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white" />
-          <button onClick={pickThisMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.thisMonth')}</button>
-          <button onClick={pickLastMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.lastMonth')}</button>
+          <DateRangePicker from={from} to={to} onFromChange={setFrom} onToChange={setTo} />
         </div>
       </div>
 

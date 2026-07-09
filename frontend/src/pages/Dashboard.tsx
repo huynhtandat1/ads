@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useCollection } from '../data/store';
 import { sumPerf, allPerf, filterByDate } from '../lib/analytics';
 import { money } from '../lib/format';
+import { DateRangePicker } from '../components/DateRangePicker';
 import { useAuth } from '../auth/AuthContext';
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: string }) {
@@ -15,13 +16,15 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
+const monthStart = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`;
+const monthEnd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())}`;
 
 export function Dashboard() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [from, setFrom] = useState(monthStart(now));
+  const [to, setTo] = useState(monthEnd(now));
   useCollection('importAI');
   useCollection('importAdv');
   useCollection('importMedia');
@@ -29,12 +32,7 @@ export function Dashboard() {
   const advN = useCollection('advertisers').length;
   const medN = useCollection('media').length;
   const midN = useCollection('mediaIds').length;
-  const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
-  const months = Array.from({ length: 12 }, (_, i) => i + 1);
-  const from = `${year}-${pad(month)}-01`;
-  const to = `${year}-${pad(month)}-${pad(new Date(year, month, 0).getDate())}`;
   const tot = sumPerf(filterByDate(allPerf(), from, to));
-  const sel = "h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-200";
 
   return (
     <div>
@@ -45,12 +43,7 @@ export function Dashboard() {
           <p className="text-xs text-gray-400 mt-1">{from} ~ {to}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 justify-end">
-          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={sel}>
-            {years.map((y) => <option key={y} value={y}>{y} {t('report.year')}</option>)}
-          </select>
-          <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className={sel}>
-            {months.map((m) => <option key={m} value={m}>{t('report.month')} {m}</option>)}
-          </select>
+          <DateRangePicker from={from} to={to} onFromChange={setFrom} onToChange={setTo} />
         </div>
       </div>
 

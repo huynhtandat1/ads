@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
 import { getAll, refName, useDB, type Row } from '../data/store';
 import { exportCSV } from '../lib/export';
+import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload } from '../components/icons';
-import { monthRangeUntilYesterday, yesterdayStr } from '../lib/date';
+import { yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importAdv';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -74,8 +75,6 @@ export function AdvReportPage() {
 
   useEffect(() => { setResult(filteredRows); }, [filteredRows]); // lọc ngay khi đổi điều kiện
 
-  const pickThisMonth = () => { const [f, tt] = monthRangeUntilYesterday(0); setFrom(f); setTo(tt); setAllDates(false); };
-  const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); setAllDates(false); };
 
   const rows = result ?? [];
   const orderOptions = (() => {
@@ -131,14 +130,8 @@ export function AdvReportPage() {
         <div className="flex items-end gap-2">
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t('col.date')}</label>
-            <div className="flex items-center gap-1.5">
-              <input type="date" value={from} disabled={allDates} onChange={(e) => setFrom(e.target.value)} className={`${sel} disabled:bg-gray-50`} />
-              <span className="text-gray-400">—</span>
-              <input type="date" value={to} disabled={allDates} onChange={(e) => setTo(e.target.value)} className={`${sel} disabled:bg-gray-50`} />
-            </div>
+            <DateRangePicker from={from} to={to} onFromChange={setFrom} onToChange={setTo} disabled={allDates} />
           </div>
-          <button onClick={pickThisMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.thisMonth')}</button>
-          <button onClick={pickLastMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.lastMonth')}</button>
         </div>
 
         <div className="flex-1" />

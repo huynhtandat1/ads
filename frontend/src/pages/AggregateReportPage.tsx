@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useDB, effectiveValue, setRate, getAll, refName, type Row } from '../data/store';
 import { exportCSV } from '../lib/export';
 import { RateEditor } from '../components/RateEditor';
+import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload } from '../components/icons';
-import { monthRangeUntilYesterday, yesterdayStr, ymd } from '../lib/date';
+import { yesterdayStr, ymd } from '../lib/date';
 import { perfOf } from '../lib/analytics';
 import { round3 } from '../lib/format';
 
@@ -126,8 +127,6 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
 
   const runQuery = () => { setParams({ from, to, allDates, fAdv, q }); setQueried(true); };
   useEffect(runQuery, [from, to, allDates, fAdv, q]);
-  const pickThisMonth = () => { const [f, tt] = monthRangeUntilYesterday(0); setFrom(f); setTo(tt); setAllDates(false); };
-  const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); setAllDates(false); };
 
   const HEADERS = [t('col.stt'), t(spec.dimLabelKey), t('col.revenue'), t('col.cost'), t('col.profit'),
     ...(spec.withTax ? [t('col.tax'), t('col.afterTax')] : []), t('col.margin')];
@@ -151,14 +150,8 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
         <div className="flex items-end gap-2">
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t('col.date')}</label>
-            <div className="flex items-center gap-1.5">
-              <input type="date" value={from} disabled={allDates} onChange={(e) => setFrom(e.target.value)} className={`${sel} disabled:bg-gray-50`} />
-              <span className="text-gray-400">—</span>
-              <input type="date" value={to} disabled={allDates} onChange={(e) => setTo(e.target.value)} className={`${sel} disabled:bg-gray-50`} />
-            </div>
+            <DateRangePicker from={from} to={to} onFromChange={setFrom} onToChange={setTo} disabled={allDates} />
           </div>
-          <button onClick={pickThisMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.thisMonth')}</button>
-          <button onClick={pickLastMonth} className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('report.lastMonth')}</button>
           {spec.withTax && (
             <div className="flex items-end gap-1.5">
               <label className="block text-xs text-gray-500 mb-1">{t('col.tax')}:</label>

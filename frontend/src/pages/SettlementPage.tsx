@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable, type Column } from '../components/DataTable';
 import { FormModal, type FieldDef } from '../components/FormModal';
+import { DateRangePicker } from '../components/DateRangePicker';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, type Row } from '../data/store';
@@ -160,15 +161,9 @@ function GenerateModal({ collection, targetFrom, previewType, onClose, onDone }:
               {getAll(targetFrom).map((r) => <option key={r.id} value={String(r.name)}>{r.name}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1.5">{t('common.from')}</label>
-              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={inp} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1.5">{t('common.to')}</label>
-              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={inp} />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1.5">{t('col.date')}</label>
+            <DateRangePicker from={from} to={to} onFromChange={setFrom} onToChange={setTo} className="w-full justify-center" />
           </div>
           <div className="rounded-lg bg-cyan-50 border border-cyan-100 p-4">
             <div className="text-xs text-gray-500">{t('col.totalAmount')} · {t('settle.auto')}</div>

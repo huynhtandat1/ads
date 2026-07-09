@@ -3,11 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { useCollection } from '../data/store';
 import { round3 } from '../lib/format';
 import { exportCSV } from '../lib/export';
+import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload, IconRefresh } from '../components/icons';
+import { datesInRange, monthRangeUntilYesterday } from '../lib/date';
 
 const COLLECTION = 'importYiyi';
 const CHANNELS = ['yy-02-01', 'yy-02-02', 'yy-02-03', 'yy-02-04'];
-const pad = (n: number) => String(n).padStart(2, '0');
 const money2 = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 interface DayRow {
@@ -20,21 +21,14 @@ export function YiyiReportPage() {
   // Subscribe store để bảng tự tính lại khi nhập liệu ở trang khác (g3d) — trước đây
   // đọc getAll một lần trong memo nên dữ liệu mới không hiện cho tới khi F5.
   const records = useCollection(COLLECTION);
-  const now = new Date();
-  const yst = new Date(); yst.setDate(yst.getDate() - 1); // hôm qua (tháng chứa hôm qua)
-  const [year, setYear] = useState(yst.getFullYear());
-  const [month, setMonth] = useState(yst.getMonth() + 1);
-  const [query, setQuery] = useState<{ year: number; month: number } | null>({ year: yst.getFullYear(), month: yst.getMonth() + 1 });
-
-  const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
-  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const [defaultFrom, defaultTo] = monthRangeUntilYesterday(0);
+  const [from, setFrom] = useState(defaultFrom);
+  const [to, setTo] = useState(defaultTo);
+  const [query, setQuery] = useState<{ from: string; to: string } | null>({ from: defaultFrom, to: defaultTo });
 
   const data = useMemo<DayRow[]>(() => {
     if (!query) return [];
-    const days = new Date(query.year, query.month, 0).getDate();
-    const out: DayRow[] = [];
-    for (let d = 1; d <= days; d++) {
-      const date = `${query.year}-${pad(query.month)}-${pad(d)}`;
+    return datesInRange(query.from, query.to).map((date) => {
       const recs = records.filter((r) => r.date === date);
       const ch: Record<string, number> = {};
       for (const c of CHANNELS) ch[c] = recs.find((r) => r.objectId === c)?.quantity ?? 0;
@@ -45,16 +39,15 @@ export function YiyiReportPage() {
       // Yiyi trong bảng lợi nhuận (hiển thị money2() rút về 2 số lẻ).
       const payable = CHANNELS.reduce((s, c2) => s + round3(((ch[c2] || 0) * unitPrice) / 1000), 0);
       const profit = CHANNELS.reduce((s, c2) => s + round3(((ch[c2] || 0) * profitUnitPrice) / 1000), 0);
-      out.push({ date, ch, traffic, unitPrice, profitUnitPrice, payable, profit, total: payable + profit });
-    }
-    return out;
+      return { date, ch, traffic, unitPrice, profitUnitPrice, payable, profit, total: payable + profit };
+    });
   }, [query, records]);
 
   const totals = data.reduce(
     (s, r) => ({ traffic: s.traffic + r.traffic, payable: s.payable + r.payable, profit: s.profit + r.profit, total: s.total + r.total }),
     { traffic: 0, payable: 0, profit: 0, total: 0 },
   );
-  const daysInMonth = query ? new Date(query.year, query.month, 0).getDate() : 0;
+  const daysInRange = data.length;
 
   const HEADERS = [
     t('col.stt'), t('col.date'), t('report.traffic'), t('report.unitPriceShort'), t('entry.payable'),
@@ -68,10 +61,8 @@ export function YiyiReportPage() {
       r.ch['yy-02-01'], r.ch['yy-02-02'], r.ch['yy-02-03'], r.ch['yy-02-04'],
       r.profitUnitPrice, r.profit.toFixed(2), r.total.toFixed(2),
     ]);
-    exportCSV(`yiyi_report_${query?.year}-${pad(query?.month ?? 1)}`, HEADERS, rows);
+    exportCSV(`yiyi_report_${query?.from}_${query?.to}`, HEADERS, rows);
   };
-
-  const sel = "h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-200";
 
   const cards = [
     { label: t('report.traffic'), zh: '流量', value: totals.traffic.toLocaleString(), accent: 'text-cyan-600', big: false },
@@ -90,13 +81,8 @@ export function YiyiReportPage() {
           <p className="text-sm text-gray-500 mt-0.5 max-w-2xl">{t('report.yiyiDesc')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 justify-end">
-          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={sel}>
-            {years.map((y) => <option key={y} value={y}>{y} {t('report.year')}</option>)}
-          </select>
-          <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className={sel}>
-            {months.map((m) => <option key={m} value={m}>{t('report.month')} {m}</option>)}
-          </select>
-          <button onClick={() => setQuery({ year, month })}
+          <DateRangePicker from={from} to={to} onFromChange={setFrom} onToChange={setTo} />
+          <button onClick={() => setQuery({ from, to })}
             className="h-9 px-4 inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600">
             <IconSearch width={16} height={16} /> {t('report.query')}
           </button>
@@ -125,7 +111,7 @@ export function YiyiReportPage() {
 
       {/* Stat line */}
       <div className="text-xs text-gray-500 mb-4">
-        {daysInMonth} {t('report.daysUnit')} · 0 {t('report.invalidRows')} · <span className="text-emerald-600 font-medium">{t('report.validData')}</span>
+        {daysInRange} {t('report.daysUnit')} · 0 {t('report.invalidRows')} · <span className="text-emerald-600 font-medium">{t('report.validData')}</span>
       </div>
 
       {/* Table */}
