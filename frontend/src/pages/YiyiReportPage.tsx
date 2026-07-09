@@ -65,10 +65,10 @@ export function YiyiReportPage() {
   };
 
   const cards = [
-    { label: t('report.traffic'), zh: '流量', value: totals.traffic.toLocaleString(), accent: 'text-cyan-600', big: false },
-    { label: t('entry.payable'), zh: '金额', value: money2(totals.payable), accent: 'text-orange-600', big: false },
-    { label: t('col.profit'), zh: '利润', value: money2(totals.profit), accent: 'text-emerald-600', big: false },
-    { label: t('report.grandTotal'), zh: '总计', value: money2(totals.total), accent: 'text-white', big: true },
+    { label: t('report.traffic'), value: totals.traffic.toLocaleString(), accent: 'text-cyan-600', big: false },
+    { label: t('entry.payable'), value: money2(totals.payable), accent: 'text-orange-600', big: false },
+    { label: t('col.profit'), value: money2(totals.profit), accent: 'text-emerald-600', big: false },
+    { label: t('report.grandTotal'), value: money2(totals.total), accent: 'text-white', big: true },
   ];
 
   return (
@@ -102,7 +102,7 @@ export function YiyiReportPage() {
         {cards.map((c, i) => (
           <div key={i} className={`rounded-xl p-5 border shadow-sm ${c.big ? 'border-cyan-500 bg-gradient-to-br from-cyan-500 to-sky-600 text-white' : 'border-gray-200 bg-white'}`}>
             <div className={`text-sm flex items-center gap-1.5 ${c.big ? 'text-cyan-50' : 'text-gray-500'}`}>
-              {c.label} <span className={`text-xs ${c.big ? 'text-cyan-100' : 'text-gray-400'}`}>{c.zh}</span>
+              {c.label}
             </div>
             <div className={`text-2xl font-bold mt-1 ${c.accent}`}>{c.value}</div>
           </div>

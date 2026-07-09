@@ -209,10 +209,10 @@ export function YiyiDataEntryPage() {
         {/* Right: price card */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 h-fit">
           <h3 className="font-bold text-gray-800 mb-4">{t('entry.priceCard')}</h3>
-          <label className="block text-xs font-semibold text-gray-500 mb-1.5 tracking-wide">UNITPRICE</label>
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5 tracking-wide">{t('report.unitPriceShort')}</label>
           <input type="number" step="0.01" disabled={!canSave} value={unitPrice === '' ? '' : String(unitPrice)}
             onChange={(e) => setUnitPrice(e.target.value === '' ? '' : Number(e.target.value))} className={`${inp} mb-4`} />
-          <label className="block text-xs font-semibold text-gray-500 mb-1.5 tracking-wide">PROFITUNITPRICE</label>
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5 tracking-wide">{t('report.profitUnitPrice')}</label>
           <input type="number" step="0.01" disabled={!canSave} value={profitUnitPrice === '' ? '' : String(profitUnitPrice)}
             onChange={(e) => setProfitUnitPrice(e.target.value === '' ? '' : Number(e.target.value))} className={inp} />
         </div>
