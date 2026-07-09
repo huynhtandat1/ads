@@ -154,7 +154,7 @@ export function TotalProfitPage() {
         <h1 className="text-xl font-bold text-gray-800">{t('menu.g4a')}</h1>
         <p className="text-sm text-gray-500 mt-0.5">
           {t('col.date')}: <span className="font-medium text-gray-700">{from} ~ {to}</span>
-          <span className="ml-2 text-gray-400">({t('report.eyebrow')} · thuế {effectiveValue('tax', 0, 'point', todayStr, TAX_PCT)}%)</span>
+          <span className="ml-2 text-gray-400">({t('report.eyebrow')} · {t('col.tax')} {effectiveValue('tax', 0, 'point', todayStr, TAX_PCT)}%)</span>
         </p>
       </div>
 

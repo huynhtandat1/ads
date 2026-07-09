@@ -16,6 +16,15 @@ export default {
     dashboard: '概览', welcome: '欢迎回来',
     invalidNumber: '数字格式不正确', invalidPercent: '比例必须在 0 到 100 之间',
   },
+  datePicker: {
+    weekDays: ['日', '一', '二', '三', '四', '五', '六'],
+    months: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+    monthYear: '{{year}}年{{month}}',
+    yesterday: '昨天',
+    dayBeforeYesterday: '前天',
+    lastDays: '最近 {{count}} 天',
+    selectRange: '请选择开始日期和结束日期',
+  },
   menu: {
     g1: '广告主管理', g1a: '广告主管理', g1b: '广告订单管理', g1c: '广告ID管理',
     g2: '流量管理', g2a: '媒体', g2b: '媒体广告订单', g2c: '媒体ID管理',
@@ -51,7 +60,7 @@ export default {
   perm: { view: '查看', create: '创建', edit: '编辑', delete: '删除', export: '导出', screen: '界面' },
   report: {
     totalRevenue: '总收入', totalCost: '总成本', totalProfit: '总利润', avgMargin: '平均利润率', records: '条记录',
-    eyebrow: 'REPORT', thisMonth: '本月', lastMonth: '上月', query: '查询', exportExcel: '导出Excel',
+    eyebrow: '报表', thisMonth: '本月', lastMonth: '上月', query: '查询', exportExcel: '导出 Excel',
     business: '业务', allDates: '全部日期', confirmFilter: '已确认', grandTotal: '总计',
     queryHint: '请选择日期范围并点击查询以查看数据。',
     traffic: '流量', unitPriceShort: '单价', profitUnitPrice: '利润单价',
@@ -64,7 +73,7 @@ export default {
   },
   import: { upload: '上传文件', uploadHint: '拖放 CSV/Excel 或点击选择', addRecord: '添加记录', importedRecords: '已录入记录' },
   entry: {
-    eyebrow: 'DATA ENTRY', date: '日期', load: '加载数据',
+    eyebrow: '数据录入', date: '日期', load: '加载数据',
     chooseAdv: '选择广告主', chooseOrder: '选择广告订单', chooseAdId: '选择广告ID',
     allStatus: '全部状态', unitShare: '单价 / 分成比例',
     traffic: '流量数据', settlement: '结算数据 / 广告主金额', receivable: '应收金额',

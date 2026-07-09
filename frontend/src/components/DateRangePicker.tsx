@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { IconCalendar } from './icons';
 
 interface Props {
@@ -10,8 +11,6 @@ interface Props {
   className?: string;
 }
 
-const weekDays = ['Ngày', 'Hai', 'Ba', 'Tư', 'Năm', 'Sáu', 'Bảy'];
-const monthNames = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
 const pad = (n: number) => String(n).padStart(2, '0');
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const parseYmd = (s: string) => {
@@ -42,6 +41,7 @@ function monthCells(month: Date) {
 }
 
 export function DateRangePicker({ from, to, onFromChange, onToChange, disabled = false, className = '' }: Props) {
+  const { t } = useTranslation();
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(from ? parseYmd(from) : new Date()));
@@ -86,12 +86,15 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
     setOpen(false);
   };
 
+  const weekDays = t('datePicker.weekDays', { returnObjects: true }) as string[];
+  const monthNames = t('datePicker.months', { returnObjects: true }) as string[];
+
   const presets = [
-    { label: 'Hôm qua', range: () => { const d = ymd(yesterday()); return [d, d] as const; } },
-    { label: 'Hôm trước', range: () => { const d = ymd(addDays(new Date(), -2)); return [d, d] as const; } },
-    { label: '7 ngày gần đây', range: () => rangeForLastDays(7) },
-    { label: 'Gần đây 30 ngày', range: () => rangeForLastDays(30) },
-    { label: 'Gần đây 90 ngày', range: () => rangeForLastDays(90) },
+    { label: t('datePicker.yesterday'), range: () => { const d = ymd(yesterday()); return [d, d] as const; } },
+    { label: t('datePicker.dayBeforeYesterday'), range: () => { const d = ymd(addDays(new Date(), -2)); return [d, d] as const; } },
+    { label: t('datePicker.lastDays', { count: 7 }), range: () => rangeForLastDays(7) },
+    { label: t('datePicker.lastDays', { count: 30 }), range: () => rangeForLastDays(30) },
+    { label: t('datePicker.lastDays', { count: 90 }), range: () => rangeForLastDays(90) },
   ];
 
   const pickDate = (value: string) => {
@@ -108,7 +111,7 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
   const renderMonth = (month: Date) => (
     <div className="w-[292px]">
       <div className="mb-3 text-center text-sm font-semibold text-gray-800">
-        {monthNames[month.getMonth()]} năm {month.getFullYear()}
+        {t('datePicker.monthYear', { month: monthNames[month.getMonth()], year: month.getFullYear() })}
       </div>
       <div className="grid grid-cols-7 text-center text-[11px] font-medium text-gray-400 mb-1">
         {weekDays.map((d) => <div key={d} className="py-1">{d}</div>)}
@@ -203,9 +206,9 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
             {renderMonth(addMonths(viewMonth, 1))}
           </div>
           <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
-            <div className="text-sm text-gray-500">{rangeStart && rangeEnd ? `${rangeStart} ~ ${rangeEnd}` : 'Chọn ngày bắt đầu và ngày kết thúc'}</div>
+            <div className="text-sm text-gray-500">{rangeStart && rangeEnd ? `${rangeStart} ~ ${rangeEnd}` : t('datePicker.selectRange')}</div>
             <button type="button" onClick={() => applyRange()} className="h-9 px-5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700">
-              Duyệt
+              {t('common.apply')}
             </button>
           </div>
         </div>

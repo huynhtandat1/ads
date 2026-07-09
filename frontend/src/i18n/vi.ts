@@ -16,6 +16,15 @@ export default {
     dashboard: 'Tổng quan', welcome: 'Chào mừng trở lại',
     invalidNumber: 'Định dạng số không hợp lệ', invalidPercent: 'Tỷ lệ phải từ 0 đến 100',
   },
+  datePicker: {
+    weekDays: ['CN', 'Hai', 'Ba', 'Tư', 'Năm', 'Sáu', 'Bảy'],
+    months: ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'],
+    monthYear: '{{month}} năm {{year}}',
+    yesterday: 'Hôm qua',
+    dayBeforeYesterday: 'Hôm trước',
+    lastDays: '{{count}} ngày gần đây',
+    selectRange: 'Chọn ngày bắt đầu và ngày kết thúc',
+  },
   menu: {
     g1: 'Quản lý nhà quảng cáo', g1a: 'Quản lý nhà quảng cáo', g1b: 'Quản lý đơn quảng cáo', g1c: 'Quản lý ID quảng cáo',
     g2: 'Quản lý lưu lượng', g2a: 'Media', g2b: 'Đơn quảng cáo media', g2c: 'Quản lý ID media',
@@ -51,7 +60,7 @@ export default {
   perm: { view: 'Xem', create: 'Tạo', edit: 'Sửa', delete: 'Xóa', export: 'Xuất', screen: 'Màn hình' },
   report: {
     totalRevenue: 'Tổng doanh thu', totalCost: 'Tổng chi phí', totalProfit: 'Tổng lợi nhuận', avgMargin: 'Tỷ suất TB', records: 'bản ghi',
-    eyebrow: 'REPORT', thisMonth: 'Tháng này', lastMonth: 'Tháng trước', query: 'Truy vấn', exportExcel: 'export Excel',
+    eyebrow: 'BÁO CÁO', thisMonth: 'Tháng này', lastMonth: 'Tháng trước', query: 'Truy vấn', exportExcel: 'Xuất Excel',
     business: 'Nghiệp vụ', allDates: 'Tất cả ngày', confirmFilter: 'Đã xác nhận', grandTotal: 'Tổng cộng',
     queryHint: 'Chọn khoảng ngày rồi bấm Truy vấn để xem dữ liệu.',
     traffic: 'Lưu lượng', unitPriceShort: 'Đơn giá', profitUnitPrice: 'Đơn giá lợi nhuận',
@@ -64,7 +73,7 @@ export default {
   },
   import: { upload: 'Tải lên file', uploadHint: 'Kéo thả CSV/Excel hoặc bấm để chọn', addRecord: 'Thêm bản ghi', importedRecords: 'Bản ghi đã nhập' },
   entry: {
-    eyebrow: 'DATA ENTRY', date: 'Ngày', load: 'Tải dữ liệu',
+    eyebrow: 'NHẬP DỮ LIỆU', date: 'Ngày', load: 'Tải dữ liệu',
     chooseAdv: 'Chọn nhà quảng cáo', chooseOrder: 'Chọn đơn quảng cáo', chooseAdId: 'Chọn ID quảng cáo',
     allStatus: 'Tất cả trạng thái', unitShare: 'Đơn giá / Tỷ lệ chia sẻ',
     traffic: 'Dữ liệu lưu lượng', settlement: 'Dữ liệu quyết toán / Số tiền nhà QC', receivable: 'Số tiền phải thu',

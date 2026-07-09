@@ -16,6 +16,15 @@ export default {
     dashboard: 'Overview', welcome: 'Welcome back',
     invalidNumber: 'Invalid number format', invalidPercent: 'Rate must be between 0 and 100',
   },
+  datePicker: {
+    weekDays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+    monthYear: '{{month}} {{year}}',
+    yesterday: 'Yesterday',
+    dayBeforeYesterday: 'Day before yesterday',
+    lastDays: 'Last {{count}} days',
+    selectRange: 'Select start and end dates',
+  },
   menu: {
     g1: 'Advertiser Management', g1a: 'Advertisers', g1b: 'Ad Orders', g1c: 'Ad IDs',
     g2: 'Traffic Management', g2a: 'Media', g2b: 'Media Ad Orders', g2c: 'Media IDs',
