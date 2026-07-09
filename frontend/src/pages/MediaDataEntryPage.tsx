@@ -7,7 +7,7 @@ import { receivableOf } from '../lib/billing';
 import { round3 } from '../lib/format';
 import { RateEditor } from '../components/RateEditor';
 import { IconSearch, IconDownload } from '../components/icons';
-import { inRange, monthRangeUntilYesterday, yesterdayStr } from '../lib/date';
+import { inRange, monthRangeUntilYesterday, useDatesInRange, yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importMedia';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -31,6 +31,7 @@ export function MediaDataEntryPage() {
   const [to, setTo] = useState(yesterdayStr());
   const pickThisMonth = () => { const [f, tt] = monthRangeUntilYesterday(0); setFrom(f); setTo(tt); };
   const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); };
+  const datesInRange = useDatesInRange(from, to);
   const [fMedia, setFMedia] = useState('');
   const [fOrder, setFOrder] = useState('');
   const [fMediaId, setFMediaId] = useState('');
@@ -107,19 +108,15 @@ export function MediaDataEntryPage() {
 
   const pageSize = 10;
 
-  // Mỗi dòng = 1 (mediaId, ngày có record trong [from, to]); nếu ad không có record nào thì 1 dòng từ from.
+  // Mỗi dòng = 1 (mediaId, ngày) cho mỗi ngày trong [from, to]; record cũ (nếu có) khớp theo ngày.
+  // Trước đây chỉ tạo dòng cho ngày CÓ record nên sót ngày chưa nhập giữa range.
   const cellRows = useMemo(() => {
-    const records = getAll(COLLECTION);
     const out: { m: Row; cellDate: string; key: string }[] = [];
     for (const m of rows) {
-      const recs = records.filter((r) => inRange(String(r.date || ''), from, to) && (r.mediaIdId === m.id || r.objectId === m.name));
-      const dates: string[] = recs.length > 0
-        ? Array.from(new Set(recs.map((r) => String(r.date)))).sort()
-        : [from];
-      for (const d of dates) out.push({ m, cellDate: d, key: `${m.id}|${d}` });
+      for (const d of datesInRange) out.push({ m, cellDate: d, key: `${m.id}|${d}` });
     }
     return out;
-  }, [rows, from, to]);
+  }, [rows, datesInRange]);
 
   const totalRows = cellRows.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));

@@ -7,7 +7,7 @@ import { receivableOf, type BillingInputs } from '../lib/billing';
 import { round3 } from '../lib/format';
 import { RateEditor } from '../components/RateEditor';
 import { IconSearch, IconDownload, IconUpload } from '../components/icons';
-import { inRange, monthRangeUntilYesterday, yesterdayStr } from '../lib/date';
+import { monthRangeUntilYesterday, useDatesInRange, yesterdayStr } from '../lib/date';
 
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
@@ -32,6 +32,7 @@ export function AdvDataEntryPage({
   const [to, setTo] = useState(yesterdayStr());
   const pickThisMonth = () => { const [f, tt] = monthRangeUntilYesterday(0); setFrom(f); setTo(tt); };
   const pickLastMonth = () => { const [f, tt] = monthRangeUntilYesterday(-1); setFrom(f); setTo(tt); };
+  const datesInRange = useDatesInRange(from, to);
   const [fAdv, setFAdv] = useState('');
   const [fOrder, setFOrder] = useState('');
   const [fAdId, setFAdId] = useState('');
@@ -48,21 +49,16 @@ export function AdvDataEntryPage({
   const canEdit = can(screen, 'edit');
 
   // Load saved values for the selected range into the editable grid.
-  // Mỗi record (id × date) trong [from, to] trở thành 1 dòng; nếu ad không có record nào
-  // trong range, vẫn show 1 dòng mới với cellDate = from (giống hành vi cũ khi khoảng = 1 ngày).
+  // Mỗi ad có 1 dòng / ngày trong [from, to]; record cũ (nếu có) điền vào đúng dòng của ngày đó.
+  // Trước đây chỉ tạo dòng cho ngày CÓ record nên sót ngày chưa nhập giữa range.
   const load = () => {
     const next: Record<string, Draft> = {};
     const saved = new Set<string>();
     const records = getAll(COLLECTION);
-    const lo = from, hi = to;
     for (const ad of getAll('adIds')) {
-      const recs = records.filter((r) => inRange(String(r.date || ''), lo, hi) && (r.adIdId === ad.id || r.objectId === ad.name));
-      // Nếu có record thì 1 dòng / record (sort theo ngày); nếu không có thì 1 dòng từ from.
-      const dates: string[] = recs.length > 0
-        ? Array.from(new Set(recs.map((r) => String(r.date)))).sort()
-        : [lo];
-      for (const d of dates) {
-        const rec = recs.find((r) => String(r.date) === d);
+      const adRecs = records.filter((r) => r.adIdId === ad.id || r.objectId === ad.name);
+      for (const d of datesInRange) {
+        const rec = adRecs.find((r) => String(r.date) === d);
         const key = `${ad.id}|${d}`;
         next[key] = {
           unitPrice: rec?.unitPrice ?? ad.unitPrice ?? '',

@@ -4,7 +4,7 @@ import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, type Row } from '../data/store';
 import { round3 } from '../lib/format';
-import { monthRangeUntilYesterday, yesterdayStr } from '../lib/date';
+import { monthRangeUntilYesterday, useDatesInRange, yesterdayStr } from '../lib/date';
 
 const COLLECTION = 'importYiyi';
 const CHANNELS = ['yy-02-01', 'yy-02-02', 'yy-02-03', 'yy-02-04'];
@@ -12,24 +12,6 @@ const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimu
 // Đơn giá Yiyi là giá trên 1.000 lượt (như CPM): tiền = số lượng × giá ÷ 1000.
 // Tính giữ 3 số lẻ; hiển thị money() rút về 2 số lẻ.
 const yiyiMoney = (q: number, price: number) => round3((q * price) / 1000);
-
-// Liệt kê ngày trong [from, to] (inclusive). Trả về `[]` nếu from > to.
-function useDatesInRange(from: string, to: string): string[] {
-  const out: string[] = [];
-  if (!from || !to || from > to) return out;
-  const [fy, fm, fd] = from.split('-').map(Number);
-  const [ty, tm, td] = to.split('-').map(Number);
-  const cur = new Date(fy, fm - 1, fd);
-  const end = new Date(ty, tm - 1, td);
-  while (cur <= end) {
-    const y = cur.getFullYear();
-    const m = String(cur.getMonth() + 1).padStart(2, '0');
-    const d = String(cur.getDate()).padStart(2, '0');
-    out.push(`${y}-${m}-${d}`);
-    cur.setDate(cur.getDate() + 1);
-  }
-  return out;
-}
 
 function emptyQty(dates: string[]): Record<string, Record<string, number | ''>> {
   return Object.fromEntries(dates.map((d) => [d, Object.fromEntries(CHANNELS.map((c) => [c, 0]))]));
