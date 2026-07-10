@@ -238,7 +238,7 @@ export function AdvDataEntryPage({
           <h1 className="text-xl font-bold text-gray-800">{t(titleKey)}</h1>
           <p className="text-sm text-gray-500 mt-0.5">{t('entry.forDate')}: <span className="font-medium text-gray-700">{from}{from !== to ? ` ~ ${to}` : ''}</span></p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 justify-end">
+        <div className="flex flex-wrap items-center gap-2 justify-start">
           <DateRangePicker from={from} to={to} onFromChange={setFrom} onToChange={setTo} />
           <select value={fAdv} onChange={(e) => { setFAdv(e.target.value); setFOrder(''); setFAdId(''); }} className={sel}>
             <option value="">{t('entry.chooseAdv')}</option>

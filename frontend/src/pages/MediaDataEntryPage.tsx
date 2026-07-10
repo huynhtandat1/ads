@@ -206,7 +206,7 @@ export function MediaDataEntryPage() {
           <h1 className="text-xl font-bold text-gray-800">{t('menu.g3c')}</h1>
           <p className="text-sm text-gray-500 mt-0.5">{t('entry.forDate')}: <span className="font-medium text-gray-700">{from}{from !== to ? ` ~ ${to}` : ''}</span> · <span className="text-gray-400">{t('entry.traffic')}/{t('entry.settlement')} {t('entry.fromAdv')}</span></p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 justify-end">
+        <div className="flex flex-wrap items-center gap-2 justify-start">
           <DateRangePicker from={from} to={to} onFromChange={setFrom} onToChange={setTo} />
           <select value={fMedia} onChange={(e) => { setFMedia(e.target.value); setFOrder(''); setFMediaId(''); }} className={sel}>
             <option value="">{t('entry.chooseMedia')}</option>
