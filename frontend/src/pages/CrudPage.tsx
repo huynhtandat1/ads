@@ -9,7 +9,7 @@ import {
   effectiveValue, setRate, type Row,
 } from '../data/store';
 import { SCREENS } from '../config/screens';
-import { ymd } from '../lib/date';
+import { ymd, yesterdayStr } from '../lib/date';
 import { IconPlus, IconPencil } from '../components/icons';
 
 export function CrudPage({ screen }: { screen: string }) {
@@ -130,14 +130,21 @@ export function CrudPage({ screen }: { screen: string }) {
     if (editing) update(cfg.collection, editing.id, vals);
     else create(cfg.collection, { status: true, ...vals } as Omit<Row, 'id'>); // trạng thái bật sẵn khi tạo
     // Field có versioning (đơn giá/tỷ lệ): nếu đã có lịch sử trong 'rates' thì màn nhập liệu
-    // (g3b/g3c) đọc effectiveValue và BỎ QUA giá trị gốc vừa sửa → ghi thêm phiên bản
-    // hiệu lực hôm nay để 2 phía đồng bộ. Chưa có lịch sử thì fallback về bản ghi gốc là đủ.
+    // (g3b/g3c) đọc effectiveValue và BỎ QUA giá trị gốc vừa sửa → ghi thêm phiên bản mới.
+    // Hiệu lực từ HÔM QUA (không phải hôm nay): dữ liệu nhập liệu mặc định là ngày hôm qua,
+    // ghi từ hôm nay thì các dòng hôm qua trong g3b/g3c vẫn tính theo giá/tỷ lệ cũ.
+    // Chưa có lịch sử thì fallback về bản ghi gốc là đủ, không sinh version rác.
     if (editing && cfg.rates) {
+      const effFrom = yesterdayStr();
       for (const f of cfg.rates.fields) {
         const nv = Number(vals[f]);
-        if (!Number.isFinite(nv) || nv === Number(editing[f])) continue;
+        if (!Number.isFinite(nv)) continue;
         const key = `${cfg.rates.entityType}:${editing.id}:${f}`;
-        if (getAll('rates').some((r) => r.key === key)) setRate(cfg.rates.entityType, editing.id, f, nv, ymd(new Date()));
+        if (!getAll('rates').some((r) => r.key === key)) continue;
+        // So với giá trị HIỆU LỰC (không phải raw cũ) — raw có thể lệch lịch sử,
+        // so raw sẽ bỏ sót trường hợp đổi ngược về đúng giá trị gốc.
+        const cur = effectiveValue(cfg.rates.entityType, editing.id, f, effFrom, Number(editing[f]) || 0);
+        if (nv !== cur) setRate(cfg.rates.entityType, editing.id, f, nv, effFrom);
       }
     }
     setEditing(undefined);
