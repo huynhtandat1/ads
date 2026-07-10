@@ -64,7 +64,7 @@ function verifyPassword(stored: string, plain: string): { ok: boolean; needUpgra
 const COLLECTION_SCREEN: Record<string, string> = {
   advertisers: 'g1a', adOrders: 'g1b', adIds: 'g1c',
   media: 'g2a', mediaOrders: 'g2b', mediaIds: 'g2c',
-  importAI: 'g3a', importAdv: 'g3b', importMedia: 'g3c', importYiyi: 'g3d',
+  importAI: 'g3a', importAdv: 'g3b', importMedia: 'g3c',
   settleAdv: 'g5a', settleMedia: 'g5b',
   users: 'g7a', roles: 'g7b', logs: 'g6', quarantine: 'g7c',
   // Versioning đơn giá/hệ số/tỷ lệ chia/điểm thuế (RateEditor). Thiếu dòng này thì

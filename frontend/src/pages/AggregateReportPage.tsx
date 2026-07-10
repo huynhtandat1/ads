@@ -106,7 +106,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
           .sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' }));
       const media = idName(g.med, 'media');
       // Tổng cost đã hiển thị ở cột "Chi phí". Breakdown §3b trước đây chỉ liệt kê media
-      // map được theo mediaId, nên phần còn lại (Yiyi/cost chưa phân loại/thiếu mediaId)
+      // map được theo mediaId, nên phần còn lại (cost chưa phân loại/thiếu mediaId)
       // bị ẩn. Hiển thị phần chênh lệch này thành 1 dòng riêng.
       const hiddenMediaCost = round3(g.cost - media.reduce((s, m) => s + m.total, 0));
       return {

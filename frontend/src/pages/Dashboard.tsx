@@ -28,7 +28,6 @@ export function Dashboard() {
   useCollection('importAI');
   useCollection('importAdv');
   useCollection('importMedia');
-  useCollection('importYiyi');
   const advN = useCollection('advertisers').length;
   const medN = useCollection('media').length;
   const midN = useCollection('mediaIds').length;

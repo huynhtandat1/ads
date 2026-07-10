@@ -35,13 +35,10 @@ async function main() {
   const downstreams = await get('SELECT id,"downstreamType","payoutRate",status FROM "Downstream"');
   const asd = await get('SELECT id,"adSiteId","downstreamId","customPrice" FROM "AdSiteDownstream"');
   const daily = await get(`SELECT id,to_char("recordDate",'YYYY-MM-DD') d,"adSiteId",qty,"unitPriceSnapshot",amount1,"rebateAmount",revenue,status FROM "DailyInput"`);
-  const yiyiData = await get(`SELECT id,to_char("recordDate",'YYYY-MM-DD') d,channel,qty FROM "YiyiDailyData"`);
-  const yiyiPrice = await get(`SELECT to_char("recordDate",'YYYY-MM-DD') d,"unitPrice","profitUnitPrice" FROM "YiyiDailyPricing"`);
   const logs = await get(`SELECT id,to_char("createdAt",'YYYY-MM-DD HH24:MI:SS') t,username,action,module,"targetType","targetId",detail FROM "OperationLog"`);
 
   const adSiteById = new Map(adSites.map((a) => [a.id, a]));
   const downById = new Map(downstreams.map((d) => [d.id, d]));
-  const priceByDate = new Map(yiyiPrice.map((p) => [p.d, p]));
   const linkByAdSite = new Map(asd.map((l) => [l.adSiteId, l]));
 
   const db: DB = {};
@@ -112,17 +109,6 @@ async function main() {
   });
 
   db.importAI = [];
-
-  db.importYiyi = yiyiData.map((y) => {
-    const p = priceByDate.get(y.d);
-    const unitPrice = num(p?.unitPrice), profitUnitPrice = num(p?.profitUnitPrice), q = num(y.qty);
-    // Đơn giá Yiyi là giá trên 1.000 lượt (như CPM), giữ 2 số lẻ.
-    const payable = Math.round((q * unitPrice) / 10) / 100, profit = Math.round((q * profitUnitPrice) / 10) / 100;
-    return {
-      id: y.id, date: y.d, objectId: y.channel, quantity: q, unitPrice, profitUnitPrice,
-      payable, profit, revenue: payable + profit, cost: payable, clicks: q, source: 'Yiyi', status: true,
-    };
-  });
 
   db.logs = logs.map((l) => ({
     id: l.id, time: l.t, user: l.username ?? '-', action: l.action ?? '-',

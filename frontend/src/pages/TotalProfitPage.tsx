@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { effectiveValue, getAll, useDB, type Row } from '../data/store';
-import { perfOf, YIYI_BIZ } from '../lib/analytics';
+import { perfOf } from '../lib/analytics';
 import { round3 } from '../lib/format';
 import { exportCSV } from '../lib/export';
 import { DateRangePicker } from '../components/DateRangePicker';
@@ -13,14 +13,13 @@ import { yesterdayStr, ymd } from '../lib/date';
 //   2. Tổng lợi nhuận THÁNG theo từng nghiệp vụ (đã có sẵn, nay trừ thuế)
 // Thuế 6% theo versioning `tax:0:point` — đồng bộ với g4b (AggregateReportPage).
 const TAX_PCT = 6;
-const COLLECTIONS = ['importAI', 'importAdv', 'importMedia', 'importYiyi'];
+const COLLECTIONS = ['importAI', 'importAdv', 'importMedia'];
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 interface DailyCell { biz: string; date: string; profit: number; tax: number }
 interface BizRow { biz: string; today: number; month: number; monthTax: number }
 
 const bizNameOf = (r: Row): string => {
-  if (r.source === 'Yiyi') return YIYI_BIZ; // Yiyi tính vào nghiệp vụ 神马搜索 (chi phí)
   // Nghiệp vụ theo đơn QC của ID QUẢNG CÁO (khóa chung thu↔chi); hồ sơ Media ID có thể
   // ghi lệch đơn QC so với adId, dùng r.adOrderId sẽ tách chi media khỏi doanh thu.
   const adId = r.adIdId != null ? getAll('adIds').find((a) => a.id === r.adIdId) : undefined;

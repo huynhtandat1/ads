@@ -11,8 +11,8 @@ function receivable(type: string, price: number, base: number): number {
 }
 
 const SCREENS = [
-  'g1a', 'g1b', 'g1c', 'g2a', 'g2b', 'g2c', 'g3a', 'g3b', 'g3c', 'g3d',
-  'g4a', 'g4b', 'g4c', 'g4d', 'g4e', 'g5a', 'g5b', 'g6', 'g7a', 'g7b', 'g7c',
+  'g1a', 'g1b', 'g1c', 'g2a', 'g2b', 'g2c', 'g3a', 'g3b', 'g3c',
+  'g4a', 'g4b', 'g4c', 'g4d', 'g5a', 'g5b', 'g6', 'g7a', 'g7b', 'g7c',
 ];
 
 // Màn quản trị hệ thống — chỉ SUPER_ADMIN được thao tác, không cấp qua buildPerms
@@ -82,26 +82,6 @@ function seedMediaEntries(): Row[] {
         mediaOrderId: m.mediaOrderId, adIdId: m.adIdId, advertiserId: m.advertiserId, type: m.type,
         unitPrice: m.unitPrice, traffic, settlement, coefficient, receivable: amount, shareRate: m.profitShare,
         actual, revenue: amount, cost: actual, clicks: traffic, source: 'Media', status: true,
-      });
-    }
-  }
-  return rows;
-}
-
-function seedYiyiEntries(): Row[] {
-  const channels = ['yy-02-01', 'yy-02-02', 'yy-02-03', 'yy-02-04'];
-  const unitPrice = 0.5, profitUnitPrice = 0.2;
-  const rows: Row[] = [];
-  let id = 3000;
-  for (let day = 1; day <= 20; day++) {
-    const date = `2026-06-${String(day).padStart(2, '0')}`;
-    for (const c of channels) {
-      const q = 200 + Math.floor(Math.random() * 1800);
-      // Đơn giá Yiyi là giá trên 1.000 lượt (như CPM), giữ 2 số lẻ.
-      const payable = Math.round((q * unitPrice) / 10) / 100, profit = Math.round((q * profitUnitPrice) / 10) / 100;
-      rows.push({
-        id: id++, date, objectId: c, quantity: q, unitPrice, profitUnitPrice,
-        payable, profit, revenue: payable + profit, cost: payable, clicks: q, source: 'Yiyi', status: true,
       });
     }
   }
@@ -182,7 +162,6 @@ export function seedData(): DB {
     importAI: seedEntries('AI', ['2026-06-13', '2026-06-14', '2026-06-15'], 6000),
     importAdv: seedEntries('Advertiser', ['2026-06-10', '2026-06-11', '2026-06-12'], 2000),
     importMedia: seedMediaEntries(),
-    importYiyi: seedYiyiEntries(),
     logs: seedLogs(),
     settleAdv: [
       { id: 101, code: 'ST-ADV-2406-01', target: '大白', period: '2026-06-01 ~ 2026-06-15', totalAmount: 12500, payStatus: 'unpaid', createdAt: '2026-06-16', status: true },

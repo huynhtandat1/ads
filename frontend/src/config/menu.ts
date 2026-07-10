@@ -25,14 +25,12 @@ export const MENU: MenuGroup[] = [
     { id: 'g3a', path: '/import-ai' },
     { id: 'g3b', path: '/import-advertiser' },
     { id: 'g3c', path: '/import-media' },
-    { id: 'g3d', path: '/import-yiyi' },
   ] },
   { id: 'g4', icon: IconReport, children: [
     { id: 'g4a', path: '/report-profit' },
     { id: 'g4b', path: '/report-order-profit' },
     { id: 'g4c', path: '/report-advertiser' },
     { id: 'g4d', path: '/report-media' },
-    { id: 'g4e', path: '/report-yiyi' },
   ] },
   { id: 'g5', icon: IconBill, children: [
     { id: 'g5a', path: '/settle-advertiser' },

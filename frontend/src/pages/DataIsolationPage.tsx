@@ -10,7 +10,7 @@ import { IconRefresh, IconTrash } from '../components/icons';
 const COLLECTION_LABEL: Record<string, string> = {
   advertisers: 'menu.g1a', adOrders: 'menu.g1b', adIds: 'menu.g1c',
   media: 'menu.g2a', mediaOrders: 'menu.g2b', mediaIds: 'menu.g2c',
-  importAI: 'menu.g3a', importAdv: 'menu.g3b', importMedia: 'menu.g3c', importYiyi: 'menu.g3d',
+  importAI: 'menu.g3a', importAdv: 'menu.g3b', importMedia: 'menu.g3c',
   settleAdv: 'menu.g5a', settleMedia: 'menu.g5b', users: 'menu.g7a', roles: 'menu.g7b',
 };
 

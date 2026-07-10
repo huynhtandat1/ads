@@ -68,7 +68,7 @@ Build frontend: `npm run build`. Đổi URL API qua biến môi trường `VITE_
    export, dòng Σ Tổng cộng, dòng nhắc); g4a có cột Thuế & Lợi nhuận sau thuế.
 5. **Công thức** (cố định, dễ chỉnh ở `backend/src/seed.ts` & `frontend/src/lib/billing.ts`):
    Số tiền phải thu: CPM = đơn giá×lưu lượng/1000 · CPA = đơn giá×lưu lượng · CPS = số tiền×%(đơn giá).
-   Media thực nhận = phải thu × tỷ lệ chia% × hệ số. Yiyi tổng = phải trả + lợi nhuận.
+   Media thực nhận = phải thu × tỷ lệ chia% × hệ số.
    Thuế = lợi nhuận × 6% → `TAX_PCT`.
 
 ## Bảo mật & kiểm thử
