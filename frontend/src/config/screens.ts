@@ -1,5 +1,12 @@
 import type { Row } from '../data/store';
-import { getAll } from '../data/store';
+import { getAll, effectiveValue } from '../data/store';
+import { ymd } from '../lib/date';
+
+// Giá trị hiệu lực HÔM NAY theo lịch sử 'rates' (fallback = giá trị lưu trên bản ghi).
+// Danh mục g1c/g2c hiển thị giá trị này để khớp với màn nhập liệu (g3b/g3c) vốn đọc
+// effectiveValue — nếu hiện raw value sẽ lệch khi đơn giá/tỷ lệ đã đổi qua RateEditor.
+const effToday = (entityType: string, r: Row, field: string) =>
+  effectiveValue(entityType, r.id, field, ymd(new Date()), Number(r[field]) || 0);
 
 export interface CrudColumn {
   key: string;
@@ -49,6 +56,7 @@ export interface ScreenConfig {
   filters?: FilterCfg[];
   uniqueKeys?: string[]; // tổ hợp field phải duy nhất (không phân biệt hoa/thường). 1 field = duy nhất đơn; nhiều = cặp duy nhất
   filterKeys?: string[]; // giới hạn cột nào có dropdown lọc; bỏ trống = tất cả
+  rates?: { entityType: string; fields: string[] }; // field có versioning trong 'rates' — sửa ở CRUD sẽ ghi thêm phiên bản hiệu lực hôm nay
 }
 
 const TYPE_OPTS = [
@@ -110,12 +118,13 @@ export const SCREENS: Record<string, ScreenConfig> = {
   g1c: {
     screen: 'g1c', collection: 'adIds', titleKey: 'menu.g1c', uniqueKeys: ['name'],
     filterKeys: ['advertiserId', 'adOrderId', 'name', 'type', 'unitPrice', 'status'],
+    rates: { entityType: 'adId', fields: ['unitPrice'] },
     columns: [
       { key: 'advertiserId', labelKey: 'col.advertiser', ref: { collection: 'advertisers' }, sortable: true },
       { key: 'adOrderId', labelKey: 'col.adOrder', ref: { collection: 'adOrders' }, sortable: true },
       { key: 'name', labelKey: 'col.adId', sortable: true },
       { key: 'type', labelKey: 'col.type', type: 'badge' },
-      { key: 'unitPrice', labelKey: 'col.unitPrice', align: 'right' },
+      { key: 'unitPrice', labelKey: 'col.unitPrice', align: 'right', compute: (r) => effToday('adId', r, 'unitPrice') },
       { key: 'note', labelKey: 'col.note' },
     ],
     filters: [{ key: 'advertiserId', labelKey: 'col.advertiser', from: 'advertisers' }],
@@ -166,6 +175,7 @@ export const SCREENS: Record<string, ScreenConfig> = {
   g2c: {
     screen: 'g2c', collection: 'mediaIds', titleKey: 'menu.g2c', uniqueKeys: ['name'],
     filterKeys: ['advertiserId', 'adOrderId', 'adIdId', 'mediaId', 'mediaOrderId', 'name', 'status'],
+    rates: { entityType: 'mediaId', fields: ['unitPrice', 'profitShare'] },
     columns: [
       { key: 'mediaId', labelKey: 'col.media', ref: { collection: 'media' }, sortable: true },
       { key: 'mediaOrderId', labelKey: 'col.mediaOrder', ref: { collection: 'mediaOrders' }, sortable: true },
@@ -174,8 +184,8 @@ export const SCREENS: Record<string, ScreenConfig> = {
       { key: 'adOrderId', labelKey: 'col.adOrder', ref: { collection: 'adOrders' } },
       { key: 'adIdId', labelKey: 'col.adId', ref: { collection: 'adIds' } },
       { key: 'type', labelKey: 'col.type', type: 'badge' },
-      { key: 'unitPrice', labelKey: 'col.unitPrice', align: 'right' },
-      { key: 'profitShare', labelKey: 'col.accountShare', type: 'percent', align: 'center' },
+      { key: 'unitPrice', labelKey: 'col.unitPrice', align: 'right', compute: (r) => effToday('mediaId', r, 'unitPrice') },
+      { key: 'profitShare', labelKey: 'col.accountShare', type: 'percent', align: 'center', compute: (r) => effToday('mediaId', r, 'profitShare') },
       { key: 'note', labelKey: 'col.note' },
     ],
     filters: [

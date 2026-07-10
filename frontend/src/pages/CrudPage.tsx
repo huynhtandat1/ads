@@ -5,9 +5,11 @@ import { FormModal, type FieldDef } from '../components/FormModal';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
 import {
-  useCollection, getAll, create, update, remove, quarantine, hasRelatedData, toggleStatus, refName, type Row,
+  useCollection, getAll, create, update, remove, quarantine, hasRelatedData, toggleStatus, refName,
+  effectiveValue, setRate, type Row,
 } from '../data/store';
 import { SCREENS } from '../config/screens';
+import { ymd } from '../lib/date';
 import { IconPlus, IconPencil } from '../components/icons';
 
 export function CrudPage({ screen }: { screen: string }) {
@@ -44,6 +46,7 @@ export function CrudPage({ screen }: { screen: string }) {
           key: c.key, label: t(c.labelKey), type: c.type, sortable: c.sortable, align: c.align,
           render: (r) => {
             const val = c.compute!(r);
+            if (c.type === 'percent') return <span>{String(val ?? 0)}%</span>;
             // Sắp các thẻ trong ô theo A→Z (vd 360 trước sm, rồi tới chữ Hán).
             const arr = (Array.isArray(val) ? [...val] : []).sort((a, b) => String(a).localeCompare(String(b)));
             if (c.type === 'tags') {
@@ -126,6 +129,17 @@ export function CrudPage({ screen }: { screen: string }) {
     }
     if (editing) update(cfg.collection, editing.id, vals);
     else create(cfg.collection, { status: true, ...vals } as Omit<Row, 'id'>); // trạng thái bật sẵn khi tạo
+    // Field có versioning (đơn giá/tỷ lệ): nếu đã có lịch sử trong 'rates' thì màn nhập liệu
+    // (g3b/g3c) đọc effectiveValue và BỎ QUA giá trị gốc vừa sửa → ghi thêm phiên bản
+    // hiệu lực hôm nay để 2 phía đồng bộ. Chưa có lịch sử thì fallback về bản ghi gốc là đủ.
+    if (editing && cfg.rates) {
+      for (const f of cfg.rates.fields) {
+        const nv = Number(vals[f]);
+        if (!Number.isFinite(nv) || nv === Number(editing[f])) continue;
+        const key = `${cfg.rates.entityType}:${editing.id}:${f}`;
+        if (getAll('rates').some((r) => r.key === key)) setRate(cfg.rates.entityType, editing.id, f, nv, ymd(new Date()));
+      }
+    }
     setEditing(undefined);
     toast(t('common.saved'));
   };
@@ -153,7 +167,12 @@ export function CrudPage({ screen }: { screen: string }) {
           title={editing ? t('common.editItem') : t('common.createNew')}
           fields={fields}
           // Khi sửa user: che password (không hiện hash). Để trống = giữ nguyên.
-          initial={editing ? (cfg.collection === 'users' ? { ...editing, password: '' } : editing) : null}
+          // Field versioning: form hiện GIÁ TRỊ HIỆU LỰC hôm nay (khớp cột bảng), không phải raw cũ.
+          initial={editing ? {
+            ...(cfg.collection === 'users' ? { ...editing, password: '' } : editing),
+            ...(cfg.rates ? Object.fromEntries(cfg.rates.fields.map((f) =>
+              [f, effectiveValue(cfg.rates!.entityType, editing.id, f, ymd(new Date()), Number(editing[f]) || 0)])) : {}),
+          } : null}
           onClose={() => setEditing(undefined)}
           onSubmit={onSubmit}
           onDelete={editing && canDelete ? () => onDelete(editing) : undefined}
