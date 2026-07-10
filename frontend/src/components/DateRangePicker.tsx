@@ -36,10 +36,21 @@ function monthCells(month: Date) {
   });
 }
 
+const PANEL_W = 650;
+
 export function DateRangePicker({ from, to, onFromChange, onToChange, disabled = false, className = '' }: Props) {
   const { t } = useTranslation();
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  // Panel neo right-0 sẽ tràn qua mép trái <main> (overflow-x-hidden) và bị cắt khi
+  // ô chọn ngày nằm gần bên trái → đo lúc mở, không đủ chỗ thì đổi sang neo trái.
+  const [alignLeft, setAlignLeft] = useState(false);
+  useEffect(() => {
+    if (!open || !rootRef.current) return;
+    const r = rootRef.current.getBoundingClientRect();
+    const clipLeft = rootRef.current.closest('main')?.getBoundingClientRect().left ?? 0;
+    setAlignLeft(r.right - PANEL_W < clipLeft + 8);
+  }, [open]);
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(from ? parseYmd(from) : new Date()));
   const [draftFrom, setDraftFrom] = useState(from);
   const [draftTo, setDraftTo] = useState(to);
@@ -183,7 +194,7 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
       </div>
 
       {open && !disabled && (
-        <div className="absolute right-0 top-[calc(100%+8px)] z-[60] w-[650px] rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl">
+        <div className={`absolute ${alignLeft ? 'left-0' : 'right-0'} top-[calc(100%+8px)] z-[60] w-[650px] max-w-[calc(100vw-18rem)] rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl`}>
           <div className="mb-3 flex items-center justify-between text-gray-500">
             <div className="flex gap-1">
               <button type="button" onClick={() => setViewMonth(addMonths(viewMonth, -12))} className="h-8 w-8 rounded-lg hover:bg-gray-100">«</button>
@@ -194,7 +205,7 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
               <button type="button" onClick={() => setViewMonth(addMonths(viewMonth, 12))} className="h-8 w-8 rounded-lg hover:bg-gray-100">»</button>
             </div>
           </div>
-          <div className="flex gap-6">
+          <div className="flex flex-wrap justify-center gap-6">
             {renderMonth(viewMonth)}
             {renderMonth(addMonths(viewMonth, 1))}
           </div>
