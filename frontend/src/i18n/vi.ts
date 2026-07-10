@@ -20,9 +20,8 @@ export default {
     weekDays: ['CN', 'Hai', 'Ba', 'Tư', 'Năm', 'Sáu', 'Bảy'],
     months: ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'],
     monthYear: '{{month}} năm {{year}}',
-    yesterday: 'Hôm qua',
-    dayBeforeYesterday: 'Hôm trước',
-    lastDays: '{{count}} ngày gần đây',
+    thisMonth: 'Tháng này',
+    lastMonth: 'Tháng trước',
     selectRange: 'Chọn ngày bắt đầu và ngày kết thúc',
   },
   menu: {

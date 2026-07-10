@@ -20,9 +20,8 @@ export default {
     weekDays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
     monthYear: '{{month}} {{year}}',
-    yesterday: 'Yesterday',
-    dayBeforeYesterday: 'Day before yesterday',
-    lastDays: 'Last {{count}} days',
+    thisMonth: 'This Month',
+    lastMonth: 'Last Month',
     selectRange: 'Select start and end dates',
   },
   menu: {

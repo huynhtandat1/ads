@@ -20,9 +20,8 @@ export default {
     weekDays: ['日', '一', '二', '三', '四', '五', '六'],
     months: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
     monthYear: '{{year}}年{{month}}',
-    yesterday: '昨天',
-    dayBeforeYesterday: '前天',
-    lastDays: '最近 {{count}} 天',
+    thisMonth: '本月',
+    lastMonth: '上月',
     selectRange: '请选择开始日期和结束日期',
   },
   menu: {

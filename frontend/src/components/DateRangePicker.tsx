@@ -25,10 +25,6 @@ const addDays = (d: Date, n: number) => {
 const addMonths = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth() + n, 1);
 const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
 const yesterday = () => addDays(new Date(), -1);
-const rangeForLastDays = (days: number) => {
-  const end = yesterday();
-  return [ymd(addDays(end, -(days - 1))), ymd(end)] as const;
-};
 const normalizeRange = (a: string, b: string): readonly [string, string] => (a <= b ? [a, b] : [b, a]);
 
 function monthCells(month: Date) {
@@ -90,11 +86,8 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
   const monthNames = t('datePicker.months', { returnObjects: true }) as string[];
 
   const presets = [
-    { label: t('datePicker.yesterday'), range: () => { const d = ymd(yesterday()); return [d, d] as const; } },
-    { label: t('datePicker.dayBeforeYesterday'), range: () => { const d = ymd(addDays(new Date(), -2)); return [d, d] as const; } },
-    { label: t('datePicker.lastDays', { count: 7 }), range: () => rangeForLastDays(7) },
-    { label: t('datePicker.lastDays', { count: 30 }), range: () => rangeForLastDays(30) },
-    { label: t('datePicker.lastDays', { count: 90 }), range: () => rangeForLastDays(90) },
+    { label: t('datePicker.thisMonth'), range: () => [ymd(startOfMonth(new Date())), ymd(yesterday())] as const },
+    { label: t('datePicker.lastMonth'), range: () => { const firstThis = startOfMonth(new Date()); return [ymd(addMonths(firstThis, -1)), ymd(addDays(firstThis, -1))] as const; } },
   ];
 
   const pickDate = (value: string) => {
