@@ -154,20 +154,6 @@ export function MediaDataEntryPage() {
     return { type, traffic, settlement, unitPrice, coef, accountShare, payable, netPay };
   };
 
-  // Tổng theo TOÀN BỘ khoảng ngày đã chọn (mọi trang, không chỉ trang hiện tại).
-  const totals = cellRows.reduce(
-    (s, { m, cellDate }) => {
-      const c = calc(m, cellDate);
-      return {
-        traffic: s.traffic + (Number(c.traffic) || 0),
-        settlement: s.settlement + (Number(c.settlement) || 0),
-        payable: s.payable + (c.payable ?? 0),
-        netPay: s.netPay + (c.netPay ?? 0),
-      };
-    },
-    { traffic: 0, settlement: 0, payable: 0, netPay: 0 },
-  );
-
   const buildPayload = (m: Row, cellDate: string) => {
     const c = calc(m, cellDate);
     return {
@@ -186,8 +172,6 @@ export function MediaDataEntryPage() {
     setSavedIds((s) => new Set(s).add(`${m.id}|${cellDate}`));
     toast(t('entry.savedRow'));
   };
-
-  const confirmAll = () => { cellRows.forEach(({ m, cellDate }) => saveRow(m, cellDate)); toast(t('entry.savedAll')); };
 
   const sel = "h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-200";
   const readVal = (v: number | string) => (v === '' || v == null ? <span className="text-gray-300">—</span> : <span className="text-gray-600">{Number(v).toLocaleString()}</span>);
@@ -251,7 +235,7 @@ export function MediaDataEntryPage() {
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-200 bg-brand-dark border-b border-brand-dark2">
                 {headers.map((h, i) => (
-                  <th key={i} className="px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap">{h}</th>
+                  <th key={i} className="px-3 py-2.5 font-bold uppercase text-[11px] tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -260,28 +244,6 @@ export function MediaDataEntryPage() {
                 <tr><td colSpan={headers.length} className="px-3 py-12 text-center text-gray-400">{t('common.noData')}</td></tr>
               ) : (
                 <>
-                  {/* Dòng tổng: mỗi giá trị nằm NGAY TRÊN cột tương ứng, căn giữa (spec docx 07-2026). */}
-                  <tr className="bg-brand-dark2 text-white">
-                    <td className="px-3 py-2" />
-                    <td className="px-3 py-2 font-semibold whitespace-nowrap">📅 {from}{from !== to ? ` ~ ${to}` : ''}</td>
-                    <td className="px-3 py-2" colSpan={5} />
-                    <td className="px-3 py-2 font-bold whitespace-nowrap">{round3(totals.traffic).toLocaleString()}</td>
-                    <td className="px-3 py-2 font-bold whitespace-nowrap">{round3(totals.settlement).toLocaleString()}</td>
-                    <td className="px-3 py-2" />
-                    <td className="px-3 py-2 font-bold whitespace-nowrap">{money(totals.payable)}</td>
-                    <td className="px-3 py-2" />
-                    <td className="px-3 py-2 font-bold whitespace-nowrap text-cyan-300">{money(totals.netPay)}</td>
-                    <td className="px-3 py-2" />
-                    <td className="px-3 py-2">
-                      {(canCreate || canEdit) && (
-                        <button onClick={confirmAll}
-                          className="h-7 px-3 rounded-lg bg-emerald-500 text-white text-xs font-medium hover:bg-emerald-600">
-                          {t('entry.confirmAll')}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-
                   {pageRows.map(({ m, cellDate, key }, i) => {
                     const c = calc(m, cellDate);
                     const isOnline = m.status !== false;

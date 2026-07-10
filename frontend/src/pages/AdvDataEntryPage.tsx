@@ -288,12 +288,12 @@ export function AdvDataEntryPage({
         <div className="overflow-auto max-h-[calc(100vh-220px)]">
           <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
             <thead className="sticky top-0 z-10">
-              <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
+              <tr className="text-left text-gray-200 bg-brand-dark border-b border-brand-dark2">
                 {[t('col.stt'), t('col.date'), t('col.advertiser'), t('col.adOrder'), t('col.type'), t('col.adId'),
                   t('entry.unitShare'), t('entry.traffic'), t('entry.settlement'), t('entry.receivable'),
                   t('common.status'), t('common.actions')].map((h, i) => (
                   <th key={i} onClick={i === 1 ? () => setDateDir((d) => (d === 1 ? -1 : 1)) : undefined}
-                    className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i === 1 ? 'cursor-pointer select-none hover:text-gray-700' : ''}`}>
+                    className={`px-3 py-2.5 font-bold uppercase text-[11px] tracking-wide whitespace-nowrap ${i === 1 ? 'cursor-pointer select-none hover:text-white' : ''}`}>
                     {h}
                     {i === 1 && (
                       <span className="inline-flex flex-col ml-1 text-[8px] leading-none align-middle">
