@@ -36,6 +36,8 @@ export function AdvReportPage() {
   const [fPrice, setFPrice] = useState('');
   const [fStatus, setFStatus] = useState<'all' | 'on' | 'off'>('all');
   const [q, setQ] = useState('');
+  // Sort cột ngày: mặc định TĂNG dần (spec docx 07-2026), click header để đảo chiều.
+  const [dateDir, setDateDir] = useState<1 | -1>(1);
   const [result, setResult] = useState<Row[] | null>(null); // null = chưa truy vấn
 
   const orderIdsMatchingFilter = useMemo(() => {
@@ -64,12 +66,12 @@ export function AdvReportPage() {
       }
       return true;
     }).sort((a, b) =>
-      // Ngày mới nhất trước; cùng ngày thì theo chữ cái đầu NQC → đơn QC → ID QC (spec).
-      String(b.date).localeCompare(String(a.date)) ||
+      // Ngày theo dateDir (mặc định tăng dần); cùng ngày thì theo chữ cái đầu NQC → đơn QC → ID QC (spec).
+      String(a.date).localeCompare(String(b.date)) * dateDir ||
       norm(refName('advertisers', a.advertiserId)).localeCompare(norm(refName('advertisers', b.advertiserId))) ||
       norm(refName('adOrders', a.adOrderId)).localeCompare(norm(refName('adOrders', b.adOrderId))) ||
       norm(a.objectId).localeCompare(norm(b.objectId)));
-  }, [from, to, allDates, fAdv, orderIdsMatchingFilter, fAdId, fType, fPrice, fStatus, q, db]);
+  }, [from, to, allDates, fAdv, orderIdsMatchingFilter, fAdId, fType, fPrice, fStatus, q, dateDir, db]);
 
   const runQuery = () => setResult(filteredRows);
 
@@ -191,7 +193,16 @@ export function AdvReportPage() {
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
                 {HEADERS.map((h, i) => (
-                  <th key={i} className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i >= 6 && i <= 9 ? 'text-right' : ''}`}>{h}</th>
+                  <th key={i} onClick={i === 1 ? () => setDateDir((d) => (d === 1 ? -1 : 1)) : undefined}
+                    className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i >= 6 && i <= 9 ? 'text-right' : ''} ${i === 1 ? 'cursor-pointer select-none hover:text-gray-700' : ''}`}>
+                    {h}
+                    {i === 1 && (
+                      <span className="inline-flex flex-col ml-1 text-[8px] leading-none align-middle">
+                        <span className={dateDir === 1 ? 'text-cyan-500' : 'text-gray-300'}>▲</span>
+                        <span className={dateDir === -1 ? 'text-cyan-500' : 'text-gray-300'}>▼</span>
+                      </span>
+                    )}
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -202,12 +213,14 @@ export function AdvReportPage() {
                 <tr><td colSpan={HEADERS.length} className="px-3 py-16 text-center text-gray-400">{t('common.noData')}</td></tr>
               ) : (
                 <>
-                  {/* Grand total row */}
+                  {/* Dòng tổng: ngày + mỗi tổng nằm NGAY TRÊN cột tương ứng, căn giữa (spec docx 07-2026). */}
                   <tr className="bg-brand-dark2 text-white font-semibold">
-                    <td className="px-3 py-2" colSpan={7}>Σ {t('report.grandTotal')} · {rows.length} {t('report.records')}</td>
-                    <td className="px-3 py-2 text-right">{totals.traffic.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right">{money(totals.settlement)}</td>
-                    <td className="px-3 py-2 text-right text-cyan-300">{money(totals.receivable)}</td>
+                    <td className="px-3 py-2" />
+                    <td className="px-3 py-2 whitespace-nowrap">📅 {allDates ? t('report.allDates') : `${from} ~ ${to}`}</td>
+                    <td className="px-3 py-2" colSpan={5}>Σ {t('report.grandTotal')} · {rows.length} {t('report.records')}</td>
+                    <td className="px-3 py-2">{totals.traffic.toLocaleString()}</td>
+                    <td className="px-3 py-2">{money(totals.settlement)}</td>
+                    <td className="px-3 py-2 text-cyan-300">{money(totals.receivable)}</td>
                     <td className="px-3 py-2" />
                   </tr>
                   {rows.map((r, i) => (

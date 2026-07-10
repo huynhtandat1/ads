@@ -41,6 +41,8 @@ export function AdvDataEntryPage({
   const [q, setQ] = useState('');
 
   const [draft, setDraft] = useState<Record<string, Draft>>({});
+  // Sort cột ngày: mặc định TĂNG dần (spec docx 07-2026), click header để đảo chiều.
+  const [dateDir, setDateDir] = useState<1 | -1>(1);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<{ key: string; field: 'traffic' | 'settlement' } | null>(null);
 
@@ -123,14 +125,14 @@ export function AdvDataEntryPage({
     });
   }, [adIdsAll, fAdv, orderIdsMatchingFilter, fAdId, fType, fPrice, fStatus, q]);
 
-  // Mỗi dòng = 1 (ad, cellDate) lấy từ draft keys; sort theo ngày rồi ad.
+  // Mỗi dòng = 1 (ad, cellDate) lấy từ draft keys; sort theo ngày (dateDir) rồi ad.
   const cellRows = useMemo(() => {
     const out: { ad: Row; cellDate: string; key: string }[] = [];
     const adById = new Map(rows.map((ad) => [String(ad.id), ad] as const));
     const keys = Object.keys(draft).sort((a, b) => {
       const da = a.split('|')[1] ?? '';
       const db = b.split('|')[1] ?? '';
-      if (da !== db) return da.localeCompare(db);
+      if (da !== db) return da.localeCompare(db) * dateDir;
       return a.localeCompare(b);
     });
     for (const k of keys) {
@@ -142,7 +144,7 @@ export function AdvDataEntryPage({
       out.push({ ad, cellDate, key: k });
     }
     return out;
-  }, [rows, draft]);
+  }, [rows, draft, dateDir]);
 
   const priceOptions = useMemo(
     () => Array.from(new Set(adIdsAll.map((a) => Number(a.unitPrice) || 0))).sort((a, b) => a - b),
@@ -290,7 +292,16 @@ export function AdvDataEntryPage({
                 {[t('col.stt'), t('col.date'), t('col.advertiser'), t('col.adOrder'), t('col.type'), t('col.adId'),
                   t('entry.unitShare'), t('entry.traffic'), t('entry.settlement'), t('entry.receivable'),
                   t('common.status'), t('common.actions')].map((h, i) => (
-                  <th key={i} className="px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap">{h}</th>
+                  <th key={i} onClick={i === 1 ? () => setDateDir((d) => (d === 1 ? -1 : 1)) : undefined}
+                    className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i === 1 ? 'cursor-pointer select-none hover:text-gray-700' : ''}`}>
+                    {h}
+                    {i === 1 && (
+                      <span className="inline-flex flex-col ml-1 text-[8px] leading-none align-middle">
+                        <span className={dateDir === 1 ? 'text-cyan-500' : 'text-gray-300'}>▲</span>
+                        <span className={dateDir === -1 ? 'text-cyan-500' : 'text-gray-300'}>▼</span>
+                      </span>
+                    )}
+                  </th>
                 ))}
               </tr>
             </thead>
