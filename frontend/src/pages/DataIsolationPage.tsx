@@ -5,6 +5,7 @@ import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, update, restoreQuarantine, purgeQuarantine, type Row } from '../data/store';
 import { IconRefresh, IconTrash } from '../components/icons';
+import { sortByGroupedLabel } from '../lib/optionSort';
 
 // collection id -> tên hiển thị (theo menu)
 const COLLECTION_LABEL: Record<string, string> = {
@@ -25,7 +26,7 @@ export function DataIsolationPage() {
 
   const canEdit = can('g7c', 'edit');
   const canPurge = can('g7c', 'delete');
-  const advOptions = getAll('advertisers');
+  const advOptions = sortByGroupedLabel(getAll('advertisers'), (r) => r.name);
 
   const setScope = (u: Row, scope: string) => { update('users', u.id, { scope }); toast(t('common.saved')); };
 

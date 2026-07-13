@@ -8,12 +8,11 @@ import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, type Row } from '../data/store';
 import { api } from '../api';
 import { IconPlus, IconPencil, IconEye } from '../components/icons';
-import { yesterdayStr } from '../lib/date';
+import { defaultDateRange, yesterdayStr } from '../lib/date';
 import { money } from '../lib/format';
+import { sortByGroupedLabel } from '../lib/optionSort';
 
 interface Props { screen: string; collection: string; titleKey: string; targetFrom: string; previewType: 'adv' | 'media' }
-
-const monthStart = () => yesterdayStr().slice(0, 8) + '01';
 
 export function SettlementPage({ screen, collection, titleKey, targetFrom, previewType }: Props) {
   const { t } = useTranslation();
@@ -114,9 +113,10 @@ function GenerateModal({ collection, targetFrom, previewType, onClose, onDone }:
 }) {
   const { t } = useTranslation();
   const toast = useToast();
+  const [defaultFrom, defaultTo] = defaultDateRange();
   const [target, setTarget] = useState('');
-  const [from, setFrom] = useState(monthStart());
-  const [to, setTo] = useState(yesterdayStr());
+  const [from, setFrom] = useState(defaultFrom);
+  const [to, setTo] = useState(defaultTo);
   const [payStatus, setPayStatus] = useState('unpaid');
   const [total, setTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -158,7 +158,7 @@ function GenerateModal({ collection, targetFrom, previewType, onClose, onDone }:
             <label className="block text-sm font-medium text-gray-600 mb-1.5">{t('col.target')} <span className="text-rose-500">*</span></label>
             <select value={target} onChange={(e) => setTarget(e.target.value)} className={inp}>
               <option value="">{t('common.selectPh')}</option>
-              {getAll(targetFrom).map((r) => <option key={r.id} value={String(r.name)}>{r.name}</option>)}
+              {sortByGroupedLabel(getAll(targetFrom), (r) => r.name).map((r) => <option key={r.id} value={String(r.name)}>{r.name}</option>)}
             </select>
           </div>
           <div>

@@ -5,9 +5,10 @@ import { exportCSV } from '../lib/export';
 import { RateEditor } from '../components/RateEditor';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload } from '../components/icons';
-import { yesterdayStr, ymd } from '../lib/date';
+import { defaultDateRange, ymd } from '../lib/date';
 import { perfOf } from '../lib/analytics';
 import { round3 } from '../lib/format';
+import { sortByGroupedLabel } from '../lib/optionSort';
 
 export interface AggregateSpec {
   screen: string;
@@ -48,14 +49,15 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
   // sửa điểm thuế/nhập liệu mới không cập nhật bảng cho tới khi bấm truy vấn lại.
   const dbAll = useDB(); // gồm cả spec.collections lẫn 'rates' (điểm thuế theo hiệu lực ngày)
   const todayStr = ymd(new Date());
+  const [defaultFrom, defaultTo] = defaultDateRange();
 
-  const [from, setFrom] = useState(yesterdayStr());
-  const [to, setTo] = useState(yesterdayStr());
+  const [from, setFrom] = useState(defaultFrom);
+  const [to, setTo] = useState(defaultTo);
   const [allDates, setAllDates] = useState(false);
   const [fAdv, setFAdv] = useState('');
   const [q, setQ] = useState('');
-  const [queried, setQueried] = useState(true); // tự truy vấn hôm qua khi vào trang
-  const [params, setParams] = useState({ from: yesterdayStr(), to: yesterdayStr(), allDates: false, fAdv: '', q: '' });
+  const [queried, setQueried] = useState(true); // tự truy vấn khung thời gian mặc định khi vào trang
+  const [params, setParams] = useState({ from: defaultFrom, to: defaultTo, allDates: false, fAdv: '', q: '' });
   const [expanded, setExpanded] = useState<string | null>(null); // dim đang mở panel §1+§3
 
   const groups = useMemo<GroupRow[]>(() => {
@@ -169,7 +171,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
           {spec.screen === 'g4b' && (
             <select value={fAdv} onChange={(e) => setFAdv(e.target.value)} className={sel}>
               <option value="">{t('col.advertiser')}</option>
-              {getAll('advertisers').map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
+              {sortByGroupedLabel(getAll('advertisers'), (a) => a.name).map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
             </select>
           )}
           <div className="relative">

@@ -5,7 +5,7 @@ import { Toggle } from './Toggle';
 import { IconSearch, IconDownload, IconFilter } from './icons';
 import { exportCSV } from '../lib/export';
 import { formatId } from '../lib/format';
-import { compareGroupedLabels } from '../lib/optionSort';
+import { compareGroupedLabels, sortByGroupedLabel } from '../lib/optionSort';
 
 export interface Column {
   key: string;
@@ -232,8 +232,10 @@ export function DataTable({
                       <select value={colFilters[c.key] ?? ''} onChange={(e) => { setColFilters((v) => ({ ...v, [c.key]: e.target.value })); setPage(1); }}
                         className="w-full h-7 px-1.5 rounded border border-gray-200 text-xs bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-cyan-300">
                         <option value="">{t('common.all')}</option>
-                        <option value="on">{t('common.on')}</option>
-                        <option value="off">{t('common.off')}</option>
+                        {sortByGroupedLabel([
+                          { value: 'on', label: t('common.on') },
+                          { value: 'off', label: t('common.off') },
+                        ], (o) => o.label).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     ) : (
                       <select value={colFilters[c.key] ?? ''} onChange={(e) => { setColFilters((v) => ({ ...v, [c.key]: e.target.value })); setPage(1); }}

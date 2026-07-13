@@ -6,7 +6,7 @@ import { round3 } from '../lib/format';
 import { exportCSV } from '../lib/export';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconDownload } from '../components/icons';
-import { yesterdayStr, ymd } from '../lib/date';
+import { defaultDateRange, yesterdayStr, ymd } from '../lib/date';
 
 // "Lợi nhuận tổng" (spec g4a): 2 bảng theo đặc tả PDF §Bảng tổng lợi nhuận
 //   1. Lợi nhuận mỗi NGÀY theo từng nghiệp vụ
@@ -33,9 +33,10 @@ export function TotalProfitPage() {
   const { t } = useTranslation();
   // Đưa db vào deps memo để bảng tự tính lại khi dữ liệu/thuế đổi (kể cả từ trang khác).
   const db = useDB();
+  const [defaultFrom, defaultTo] = defaultDateRange();
 
-  const [from, setFrom] = useState(`${yesterdayStr().slice(0, 7)}-01`);
-  const [to, setTo] = useState(yesterdayStr());
+  const [from, setFrom] = useState(defaultFrom);
+  const [to, setTo] = useState(defaultTo);
 
 
   const todayStr = ymd(new Date());

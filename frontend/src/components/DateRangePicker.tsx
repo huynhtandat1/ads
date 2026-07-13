@@ -96,10 +96,32 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
   const weekDays = t('datePicker.weekDays', { returnObjects: true }) as string[];
   const monthNames = t('datePicker.months', { returnObjects: true }) as string[];
 
-  const presets = [
-    { label: t('datePicker.thisMonth'), range: () => [ymd(startOfMonth(new Date())), ymd(yesterday())] as const },
-    { label: t('datePicker.lastMonth'), range: () => { const firstThis = startOfMonth(new Date()); return [ymd(addMonths(firstThis, -1)), ymd(addDays(firstThis, -1))] as const; } },
-  ];
+  const thisMonthPreset = { label: t('datePicker.thisMonth'), range: () => [ymd(startOfMonth(new Date())), ymd(yesterday())] as const };
+  const lastMonthPreset = { label: t('datePicker.lastMonth'), range: () => { const firstThis = startOfMonth(new Date()); return [ymd(addMonths(firstThis, -1)), ymd(addDays(firstThis, -1))] as const; } };
+  const presets = [lastMonthPreset, thisMonthPreset];
+
+  const renderPresets = () => (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {presets.map((p) => (
+        <button
+          key={p.label}
+          type="button"
+          disabled={disabled}
+          onClick={() => {
+            const [lo, hi] = p.range();
+            onFromChange(lo);
+            onToChange(hi);
+            setDraftFrom(lo);
+            setDraftTo(hi);
+            setViewMonth(startOfMonth(parseYmd(lo)));
+          }}
+          className="h-9 px-3 rounded-lg border border-gray-200 bg-white text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+        >
+          {p.label}
+        </button>
+      ))}
+    </div>
+  );
 
   const pickDate = (value: string) => {
     if (!draftFrom || (draftFrom && draftTo)) {
@@ -145,28 +167,7 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
 
   return (
     <div ref={rootRef} className={`relative flex flex-wrap items-center gap-2 ${className}`}>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {presets.map((p) => (
-          <button
-            key={p.label}
-            type="button"
-            disabled={disabled}
-            onClick={() => {
-              const [lo, hi] = p.range();
-              onFromChange(lo);
-              onToChange(hi);
-              setDraftFrom(lo);
-              setDraftTo(hi);
-              setViewMonth(startOfMonth(parseYmd(lo)));
-            }}
-            className="h-9 px-3 rounded-lg border border-gray-200 bg-white text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="h-10 min-w-[270px] inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 shadow-sm">
+      <div className="h-9 min-w-[270px] inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700">
         <button
           type="button"
           disabled={disabled}
@@ -192,6 +193,8 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
           </button>
         )}
       </div>
+
+      {renderPresets()}
 
       {open && !disabled && (
         <div className={`absolute ${alignLeft ? 'left-0' : 'right-0'} top-[calc(100%+8px)] z-[60] w-[650px] max-w-[calc(100vw-18rem)] rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl`}>

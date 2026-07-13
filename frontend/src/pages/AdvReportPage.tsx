@@ -5,7 +5,8 @@ import { getAll, refName, useDB, type Row } from '../data/store';
 import { exportCSV } from '../lib/export';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload } from '../components/icons';
-import { yesterdayStr } from '../lib/date';
+import { defaultDateRange } from '../lib/date';
+import { sortByGroupedLabel } from '../lib/optionSort';
 
 const COLLECTION = 'importAdv';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -26,8 +27,9 @@ export function AdvReportPage() {
   // — trước đây trang này không subscribe nên phải F5 mới thấy số mới.
   const db = useDB();
 
-  const [from, setFrom] = useState(yesterdayStr());
-  const [to, setTo] = useState(yesterdayStr());
+  const [defaultFrom, defaultTo] = defaultDateRange();
+  const [from, setFrom] = useState(defaultFrom);
+  const [to, setTo] = useState(defaultTo);
   const [allDates, setAllDates] = useState(false);
   const [fAdv, setFAdv] = useState('');
   const [fOrder, setFOrder] = useState('');
@@ -81,20 +83,20 @@ export function AdvReportPage() {
   const rows = result ?? [];
   const orderOptions = (() => {
     const seen = new Set<string>();
-    return getAll('adOrders').filter((o) => {
+    return sortByGroupedLabel(getAll('adOrders').filter((o) => {
       if (fAdv && String(o.advertiserId) !== fAdv) return false;
       const key = String(o.name ?? '').trim().toLowerCase();
       if (!key || seen.has(key)) return false;
       seen.add(key);
       return true;
-    });
+    }), (o) => o.name);
   })();
   // ID quảng cáo phải khớp CẢ nhà QC (fAdv) lẫn đơn QC (orderIdsMatchingFilter) —
   // chọn đơn QC gom cùng tên giữa nhiều nhà QC nên cần lọc theo tập id đó, không chỉ 1 id.
-  const adIdOptions = getAll('adIds').filter((a) =>
+  const adIdOptions = sortByGroupedLabel(getAll('adIds').filter((a) =>
     (!fAdv || String(a.advertiserId) === fAdv) &&
     (!orderIdsMatchingFilter || orderIdsMatchingFilter.has(a.adOrderId as number)),
-  );
+  ), (a) => a.name);
   const priceOptions = Array.from(new Set(getAll(COLLECTION).map((r) => Number(r.unitPrice) || 0)))
     .sort((a, b) => a - b);
   const totals = rows.reduce(
@@ -147,7 +149,7 @@ export function AdvReportPage() {
           </div>
           <select value={fAdv} onChange={(e) => { setFAdv(e.target.value); setFOrder(''); setFAdId(''); }} className={sel}>
             <option value="">{t('col.advertiser')}</option>
-            {getAll('advertisers').map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
+            {sortByGroupedLabel(getAll('advertisers'), (a) => a.name).map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
           </select>
           {/* Đổi đơn QC → reset ID QC (không còn khớp) để tránh filter chết. */}
           <select value={fOrder} onChange={(e) => { setFOrder(e.target.value); setFAdId(''); }} className={sel}>
@@ -160,7 +162,7 @@ export function AdvReportPage() {
           </select>
           <select value={fType} onChange={(e) => setFType(e.target.value)} className={sel}>
             <option value="">{t('col.type')}</option>
-            {['CPM', 'CPC', 'CPA', 'CPS'].map((x) => <option key={x} value={x}>{x}</option>)}
+            {sortByGroupedLabel(['CPM', 'CPC', 'CPA', 'CPS'], (x) => x).map((x) => <option key={x} value={x}>{x}</option>)}
           </select>
           <select value={fPrice} onChange={(e) => setFPrice(e.target.value)} className={sel}>
             <option value="">{t('report.unitPriceShort')}</option>
@@ -168,8 +170,10 @@ export function AdvReportPage() {
           </select>
           <select value={fStatus} onChange={(e) => setFStatus(e.target.value as typeof fStatus)} className={sel}>
             <option value="all">{t('common.status')}: {t('common.all')}</option>
-            <option value="on">{t('common.on')}</option>
-            <option value="off">{t('common.off')}</option>
+            {sortByGroupedLabel([
+              { value: 'on', label: t('common.on') },
+              { value: 'off', label: t('common.off') },
+            ], (o) => o.label).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <div className="relative">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />

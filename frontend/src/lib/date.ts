@@ -23,6 +23,11 @@ export function monthRangeUntilYesterday(offset: number): [string, string] {
   return [ymd(first), yesterdayStr()];
 }
 
+/** Khung thời gian mặc định: từ đầu tháng trước đến hôm qua của tháng hiện tại. */
+export function defaultDateRange(): [string, string] {
+  return monthRangeUntilYesterday(-1);
+}
+
 /** Đúng chuỗi ISO `YYYY-MM-DD` nên so sánh string hoạt động như so sánh ngày. */
 export const inRange = (d: string, from: string, to: string) => d >= from && d <= to;
 

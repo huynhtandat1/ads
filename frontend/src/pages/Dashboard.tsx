@@ -5,6 +5,7 @@ import { sumPerf, allPerf, filterByDate } from '../lib/analytics';
 import { money } from '../lib/format';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { useAuth } from '../auth/AuthContext';
+import { defaultDateRange } from '../lib/date';
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
@@ -15,16 +16,12 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
   );
 }
 
-const pad = (n: number) => String(n).padStart(2, '0');
-const monthStart = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`;
-const monthEnd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())}`;
-
 export function Dashboard() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const now = new Date();
-  const [from, setFrom] = useState(monthStart(now));
-  const [to, setTo] = useState(monthEnd(now));
+  const [defaultFrom, defaultTo] = defaultDateRange();
+  const [from, setFrom] = useState(defaultFrom);
+  const [to, setTo] = useState(defaultTo);
   useCollection('importAI');
   useCollection('importAdv');
   useCollection('importMedia');

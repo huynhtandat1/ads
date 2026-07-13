@@ -17,3 +17,8 @@ export function compareGroupedLabels(a: string, b: string): number {
   if (ga !== gb) return ga - gb;
   return collator.compare(la, lb);
 }
+
+/** Trả về bản sao đã sắp xếp, không làm thay đổi mảng nguồn. */
+export function sortByGroupedLabel<T>(items: readonly T[], labelOf: (item: T) => unknown): T[] {
+  return [...items].sort((a, b) => compareGroupedLabels(String(labelOf(a) ?? ''), String(labelOf(b) ?? '')));
+}

@@ -8,7 +8,8 @@ import { round3 } from '../lib/format';
 import { RateEditor } from '../components/RateEditor';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload, IconUpload } from '../components/icons';
-import { useDatesInRange, yesterdayStr } from '../lib/date';
+import { defaultDateRange, useDatesInRange } from '../lib/date';
+import { sortByGroupedLabel } from '../lib/optionSort';
 
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
@@ -29,8 +30,9 @@ export function AdvDataEntryPage({
   useCollection('rates'); // lịch sử đơn giá theo ngày
   const adIdsAll = useCollection('adIds');
 
-  const [from, setFrom] = useState(yesterdayStr());
-  const [to, setTo] = useState(yesterdayStr());
+  const [defaultFrom, defaultTo] = defaultDateRange();
+  const [from, setFrom] = useState(defaultFrom);
+  const [to, setTo] = useState(defaultTo);
   const datesInRange = useDatesInRange(from, to);
   const [fAdv, setFAdv] = useState('');
   const [fOrder, setFOrder] = useState('');
@@ -77,17 +79,17 @@ export function AdvDataEntryPage({
   useEffect(load, [from, to]); // reload when range changes
 
   // Cascading dropdown option lists
-  const advOpts = getAll('advertisers');
+  const advOpts = sortByGroupedLabel(getAll('advertisers'), (r) => r.name);
   const orderOpts = useMemo(
     () => {
       const seen = new Set<string>();
-      return getAll('adOrders').filter((o) => {
+      return sortByGroupedLabel(getAll('adOrders').filter((o) => {
         if (fAdv && String(o.advertiserId) !== fAdv) return false;
         const key = String(o.name ?? '').trim().toLowerCase();
         if (!key || seen.has(key)) return false;
         seen.add(key);
         return true;
-      });
+      }), (o) => o.name);
     },
     [fAdv, adIdsAll],
   );
@@ -101,7 +103,10 @@ export function AdvDataEntryPage({
   }, [fOrder, adIdsAll]);
 
   const adIdOpts = useMemo(
-    () => adIdsAll.filter((a) => (!fAdv || String(a.advertiserId) === fAdv) && (!orderIdsMatchingFilter || orderIdsMatchingFilter.has(a.adOrderId as number))),
+    () => sortByGroupedLabel(
+      adIdsAll.filter((a) => (!fAdv || String(a.advertiserId) === fAdv) && (!orderIdsMatchingFilter || orderIdsMatchingFilter.has(a.adOrderId as number))),
+      (a) => a.name,
+    ),
     [fAdv, orderIdsMatchingFilter, adIdsAll],
   );
 
@@ -254,7 +259,7 @@ export function AdvDataEntryPage({
           </select>
           <select value={fType} onChange={(e) => setFType(e.target.value)} className={sel}>
             <option value="">{t('col.type')}</option>
-            {['CPM', 'CPC', 'CPA', 'CPS'].map((x) => <option key={x} value={x}>{x}</option>)}
+            {sortByGroupedLabel(['CPM', 'CPC', 'CPA', 'CPS'], (x) => x).map((x) => <option key={x} value={x}>{x}</option>)}
           </select>
           <select value={fPrice} onChange={(e) => setFPrice(e.target.value)} className={sel}>
             <option value="">{t('report.unitPriceShort')}</option>
@@ -262,8 +267,10 @@ export function AdvDataEntryPage({
           </select>
           <select value={fStatus} onChange={(e) => setFStatus(e.target.value as typeof fStatus)} className={sel}>
             <option value="all">{t('entry.allStatus')}</option>
-            <option value="online">{t('entry.online')}</option>
-            <option value="offline">{t('entry.offline')}</option>
+            {sortByGroupedLabel([
+              { value: 'online', label: t('entry.online') },
+              { value: 'offline', label: t('entry.offline') },
+            ], (o) => o.label).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <div className="relative">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />

@@ -11,6 +11,7 @@ import {
 import { SCREENS } from '../config/screens';
 import { ymd, yesterdayStr } from '../lib/date';
 import { IconPlus, IconPencil } from '../components/icons';
+import { sortByGroupedLabel } from '../lib/optionSort';
 
 export function CrudPage({ screen }: { screen: string }) {
   const cfg = SCREENS[screen];
@@ -80,7 +81,7 @@ export function CrudPage({ screen }: { screen: string }) {
     key: f.key,
     label: t(f.labelKey),
     options: f.from
-      ? getAll(f.from).map((r) => ({ value: String(r.id), label: String(r.name) }))
+      ? sortByGroupedLabel(getAll(f.from), (r) => r.name).map((r) => ({ value: String(r.id), label: String(r.name) }))
       : (f.static || []).map((s) => ({ value: s.value, label: t(s.labelKey) })),
   }));
 

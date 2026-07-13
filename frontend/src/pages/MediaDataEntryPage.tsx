@@ -8,7 +8,8 @@ import { round3 } from '../lib/format';
 import { RateEditor } from '../components/RateEditor';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload } from '../components/icons';
-import { inRange, useDatesInRange, yesterdayStr } from '../lib/date';
+import { defaultDateRange, inRange, useDatesInRange } from '../lib/date';
+import { sortByGroupedLabel } from '../lib/optionSort';
 
 const COLLECTION = 'importMedia';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -28,8 +29,9 @@ export function MediaDataEntryPage() {
   useCollection('rates');     // lịch sử đơn giá/hệ số/tỷ lệ chia TK
   const mediaIdsAll = useCollection('mediaIds');
 
-  const [from, setFrom] = useState(yesterdayStr());
-  const [to, setTo] = useState(yesterdayStr());
+  const [defaultFrom, defaultTo] = defaultDateRange();
+  const [from, setFrom] = useState(defaultFrom);
+  const [to, setTo] = useState(defaultTo);
   const datesInRange = useDatesInRange(from, to);
   const [fMedia, setFMedia] = useState('');
   const [fOrder, setFOrder] = useState('');
@@ -60,16 +62,16 @@ export function MediaDataEntryPage() {
   useEffect(load, [from, to]);
   useEffect(() => { setPage(1); }, [from, to, fMedia, fOrder, fMediaId, fType, fPrice, fStatus, q]);
 
-  const mediaOpts = getAll('media');
+  const mediaOpts = sortByGroupedLabel(getAll('media'), (r) => r.name);
   const orderOpts = useMemo(() => {
     const seen = new Set<string>();
-    return getAll('mediaOrders').filter((o) => {
+    return sortByGroupedLabel(getAll('mediaOrders').filter((o) => {
       if (fMedia && String(o.mediaId) !== fMedia) return false;
       const key = String(o.name ?? '').trim().toLowerCase();
       if (!key || seen.has(key)) return false;
       seen.add(key);
       return true;
-    });
+    }), (o) => o.name);
   }, [fMedia, mediaIdsAll]);
   // fOrder giữ id của 1 đơn đại diện, nhưng dropdown đã gộp theo TÊN → lọc phải khớp MỌI đơn
   // cùng tên (đồng bộ với g3b ở AdvDataEntryPage) tránh sót media-id khi cùng tên đơn.
@@ -80,9 +82,9 @@ export function MediaDataEntryPage() {
     return new Set(getAll('mediaOrders').filter((o) => norm(o.name) === name).map((o) => o.id));
   }, [fOrder, mediaIdsAll]);
   const mediaIdOpts = useMemo(
-    () => mediaIdsAll.filter((m) =>
+    () => sortByGroupedLabel(mediaIdsAll.filter((m) =>
       (!fMedia || String(m.mediaId) === fMedia) &&
-      (!mediaOrderIdsMatchingFilter || mediaOrderIdsMatchingFilter.has(m.mediaOrderId as number))),
+      (!mediaOrderIdsMatchingFilter || mediaOrderIdsMatchingFilter.has(m.mediaOrderId as number))), (m) => m.name),
     [fMedia, mediaOrderIdsMatchingFilter, mediaIdsAll],
   );
 
@@ -206,7 +208,7 @@ export function MediaDataEntryPage() {
           </select>
           <select value={fType} onChange={(e) => setFType(e.target.value)} className={sel}>
             <option value="">{t('col.type')}</option>
-            {['CPM', 'CPC', 'CPA', 'CPS'].map((x) => <option key={x} value={x}>{x}</option>)}
+            {sortByGroupedLabel(['CPM', 'CPC', 'CPA', 'CPS'], (x) => x).map((x) => <option key={x} value={x}>{x}</option>)}
           </select>
           <select value={fPrice} onChange={(e) => setFPrice(e.target.value)} className={sel}>
             <option value="">{t('report.unitPriceShort')}</option>
@@ -214,8 +216,10 @@ export function MediaDataEntryPage() {
           </select>
           <select value={fStatus} onChange={(e) => setFStatus(e.target.value as typeof fStatus)} className={sel}>
             <option value="all">{t('entry.allStatus')}</option>
-            <option value="confirmed">{t('entry.confirmed')}</option>
-            <option value="unconfirmed">{t('entry.unconfirmed')}</option>
+            {sortByGroupedLabel([
+              { value: 'confirmed', label: t('entry.confirmed') },
+              { value: 'unconfirmed', label: t('entry.unconfirmed') },
+            ], (o) => o.label).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <div className="relative">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />
