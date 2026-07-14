@@ -167,8 +167,20 @@ export function MediaDataEntryPage() {
     };
   };
 
+  const recordOf = (m: Row, cellDate: string) =>
+    getAll(COLLECTION).find((r) => String(r.date) === cellDate && (r.mediaIdId === m.id || r.objectId === m.name));
+
+  // Bản ghi đã lưu còn khớp số liệu hiện hành không? Thượng nguồn đổi sau khi lưu
+  // (NQC sửa lưu lượng/quyết toán, đơn giá/hệ số/tỷ lệ đổi hiệu lực) → coi như CHƯA lưu
+  // để nút "Lưu" sáng lại nhắc lưu số mới, tránh record giữ số cũ mà nút vẫn báo "Đã lưu".
+  const STALE_FIELDS = ['traffic', 'settlement', 'unitPrice', 'coefficient', 'payable', 'shareRate', 'actual'] as const;
+  const isStale = (existing: Row, m: Row, cellDate: string) => {
+    const p = buildPayload(m, cellDate) as Record<string, unknown>;
+    return STALE_FIELDS.some((f) => Number(existing[f] ?? 0) !== Number(p[f] ?? 0));
+  };
+
   const saveRow = (m: Row, cellDate: string) => {
-    const existing = getAll(COLLECTION).find((r) => String(r.date) === cellDate && (r.mediaIdId === m.id || r.objectId === m.name));
+    const existing = recordOf(m, cellDate);
     if (existing) update(COLLECTION, existing.id, buildPayload(m, cellDate));
     else create(COLLECTION, buildPayload(m, cellDate) as Omit<Row, 'id'>);
     setSavedIds((s) => new Set(s).add(`${m.id}|${cellDate}`));
@@ -251,7 +263,8 @@ export function MediaDataEntryPage() {
                   {pageRows.map(({ m, cellDate, key }, i) => {
                     const c = calc(m, cellDate);
                     const isOnline = m.status !== false;
-                    const isSaved = savedIds.has(key);
+                    const existing = recordOf(m, cellDate);
+                    const isSaved = savedIds.has(key) && !!existing && !isStale(existing, m, cellDate);
                     return (
                       <tr key={key} className="border-b border-gray-50 hover:bg-cyan-50/30">
                         <td className="px-3 py-2 whitespace-nowrap text-gray-400">{(curPage - 1) * pageSize + i + 1}</td>
