@@ -261,7 +261,7 @@ export function MediaReportPage() {
                       <tr key={r.id} title={stale ? t('report.stale') : undefined}
                         className={`border-b border-gray-50 ${stale ? 'bg-amber-50 hover:bg-amber-100/70' : 'hover:bg-cyan-50/30'}`}>
                         <td className="px-3 py-2 whitespace-nowrap text-gray-400">{stale ? '⚠' : i + 1}</td>
-                        <td className="px-3 py-2 whitespace-nowrap text-gray-600">{r.date}</td>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-600">{dayMonth(String(r.date))}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{refName('media', r.mediaId)}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{refName('mediaOrders', r.mediaOrderId)}</td>
                         <td className="px-3 py-2"><span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium">{r.type}</span></td>
