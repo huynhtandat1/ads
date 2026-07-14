@@ -6,7 +6,7 @@ import { round3 } from '../lib/format';
 import { exportCSV } from '../lib/export';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload } from '../components/icons';
-import { dayMonth, defaultDateRange } from '../lib/date';
+import { dayMonth, todayRange } from '../lib/date';
 import { sortByGroupedLabel } from '../lib/optionSort';
 
 const COLLECTION = 'importMedia';
@@ -43,7 +43,7 @@ export function MediaReportPage() {
   // dữ liệu nhập mới (g3c) không hiện cho tới khi F5/đổi bộ lọc.
   const db = useDB();
 
-  const [defaultFrom, defaultTo] = defaultDateRange();
+  const [defaultFrom, defaultTo] = todayRange();
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
   const [allDates, setAllDates] = useState(false);
@@ -82,8 +82,8 @@ export function MediaReportPage() {
       }
       return true;
     }).sort((a, b) =>
-      // Ngày mới nhất trước; cùng ngày thì theo chữ cái đầu media → đơn QC media → media ID (spec).
-      String(b.date).localeCompare(String(a.date)) ||
+      // Ngày cũ đến ngày mới; cùng ngày thì theo chữ cái đầu media → đơn QC media → media ID.
+      String(a.date).localeCompare(String(b.date)) ||
       norm(refName('media', a.mediaId)).localeCompare(norm(refName('media', b.mediaId))) ||
       norm(refName('mediaOrders', a.mediaOrderId)).localeCompare(norm(refName('mediaOrders', b.mediaOrderId))) ||
       norm(a.objectId).localeCompare(norm(b.objectId)));

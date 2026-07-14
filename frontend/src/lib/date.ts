@@ -31,6 +31,27 @@ export function defaultDateRange(): [string, string] {
 /** Rút `YYYY-MM-DD` về `DD/MM` (ẩn năm) — cột ngày và dòng tổng hiển thị gọn (spec 07-2026, mục "日/月"). */
 export const dayMonth = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
 
+/** Một ngày duy nhất: hôm nay. */
+export function todayRange(): [string, string] {
+  const today = ymd(new Date());
+  return [today, today];
+}
+
+/** Một ngày duy nhất: hôm qua. */
+export function yesterdayRange(): [string, string] {
+  const yesterday = yesterdayStr();
+  return [yesterday, yesterday];
+}
+
+/** Toàn bộ tháng trước: ngày đầu → ngày cuối tháng trước. */
+export function previousMonthRange(): [string, string] {
+  const n = new Date();
+  return [
+    ymd(new Date(n.getFullYear(), n.getMonth() - 1, 1)),
+    ymd(new Date(n.getFullYear(), n.getMonth(), 0)),
+  ];
+}
+
 /** Đúng chuỗi ISO `YYYY-MM-DD` nên so sánh string hoạt động như so sánh ngày. */
 export const inRange = (d: string, from: string, to: string) => d >= from && d <= to;
 

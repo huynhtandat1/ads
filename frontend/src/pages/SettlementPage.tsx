@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTable, type Column } from '../components/DataTable';
 import { FormModal, type FieldDef } from '../components/FormModal';
@@ -8,7 +8,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, type Row } from '../data/store';
 import { api } from '../api';
 import { IconPlus, IconPencil, IconEye } from '../components/icons';
-import { defaultDateRange, yesterdayStr } from '../lib/date';
+import { previousMonthRange, yesterdayStr } from '../lib/date';
 import { money } from '../lib/format';
 import { sortByGroupedLabel } from '../lib/optionSort';
 
@@ -19,6 +19,10 @@ export function SettlementPage({ screen, collection, titleKey, targetFrom, previ
   const toast = useToast();
   const { can } = useAuth();
   const rows = useCollection(collection);
+  const orderedRows = useMemo(() => [...rows].sort((a, b) =>
+    String(a.period || '').localeCompare(String(b.period || '')) ||
+    String(a.createdAt || '').localeCompare(String(b.createdAt || '')) ||
+    Number(a.id) - Number(b.id)), [rows]);
   const [editing, setEditing] = useState<Row | null | undefined>(undefined); // FormModal (edit)
   const [gen, setGen] = useState(false); // generate modal
 
@@ -36,7 +40,7 @@ export function SettlementPage({ screen, collection, titleKey, targetFrom, previ
     { key: 'id', label: t('col.id'), type: 'id', sortable: true },
     { key: 'code', label: t('col.code'), sortable: true },
     { key: 'target', label: t('col.target'), sortable: true },
-    { key: 'period', label: t('col.period') },
+    { key: 'period', label: t('col.period'), sortable: true },
     { key: 'totalAmount', label: t('col.totalAmount'), type: 'currency', align: 'right', sortable: true },
     {
       key: 'payStatus', label: t('col.payStatus'), align: 'center',
@@ -83,7 +87,7 @@ export function SettlementPage({ screen, collection, titleKey, targetFrom, previ
   return (
     <div>
       <h1 className="text-xl font-bold text-gray-800 mb-4">{t(titleKey)}</h1>
-      <DataTable columns={columns} rows={rows} exportName={collection} canExport={can(screen, 'export')}
+      <DataTable columns={columns} rows={orderedRows} exportName={collection} canExport={can(screen, 'export')}
         toolbarLeft={canCreate && (
           <button onClick={() => setGen(true)}
             className="h-9 px-4 inline-flex items-center gap-1.5 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600">
@@ -113,7 +117,7 @@ function GenerateModal({ collection, targetFrom, previewType, onClose, onDone }:
 }) {
   const { t } = useTranslation();
   const toast = useToast();
-  const [defaultFrom, defaultTo] = defaultDateRange();
+  const [defaultFrom, defaultTo] = previousMonthRange();
   const [target, setTarget] = useState('');
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);

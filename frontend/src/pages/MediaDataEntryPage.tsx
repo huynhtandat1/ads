@@ -8,7 +8,7 @@ import { round3 } from '../lib/format';
 import { RateEditor } from '../components/RateEditor';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload } from '../components/icons';
-import { inRange, useDatesInRange, yesterdayStr } from '../lib/date';
+import { inRange, useDatesInRange, yesterdayRange } from '../lib/date';
 import { sortByGroupedLabel } from '../lib/optionSort';
 
 const COLLECTION = 'importMedia';
@@ -29,10 +29,9 @@ export function MediaDataEntryPage() {
   useCollection('rates');     // lịch sử đơn giá/hệ số/tỷ lệ chia TK
   const mediaIdsAll = useCollection('mediaIds');
 
-  // Trang NHẬP LIỆU mặc định chỉ HÔM QUA (方案二 spec 07-2026): mở lên là thấy đúng
-  // các dòng chờ nhập của hôm qua; trang truy vấn/báo cáo mới giữ khoảng dài.
-  const [from, setFrom] = useState(yesterdayStr());
-  const [to, setTo] = useState(yesterdayStr());
+  const [defaultFrom, defaultTo] = yesterdayRange();
+  const [from, setFrom] = useState(defaultFrom);
+  const [to, setTo] = useState(defaultTo);
   const datesInRange = useDatesInRange(from, to);
   const [fMedia, setFMedia] = useState('');
   const [fOrder, setFOrder] = useState('');
@@ -114,8 +113,11 @@ export function MediaDataEntryPage() {
   // Trước đây chỉ tạo dòng cho ngày CÓ record nên sót ngày chưa nhập giữa range.
   const cellRows = useMemo(() => {
     const out: { m: Row; cellDate: string; key: string }[] = [];
-    for (const m of rows) {
-      for (const d of datesInRange) out.push({ m, cellDate: d, key: `${m.id}|${d}` });
+    // Ngày là khóa sắp xếp chính để danh sách luôn chạy liên tiếp
+    // từ ngày cũ đến ngày mới, không quay lại ngày đầu ở mỗi media.
+    const orderedRows = sortByGroupedLabel(rows, (m) => m.name);
+    for (const d of datesInRange) {
+      for (const m of orderedRows) out.push({ m, cellDate: d, key: `${m.id}|${d}` });
     }
     return out;
   }, [rows, datesInRange]);

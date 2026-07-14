@@ -5,7 +5,7 @@ import { getAll, refName, useDB, type Row } from '../data/store';
 import { exportCSV } from '../lib/export';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload } from '../components/icons';
-import { dayMonth, defaultDateRange } from '../lib/date';
+import { dayMonth, todayRange } from '../lib/date';
 import { sortByGroupedLabel } from '../lib/optionSort';
 
 const COLLECTION = 'importAdv';
@@ -27,7 +27,7 @@ export function AdvReportPage() {
   // — trước đây trang này không subscribe nên phải F5 mới thấy số mới.
   const db = useDB();
 
-  const [defaultFrom, defaultTo] = defaultDateRange();
+  const [defaultFrom, defaultTo] = todayRange();
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
   const [allDates, setAllDates] = useState(false);

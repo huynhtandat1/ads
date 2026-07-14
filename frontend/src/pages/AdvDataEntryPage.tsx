@@ -8,7 +8,7 @@ import { round3 } from '../lib/format';
 import { RateEditor } from '../components/RateEditor';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload, IconUpload } from '../components/icons';
-import { dayMonth, useDatesInRange, yesterdayStr } from '../lib/date';
+import { dayMonth, defaultDateRange, useDatesInRange, yesterdayRange } from '../lib/date';
 import { sortByGroupedLabel } from '../lib/optionSort';
 
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -30,10 +30,9 @@ export function AdvDataEntryPage({
   useCollection('rates'); // lịch sử đơn giá theo ngày
   const adIdsAll = useCollection('adIds');
 
-  // Trang NHẬP LIỆU mặc định chỉ HÔM QUA (方案二 spec 07-2026): mở lên là thấy đúng
-  // các dòng chờ nhập của hôm qua; trang truy vấn/báo cáo mới giữ khoảng dài.
-  const [from, setFrom] = useState(yesterdayStr());
-  const [to, setTo] = useState(yesterdayStr());
+  const [defaultFrom, defaultTo] = screen === 'g3b' ? yesterdayRange() : defaultDateRange();
+  const [from, setFrom] = useState(defaultFrom);
+  const [to, setTo] = useState(defaultTo);
   const datesInRange = useDatesInRange(from, to);
   const [fAdv, setFAdv] = useState('');
   const [fOrder, setFOrder] = useState('');
