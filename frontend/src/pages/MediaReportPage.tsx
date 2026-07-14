@@ -7,6 +7,7 @@ import { exportCSV } from '../lib/export';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload } from '../components/icons';
 import { dayMonth, todayRange } from '../lib/date';
+import { isMediaRecordStale } from '../lib/mediaSync';
 import { sortByGroupedLabel } from '../lib/optionSort';
 
 const COLLECTION = 'importMedia';
@@ -242,9 +243,13 @@ export function MediaReportPage() {
                   </tr>
                   {rows.map((r, i) => {
                     const c = compute(r);
+                    // Bản ghi lệch với số tính lại từ thượng nguồn (NQC/đơn giá/hệ số đổi
+                    // sau khi lưu) → tô sáng nhắc lưu lại ở g3c (spec 07-2026: 操作部分高亮).
+                    const stale = isMediaRecordStale(r);
                     return (
-                      <tr key={r.id} className="border-b border-gray-50 hover:bg-cyan-50/30">
-                        <td className="px-3 py-2 whitespace-nowrap text-gray-400">{i + 1}</td>
+                      <tr key={r.id} title={stale ? t('report.stale') : undefined}
+                        className={`border-b border-gray-50 ${stale ? 'bg-amber-50 hover:bg-amber-100/70' : 'hover:bg-cyan-50/30'}`}>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-400">{stale ? '⚠' : i + 1}</td>
                         <td className="px-3 py-2 whitespace-nowrap text-gray-600">{r.date}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{refName('media', r.mediaId)}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{refName('mediaOrders', r.mediaOrderId)}</td>

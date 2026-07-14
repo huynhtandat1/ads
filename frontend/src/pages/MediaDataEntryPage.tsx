@@ -2,13 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
-import { useCollection, getAll, create, update, refName, effectiveValue, setRate, type Row } from '../data/store';
-import { receivableOf } from '../lib/billing';
-import { round3 } from '../lib/format';
+import { useCollection, getAll, create, update, refName, setRate, type Row } from '../data/store';
 import { RateEditor } from '../components/RateEditor';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload } from '../components/icons';
 import { inRange, useDatesInRange, yesterdayRange } from '../lib/date';
+import { calcMediaCell, isMediaRecordStale, mediaTypeOf } from '../lib/mediaSync';
 import { sortByGroupedLabel } from '../lib/optionSort';
 
 const COLLECTION = 'importMedia';
@@ -17,7 +16,7 @@ const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimu
 const money2 = (v: number) => Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 
-const typeOf = (mid: Row): string => mid.type ?? getAll('adIds').find((a) => a.id === mid.adIdId)?.type ?? '-';
+const typeOf = mediaTypeOf;
 
 export function MediaDataEntryPage() {
   const { t } = useTranslation();
@@ -132,32 +131,8 @@ export function MediaDataEntryPage() {
     [mediaIdsAll],
   );
 
-  // Lưu lượng/quyết toán lấy từ nhập liệu nhà QC theo ID quảng cáo (adIdId) + ngày của dòng.
-  const advOf = (m: Row, cellDate: string) => getAll('importAdv').find((r) => String(r.date) === cellDate && r.adIdId === m.adIdId);
-
-  const calc = (m: Row, cellDate: string) => {
-    const adv = advOf(m, cellDate);
-    const rawTraffic = adv ? Number(adv.traffic ?? adv.clicks ?? 0) : null;
-    const rawSettlement = adv ? Number(adv.settlement ?? 0) : null;
-    const type = typeOf(m);
-    const unitPrice = effectiveValue('mediaId', m.id, 'unitPrice', cellDate, Number(m.unitPrice) || 0);
-    const coef = effectiveValue('mediaId', m.id, 'coefficient', cellDate, 1);
-    const accountShare = effectiveValue('mediaId', m.id, 'profitShare', cellDate, Number(m.profitShare) || 0);
-    // Hệ số dữ liệu scale trực tiếp vào DỮ LIỆU:
-    //   - Lưu lượng CPM/CPC/CPA = lượt (đếm) → NQC × hệ số, LÀM TRÒN XUỐNG (Math.floor)
-    //     không tính lượt chưa đủ (1750×0.85=1487,5 → 1487).
-    //   - Lưu lượng CPS = TIỀN (giá trị đơn hàng) → giữ 3 số lẻ (round3) để cộng dồn
-    //     chính xác; hiển thị money() rút về 2 số lẻ.
-    // Quyết toán là tiền nên cũng giữ 3 số lẻ.
-    const traffic = rawTraffic == null ? '' : (type === 'CPS' ? round3(rawTraffic * coef) : Math.floor(rawTraffic * coef));
-    const settlement = rawSettlement == null ? '' : round3(rawSettlement * coef);
-    // Phải trả tính từ base ĐÃ áp hệ số (không nhân hệ số lần nữa). Tính giữ 3 số lẻ,
-    // hiển thị money() lo phần rút về 2 số lẻ.
-    const receivable = receivableOf(type, { unitPrice, traffic, settlement });
-    const payable = receivable == null ? null : round3(receivable);          // Số tiền phải trả
-    const netPay = payable == null ? null : round3(payable * (accountShare / 100)); // Số tiền thực trả
-    return { type, traffic, settlement, unitPrice, coef, accountShare, payable, netPay };
-  };
+  // Lưu lượng/quyết toán lấy từ nhập liệu nhà QC; logic tính dùng chung với g4d ở lib/mediaSync.
+  const calc = calcMediaCell;
 
   const buildPayload = (m: Row, cellDate: string) => {
     const c = calc(m, cellDate);
@@ -172,15 +147,6 @@ export function MediaDataEntryPage() {
 
   const recordOf = (m: Row, cellDate: string) =>
     getAll(COLLECTION).find((r) => String(r.date) === cellDate && (r.mediaIdId === m.id || r.objectId === m.name));
-
-  // Bản ghi đã lưu còn khớp số liệu hiện hành không? Thượng nguồn đổi sau khi lưu
-  // (NQC sửa lưu lượng/quyết toán, đơn giá/hệ số/tỷ lệ đổi hiệu lực) → coi như CHƯA lưu
-  // để nút "Lưu" sáng lại nhắc lưu số mới, tránh record giữ số cũ mà nút vẫn báo "Đã lưu".
-  const STALE_FIELDS = ['traffic', 'settlement', 'unitPrice', 'coefficient', 'payable', 'shareRate', 'actual'] as const;
-  const isStale = (existing: Row, m: Row, cellDate: string) => {
-    const p = buildPayload(m, cellDate) as Record<string, unknown>;
-    return STALE_FIELDS.some((f) => Number(existing[f] ?? 0) !== Number(p[f] ?? 0));
-  };
 
   const saveRow = (m: Row, cellDate: string) => {
     const existing = recordOf(m, cellDate);
@@ -267,7 +233,7 @@ export function MediaDataEntryPage() {
                     const c = calc(m, cellDate);
                     const isOnline = m.status !== false;
                     const existing = recordOf(m, cellDate);
-                    const isSaved = savedIds.has(key) && !!existing && !isStale(existing, m, cellDate);
+                    const isSaved = savedIds.has(key) && !!existing && !isMediaRecordStale(existing);
                     return (
                       <tr key={key} className="border-b border-gray-50 hover:bg-cyan-50/30">
                         <td className="px-3 py-2 whitespace-nowrap text-gray-400">{(curPage - 1) * pageSize + i + 1}</td>

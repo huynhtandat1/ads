@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
-import { getAll, refName, useDB, type Row } from '../data/store';
+import { effectiveValue, getAll, refName, useDB, type Row } from '../data/store';
+import { receivableOf } from '../lib/billing';
+import { round3 } from '../lib/format';
 import { exportCSV } from '../lib/export';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload } from '../components/icons';
@@ -17,6 +19,18 @@ const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 const adStatusOf = (r: Row): boolean => {
   const ad = getAll('adIds').find((a) => a.id === r.adIdId || a.name === r.objectId);
   return ad ? ad.status !== false : r.status !== false;
+};
+
+// Bản ghi đã lưu (g3b) có LỆCH với số hiện hành không? Đơn giá đổi hiệu lực sau khi lưu
+// → phải thu lệch → tô sáng dòng nhắc lưu lại ở trang nhập liệu (spec 07-2026: 操作部分高亮).
+const isStaleAdv = (r: Row): boolean => {
+  const ad = getAll('adIds').find((a) => a.id === r.adIdId || a.name === r.objectId);
+  if (!ad) return false; // ID đã xóa khỏi danh mục → không còn nguồn để so
+  const price = effectiveValue('adId', ad.id, 'unitPrice', String(r.date || ''), Number(ad.unitPrice) || 0);
+  const fresh = round3(receivableOf(String(r.type), {
+    unitPrice: price, traffic: r.traffic ?? r.clicks ?? '', settlement: r.settlement ?? '',
+  }) ?? 0);
+  return Number(r.unitPrice ?? 0) !== price || Number(r.receivable ?? 0) !== fresh;
 };
 
 export function AdvReportPage() {
@@ -227,9 +241,12 @@ export function AdvReportPage() {
                     <td className="px-3 py-2 text-cyan-300">{money(totals.receivable)}</td>
                     <td className="px-3 py-2" />
                   </tr>
-                  {rows.map((r, i) => (
-                    <tr key={r.id} className="border-b border-gray-50 hover:bg-cyan-50/30">
-                      <td className="px-3 py-2 whitespace-nowrap text-gray-400">{i + 1}</td>
+                  {rows.map((r, i) => {
+                    const stale = isStaleAdv(r);
+                    return (
+                    <tr key={r.id} title={stale ? t('report.stale') : undefined}
+                      className={`border-b border-gray-50 ${stale ? 'bg-amber-50 hover:bg-amber-100/70' : 'hover:bg-cyan-50/30'}`}>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-400">{stale ? '⚠' : i + 1}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-gray-600">{dayMonth(String(r.date))}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{refName('advertisers', r.advertiserId)}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{refName('adOrders', r.adOrderId)}</td>
@@ -245,7 +262,8 @@ export function AdvReportPage() {
                         </span>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </>
               )}
             </tbody>

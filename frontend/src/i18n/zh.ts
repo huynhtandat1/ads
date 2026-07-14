@@ -61,6 +61,7 @@ export default {
     totalRevenue: '总收入', totalCost: '总成本', totalProfit: '总利润', avgMargin: '平均利润率', records: '条记录',
     eyebrow: '报表', thisMonth: '本月', lastMonth: '上月', query: '查询', exportExcel: '导出 Excel',
     business: '业务', allDates: '全部日期', confirmFilter: '已确认', grandTotal: '总计',
+    stale: '上游数据已变更 — 请在录入页面重新保存',
     queryHint: '请选择日期范围并点击查询以查看数据。',
     traffic: '流量', unitPriceShort: '单价',
     profitToday: '{{to}} 的利润', profitMonth: '本月利润',

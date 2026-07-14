@@ -164,6 +164,19 @@ export function AdvDataEntryPage({
   // Đơn giá/Tỷ lệ có hiệu lực tại ngày đang nhập (theo lịch sử versioning).
   const priceOf = (ad: Row, workingDate: string) => effectiveValue('adId', ad.id, 'unitPrice', workingDate, Number(ad.unitPrice) || 0);
 
+  const recordOf = (ad: Row, cellDate: string) =>
+    getAll(COLLECTION).find((r) => String(r.date) === cellDate && (r.adIdId === ad.id || r.objectId === ad.name));
+
+  // Bản ghi đã lưu còn khớp số hiện hành không? Đơn giá đổi hiệu lực sau khi lưu →
+  // phải thu lệch → nút "Lưu" sáng lại nhắc lưu số mới (spec 07-2026: 操作部分高亮).
+  const isStale = (existing: Row, ad: Row, cellDate: string) => {
+    const price = priceOf(ad, cellDate);
+    const fresh = round3(receivableOf(ad.type, {
+      unitPrice: price, traffic: existing.traffic ?? existing.clicks ?? '', settlement: existing.settlement ?? '',
+    }) ?? 0);
+    return Number(existing.unitPrice ?? 0) !== price || Number(existing.receivable ?? 0) !== fresh;
+  };
+
   const saveRow = (ad: Row, cellDate: string) => {
     const key = `${ad.id}|${cellDate}`;
     const d = draft[key] || { unitPrice: '', traffic: '', settlement: '' };
@@ -178,7 +191,7 @@ export function AdvDataEntryPage({
       revenue: receivable, cost: 0, clicks: Number(d.traffic) || 0,
       source, status: true,
     };
-    const existing = getAll(COLLECTION).find((r) => String(r.date) === cellDate && (r.adIdId === ad.id || r.objectId === ad.name));
+    const existing = recordOf(ad, cellDate);
     if (existing) update(COLLECTION, existing.id, payload);
     else create(COLLECTION, payload as Omit<Row, 'id'>);
     setSavedIds((s) => new Set(s).add(key));
@@ -321,7 +334,8 @@ export function AdvDataEntryPage({
                 const price = priceOf(ad, cellDate);
                 const receivable = receivableOf(ad.type, { unitPrice: price, traffic: d.traffic, settlement: d.settlement });
                 const isOnline = ad.status !== false;
-                const isSaved = savedIds.has(key);
+                const existing = recordOf(ad, cellDate);
+                const isSaved = savedIds.has(key) && !!existing && !isStale(existing, ad, cellDate);
                 return (
                   <tr key={key} className="border-b border-gray-50 hover:bg-cyan-50/30">
                     <td className="px-3 py-2 whitespace-nowrap text-gray-400">{i + 1}</td>

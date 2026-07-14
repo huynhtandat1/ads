@@ -61,6 +61,7 @@ export default {
     totalRevenue: 'Total Revenue', totalCost: 'Total Cost', totalProfit: 'Total Profit', avgMargin: 'Avg Margin', records: 'records',
     eyebrow: 'REPORT', thisMonth: 'This Month', lastMonth: 'Last Month', query: 'Query', exportExcel: 'Export Excel',
     business: 'Business', allDates: 'All Dates', confirmFilter: 'Confirmed', grandTotal: 'Grand Total',
+    stale: 'Source data changed — re-save on the entry page',
     queryHint: 'Select a date range and click Query to view data.',
     traffic: 'Traffic', unitPriceShort: 'Unit Price',
     profitToday: 'Profit on {{to}}', profitMonth: 'Profit This Month',

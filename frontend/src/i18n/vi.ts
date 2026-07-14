@@ -61,6 +61,7 @@ export default {
     totalRevenue: 'Tổng doanh thu', totalCost: 'Tổng chi phí', totalProfit: 'Tổng lợi nhuận', avgMargin: 'Tỷ suất TB', records: 'bản ghi',
     eyebrow: 'BÁO CÁO', thisMonth: 'Tháng này', lastMonth: 'Tháng trước', query: 'Truy vấn', exportExcel: 'Xuất Excel',
     business: 'Nghiệp vụ', allDates: 'Tất cả ngày', confirmFilter: 'Đã xác nhận', grandTotal: 'Tổng cộng',
+    stale: 'Số liệu nguồn đã thay đổi — hãy lưu lại ở trang nhập liệu',
     queryHint: 'Chọn khoảng ngày rồi bấm Truy vấn để xem dữ liệu.',
     traffic: 'Lưu lượng', unitPriceShort: 'Đơn giá',
     profitToday: 'Lợi nhuận ngày {{to}}', profitMonth: 'Lợi nhuận tháng này',
