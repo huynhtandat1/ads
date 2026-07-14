@@ -8,7 +8,7 @@ import { round3 } from '../lib/format';
 import { RateEditor } from '../components/RateEditor';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload, IconUpload } from '../components/icons';
-import { defaultDateRange, useDatesInRange } from '../lib/date';
+import { dayMonth, useDatesInRange, yesterdayStr } from '../lib/date';
 import { sortByGroupedLabel } from '../lib/optionSort';
 
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -30,9 +30,10 @@ export function AdvDataEntryPage({
   useCollection('rates'); // lịch sử đơn giá theo ngày
   const adIdsAll = useCollection('adIds');
 
-  const [defaultFrom, defaultTo] = defaultDateRange();
-  const [from, setFrom] = useState(defaultFrom);
-  const [to, setTo] = useState(defaultTo);
+  // Trang NHẬP LIỆU mặc định chỉ HÔM QUA (方案二 spec 07-2026): mở lên là thấy đúng
+  // các dòng chờ nhập của hôm qua; trang truy vấn/báo cáo mới giữ khoảng dài.
+  const [from, setFrom] = useState(yesterdayStr());
+  const [to, setTo] = useState(yesterdayStr());
   const datesInRange = useDatesInRange(from, to);
   const [fAdv, setFAdv] = useState('');
   const [fOrder, setFOrder] = useState('');
@@ -325,7 +326,7 @@ export function AdvDataEntryPage({
                 return (
                   <tr key={key} className="border-b border-gray-50 hover:bg-cyan-50/30">
                     <td className="px-3 py-2 whitespace-nowrap text-gray-400">{i + 1}</td>
-                    <td className="px-3 py-2 whitespace-nowrap text-gray-600">{cellDate}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-600">{dayMonth(cellDate)}</td>
                     <td className="px-3 py-2 whitespace-nowrap">{refName('advertisers', ad.advertiserId)}</td>
                     <td className="px-3 py-2 whitespace-nowrap">{refName('adOrders', ad.adOrderId)}</td>
                     <td className="px-3 py-2"><span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium">{ad.type}</span></td>

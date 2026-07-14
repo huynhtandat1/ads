@@ -28,8 +28,8 @@ export function defaultDateRange(): [string, string] {
   return monthRangeUntilYesterday(-1);
 }
 
-/** Rút `YYYY-MM-DD` về `MM-DD` — dòng tổng các trang truy vấn ẩn năm cho gọn. */
-export const monthDay = (d: string) => d.slice(5);
+/** Rút `YYYY-MM-DD` về `DD/MM` (ẩn năm) — cột ngày và dòng tổng hiển thị gọn (spec 07-2026, mục "日/月"). */
+export const dayMonth = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
 
 /** Đúng chuỗi ISO `YYYY-MM-DD` nên so sánh string hoạt động như so sánh ngày. */
 export const inRange = (d: string, from: string, to: string) => d >= from && d <= to;

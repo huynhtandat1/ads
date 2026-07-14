@@ -8,7 +8,7 @@ import { round3 } from '../lib/format';
 import { RateEditor } from '../components/RateEditor';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload } from '../components/icons';
-import { defaultDateRange, inRange, useDatesInRange } from '../lib/date';
+import { inRange, useDatesInRange, yesterdayStr } from '../lib/date';
 import { sortByGroupedLabel } from '../lib/optionSort';
 
 const COLLECTION = 'importMedia';
@@ -29,9 +29,10 @@ export function MediaDataEntryPage() {
   useCollection('rates');     // lịch sử đơn giá/hệ số/tỷ lệ chia TK
   const mediaIdsAll = useCollection('mediaIds');
 
-  const [defaultFrom, defaultTo] = defaultDateRange();
-  const [from, setFrom] = useState(defaultFrom);
-  const [to, setTo] = useState(defaultTo);
+  // Trang NHẬP LIỆU mặc định chỉ HÔM QUA (方案二 spec 07-2026): mở lên là thấy đúng
+  // các dòng chờ nhập của hôm qua; trang truy vấn/báo cáo mới giữ khoảng dài.
+  const [from, setFrom] = useState(yesterdayStr());
+  const [to, setTo] = useState(yesterdayStr());
   const datesInRange = useDatesInRange(from, to);
   const [fMedia, setFMedia] = useState('');
   const [fOrder, setFOrder] = useState('');

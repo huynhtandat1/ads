@@ -6,7 +6,7 @@ import { round3 } from '../lib/format';
 import { exportCSV } from '../lib/export';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload } from '../components/icons';
-import { defaultDateRange, monthDay } from '../lib/date';
+import { dayMonth, defaultDateRange } from '../lib/date';
 import { sortByGroupedLabel } from '../lib/optionSort';
 
 const COLLECTION = 'importMedia';
@@ -231,7 +231,7 @@ export function MediaReportPage() {
                   {/* Dòng tổng: ngày + mỗi tổng nằm NGAY TRÊN cột tương ứng, căn giữa (đồng bộ với g4c). */}
                   <tr className="bg-brand-dark2 text-white font-semibold">
                     <td className="px-3 py-2" />
-                    <td className="px-3 py-2 whitespace-nowrap">📅 {allDates ? t('report.allDates') : `${monthDay(from)} ~ ${monthDay(to)}`}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">📅 {allDates ? t('report.allDates') : `${dayMonth(from)} ~ ${dayMonth(to)}`}</td>
                     <td className="px-3 py-2" colSpan={5}>Σ {t('report.grandTotal')} · {rows.length} {t('report.records')}</td>
                     <td className="px-3 py-2">{totals.traffic.toLocaleString()}</td>
                     <td className="px-3 py-2">{money(totals.settlement)}</td>
