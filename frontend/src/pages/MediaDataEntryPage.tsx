@@ -40,6 +40,8 @@ export function MediaDataEntryPage() {
   const [fStatus, setFStatus] = useState<'all' | 'confirmed' | 'unconfirmed'>('all');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
+  // Sort cột ngày: mặc định TĂNG dần (spec 07-2026 — mọi trang thống nhất), click header đảo chiều.
+  const [dateDir, setDateDir] = useState<1 | -1>(1);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
   const canCreate = can(screen, 'create');
@@ -115,11 +117,12 @@ export function MediaDataEntryPage() {
     // Ngày là khóa sắp xếp chính để danh sách luôn chạy liên tiếp
     // từ ngày cũ đến ngày mới, không quay lại ngày đầu ở mỗi media.
     const orderedRows = sortByGroupedLabel(rows, (m) => m.name);
-    for (const d of datesInRange) {
+    const orderedDates = dateDir === 1 ? datesInRange : [...datesInRange].reverse();
+    for (const d of orderedDates) {
       for (const m of orderedRows) out.push({ m, cellDate: d, key: `${m.id}|${d}` });
     }
     return out;
-  }, [rows, datesInRange]);
+  }, [rows, datesInRange, dateDir]);
 
   const totalRows = cellRows.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
@@ -220,7 +223,16 @@ export function MediaDataEntryPage() {
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-200 bg-brand-dark border-b border-brand-dark2">
                 {headers.map((h, i) => (
-                  <th key={i} className="px-3 py-2.5 font-bold uppercase text-[11px] tracking-wide whitespace-nowrap">{h}</th>
+                  <th key={i} onClick={i === 1 ? () => setDateDir((d) => (d === 1 ? -1 : 1)) : undefined}
+                    className={`px-3 py-2.5 font-bold uppercase text-[11px] tracking-wide whitespace-nowrap ${i === 1 ? 'cursor-pointer select-none' : ''}`}>
+                    {h}
+                    {i === 1 && (
+                      <span className="inline-flex flex-col ml-1 text-[8px] leading-none align-middle">
+                        <span className={dateDir === 1 ? 'text-cyan-300' : 'text-gray-500'}>▲</span>
+                        <span className={dateDir === -1 ? 'text-cyan-300' : 'text-gray-500'}>▼</span>
+                      </span>
+                    )}
+                  </th>
                 ))}
               </tr>
             </thead>

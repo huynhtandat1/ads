@@ -55,6 +55,8 @@ export function MediaReportPage() {
   const [fPrice, setFPrice] = useState('');
   const [fStatus, setFStatus] = useState<'all' | 'on' | 'off'>('all');
   const [q, setQ] = useState('');
+  // Sort cột ngày: mặc định TĂNG dần (spec 07-2026 — mọi trang thống nhất), click header đảo chiều.
+  const [dateDir, setDateDir] = useState<1 | -1>(1);
   const [result, setResult] = useState<Row[] | null>(null);
 
   const orderIdsMatchingFilter = useMemo(() => {
@@ -83,12 +85,12 @@ export function MediaReportPage() {
       }
       return true;
     }).sort((a, b) =>
-      // Ngày cũ đến ngày mới; cùng ngày thì theo chữ cái đầu media → đơn QC media → media ID.
-      String(a.date).localeCompare(String(b.date)) ||
+      // Ngày theo dateDir (mặc định tăng dần); cùng ngày thì theo chữ cái đầu media → đơn QC media → media ID.
+      String(a.date).localeCompare(String(b.date)) * dateDir ||
       norm(refName('media', a.mediaId)).localeCompare(norm(refName('media', b.mediaId))) ||
       norm(refName('mediaOrders', a.mediaOrderId)).localeCompare(norm(refName('mediaOrders', b.mediaOrderId))) ||
       norm(a.objectId).localeCompare(norm(b.objectId)));
-  }, [from, to, allDates, fMedia, orderIdsMatchingFilter, fMediaId, fType, fPrice, fStatus, q, db]);
+  }, [from, to, allDates, fMedia, orderIdsMatchingFilter, fMediaId, fType, fPrice, fStatus, q, dateDir, db]);
 
   const runQuery = () => setResult(filteredRows);
 
@@ -218,7 +220,16 @@ export function MediaReportPage() {
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
                 {HEADERS.map((h, i) => (
-                  <th key={i} className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i >= 6 && i <= 11 ? 'text-right' : ''}`}>{h}</th>
+                  <th key={i} onClick={i === 1 ? () => setDateDir((d) => (d === 1 ? -1 : 1)) : undefined}
+                    className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i >= 6 && i <= 11 ? 'text-right' : ''} ${i === 1 ? 'cursor-pointer select-none hover:text-gray-700' : ''}`}>
+                    {h}
+                    {i === 1 && (
+                      <span className="inline-flex flex-col ml-1 text-[8px] leading-none align-middle">
+                        <span className={dateDir === 1 ? 'text-cyan-500' : 'text-gray-300'}>▲</span>
+                        <span className={dateDir === -1 ? 'text-cyan-500' : 'text-gray-300'}>▼</span>
+                      </span>
+                    )}
+                  </th>
                 ))}
               </tr>
             </thead>
