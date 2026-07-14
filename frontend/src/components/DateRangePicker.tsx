@@ -51,7 +51,9 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
     const clipLeft = rootRef.current.closest('main')?.getBoundingClientRect().left ?? 0;
     setAlignLeft(r.right - PANEL_W < clipLeft + 8);
   }, [open]);
-  const [viewMonth, setViewMonth] = useState(() => startOfMonth(from ? parseYmd(from) : new Date()));
+  // Neo theo NGÀY CUỐI của khoảng: panel hiện [tháng trước đó | tháng chứa `to`],
+  // nên khoảng dài tới 2 tháng vẫn thấy trọn (nghiệp vụ nhìn lùi, không cần tháng sau).
+  const [viewMonth, setViewMonth] = useState(() => startOfMonth(to || from ? parseYmd(to || from) : new Date()));
   const [draftFrom, setDraftFrom] = useState(from);
   const [draftTo, setDraftTo] = useState(to);
 
@@ -68,7 +70,7 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
     if (open) return;
     setDraftFrom(from);
     setDraftTo(to);
-    if (from) setViewMonth(startOfMonth(parseYmd(from)));
+    if (to || from) setViewMonth(startOfMonth(parseYmd(to || from)));
   }, [from, to, open]);
 
   const [rangeStart, rangeEnd] = useMemo(() => {
@@ -113,7 +115,7 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
             onToChange(hi);
             setDraftFrom(lo);
             setDraftTo(hi);
-            setViewMonth(startOfMonth(parseYmd(lo)));
+            setViewMonth(startOfMonth(parseYmd(hi)));
           }}
           className="h-9 px-3 rounded-lg border border-gray-200 bg-white text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
         >
@@ -174,7 +176,7 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
           onClick={() => {
             setDraftFrom(from);
             setDraftTo(to);
-            if (from) setViewMonth(startOfMonth(parseYmd(from)));
+            if (to || from) setViewMonth(startOfMonth(parseYmd(to || from)));
             setOpen(true);
           }}
           className="min-w-0 flex-1 inline-flex items-center gap-2 disabled:opacity-60"
@@ -208,9 +210,11 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
               <button type="button" onClick={() => setViewMonth(addMonths(viewMonth, 12))} className="h-8 w-8 rounded-lg hover:bg-gray-100">»</button>
             </div>
           </div>
+          {/* Nghiệp vụ luôn nhìn LÙI (hôm qua, tháng trước) → tháng đang chọn nằm bên PHẢI,
+              bên trái là tháng liền trước; không phí nửa panel cho tháng sau chưa có số liệu. */}
           <div className="flex flex-wrap justify-center gap-6">
+            {renderMonth(addMonths(viewMonth, -1))}
             {renderMonth(viewMonth)}
-            {renderMonth(addMonths(viewMonth, 1))}
           </div>
           <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
             <div className="text-sm text-gray-500">{rangeStart && rangeEnd ? `${rangeStart} ~ ${rangeEnd}` : t('datePicker.selectRange')}</div>
