@@ -8,7 +8,7 @@
     "dev": "concurrently -n api,web -c blue,green \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
     "dev:api": "npm --prefix backend run dev",
     "dev:web": "npm --prefix frontend run dev",
-    "test": "npm --prefix backend exec -- tsx --test tests/billing.test.ts",
+    "test": "npm --prefix backend exec -- tsx --test tests/billing.test.ts tests/hierarchyFilters.test.ts",
     "build": "npm --prefix frontend run build",
     "start:api": "npm --prefix backend run start"
   },

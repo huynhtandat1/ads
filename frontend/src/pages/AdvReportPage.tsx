@@ -9,6 +9,7 @@ import { Pager } from '../components/Pager';
 import { IconSearch, IconDownload } from '../components/icons';
 import { dayMonth, todayRange } from '../lib/date';
 import { sortByGroupedLabel } from '../lib/optionSort';
+import { bidirectionalHierarchyOptions, hierarchyKey } from '../lib/hierarchyFilters';
 
 const COLLECTION = 'importAdv';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -59,12 +60,15 @@ export function AdvReportPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const orderIdsMatchingFilter = useMemo(() => {
-    if (!fOrder) return null;
-    const picked = getAll('adOrders').find((o) => String(o.id) === fOrder);
-    const name = norm(picked?.name);
-    return new Set(getAll('adOrders').filter((o) => norm(o.name) === name).map((o) => o.id));
-  }, [fOrder, db]);
+  const hierarchy = useMemo(() => bidirectionalHierarchyOptions({
+    parents: getAll('advertisers'), orders: getAll('adOrders'), items: getAll('adIds'),
+    parentId: fAdv, orderKey: fOrder, itemId: fAdId,
+    orderParentField: 'advertiserId', itemParentField: 'advertiserId', itemOrderField: 'adOrderId',
+  }), [db, fAdv, fOrder, fAdId]);
+  const advertiserOptions = sortByGroupedLabel(hierarchy.parentOptions, (a) => a.name);
+  const orderOptions = sortByGroupedLabel(hierarchy.orderOptions, (o) => o.name);
+  const adIdOptions = sortByGroupedLabel(hierarchy.itemOptions, (a) => a.name);
+  const orderIdsMatchingFilter = hierarchy.matchingOrderIds;
 
   const filteredRows = useMemo(() => {
     const lc = q.trim().toLowerCase();
@@ -101,22 +105,6 @@ export function AdvReportPage() {
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const curPage = Math.min(page, totalPages);
   const pageRows = rows.slice((curPage - 1) * pageSize, curPage * pageSize);
-  const orderOptions = (() => {
-    const seen = new Set<string>();
-    return sortByGroupedLabel(getAll('adOrders').filter((o) => {
-      if (fAdv && String(o.advertiserId) !== fAdv) return false;
-      const key = String(o.name ?? '').trim().toLowerCase();
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }), (o) => o.name);
-  })();
-  // ID quảng cáo phải khớp CẢ nhà QC (fAdv) lẫn đơn QC (orderIdsMatchingFilter) —
-  // chọn đơn QC gom cùng tên giữa nhiều nhà QC nên cần lọc theo tập id đó, không chỉ 1 id.
-  const adIdOptions = sortByGroupedLabel(getAll('adIds').filter((a) =>
-    (!fAdv || String(a.advertiserId) === fAdv) &&
-    (!orderIdsMatchingFilter || orderIdsMatchingFilter.has(a.adOrderId as number)),
-  ), (a) => a.name);
   const priceOptions = Array.from(new Set(getAll(COLLECTION).map((r) => Number(r.unitPrice) || 0)))
     .sort((a, b) => a - b);
   const totals = rows.reduce(
@@ -167,14 +155,13 @@ export function AdvReportPage() {
             <button onClick={() => setAllDates(false)} className={`px-3 text-sm ${!allDates ? 'bg-cyan-500 text-white' : 'bg-white text-gray-600'}`}>{t('report.business')}</button>
             <button onClick={() => setAllDates(true)} className={`px-3 text-sm ${allDates ? 'bg-cyan-500 text-white' : 'bg-white text-gray-600'}`}>{t('report.allDates')}</button>
           </div>
-          <select value={fAdv} onChange={(e) => { setFAdv(e.target.value); setFOrder(''); setFAdId(''); }} className={sel}>
+          <select value={fAdv} onChange={(e) => setFAdv(e.target.value)} className={sel}>
             <option value="">{t('col.advertiser')}</option>
-            {sortByGroupedLabel(getAll('advertisers'), (a) => a.name).map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
+            {advertiserOptions.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
           </select>
-          {/* Đổi đơn QC → reset ID QC (không còn khớp) để tránh filter chết. */}
-          <select value={fOrder} onChange={(e) => { setFOrder(e.target.value); setFAdId(''); }} className={sel}>
+          <select value={fOrder} onChange={(e) => setFOrder(e.target.value)} className={sel}>
             <option value="">{t('col.adOrder')}</option>
-            {orderOptions.map((o) => <option key={o.id} value={String(o.id)}>{o.name}</option>)}
+            {orderOptions.map((o) => <option key={hierarchyKey(o.name)} value={hierarchyKey(o.name)}>{o.name}</option>)}
           </select>
           <select value={fAdId} onChange={(e) => setFAdId(e.target.value)} className={sel}>
             <option value="">{t('col.adId')}</option>

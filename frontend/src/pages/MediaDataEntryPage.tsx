@@ -10,6 +10,7 @@ import { IconSearch, IconDownload } from '../components/icons';
 import { dayMonth, inRange, useDatesInRange, yesterdayRange } from '../lib/date';
 import { calcMediaCell, isMediaRecordStale, mediaTypeOf } from '../lib/mediaSync';
 import { sortByGroupedLabel } from '../lib/optionSort';
+import { bidirectionalHierarchyOptions, hierarchyKey } from '../lib/hierarchyFilters';
 
 const COLLECTION = 'importMedia';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -27,6 +28,8 @@ export function MediaDataEntryPage() {
   useCollection(COLLECTION);
   useCollection('importAdv'); // lưu lượng/quyết toán đọc từ đây
   useCollection('rates');     // lịch sử đơn giá/hệ số/tỷ lệ chia TK
+  const mediaAll = useCollection('media');
+  const mediaOrdersAll = useCollection('mediaOrders');
   const mediaIdsAll = useCollection('mediaIds');
 
   const [defaultFrom, defaultTo] = yesterdayRange();
@@ -64,31 +67,16 @@ export function MediaDataEntryPage() {
   useEffect(load, [from, to]);
   useEffect(() => { setPage(1); }, [from, to, fMedia, fOrder, fMediaId, fType, fPrice, fStatus, q]);
 
-  const mediaOpts = sortByGroupedLabel(getAll('media'), (r) => r.name);
-  const orderOpts = useMemo(() => {
-    const seen = new Set<string>();
-    return sortByGroupedLabel(getAll('mediaOrders').filter((o) => {
-      if (fMedia && String(o.mediaId) !== fMedia) return false;
-      const key = String(o.name ?? '').trim().toLowerCase();
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }), (o) => o.name);
-  }, [fMedia, mediaIdsAll]);
-  // fOrder giữ id của 1 đơn đại diện, nhưng dropdown đã gộp theo TÊN → lọc phải khớp MỌI đơn
-  // cùng tên (đồng bộ với g3b ở AdvDataEntryPage) tránh sót media-id khi cùng tên đơn.
-  const mediaOrderIdsMatchingFilter = useMemo(() => {
-    if (!fOrder) return null;
-    const picked = getAll('mediaOrders').find((o) => String(o.id) === fOrder);
-    const name = norm(picked?.name);
-    return new Set(getAll('mediaOrders').filter((o) => norm(o.name) === name).map((o) => o.id));
-  }, [fOrder, mediaIdsAll]);
-  const mediaIdOpts = useMemo(
-    () => sortByGroupedLabel(mediaIdsAll.filter((m) =>
-      (!fMedia || String(m.mediaId) === fMedia) &&
-      (!mediaOrderIdsMatchingFilter || mediaOrderIdsMatchingFilter.has(m.mediaOrderId as number))), (m) => m.name),
-    [fMedia, mediaOrderIdsMatchingFilter, mediaIdsAll],
-  );
+  // Ba facet lọc hai chiều: chọn bất kỳ Media / Đơn media / ID media đều thu hẹp hai ô còn lại.
+  const hierarchy = useMemo(() => bidirectionalHierarchyOptions({
+    parents: mediaAll, orders: mediaOrdersAll, items: mediaIdsAll,
+    parentId: fMedia, orderKey: fOrder, itemId: fMediaId,
+    orderParentField: 'mediaId', itemParentField: 'mediaId', itemOrderField: 'mediaOrderId',
+  }), [mediaAll, mediaOrdersAll, mediaIdsAll, fMedia, fOrder, fMediaId]);
+  const mediaOpts = sortByGroupedLabel(hierarchy.parentOptions, (r) => r.name);
+  const orderOpts = sortByGroupedLabel(hierarchy.orderOptions, (o) => o.name);
+  const mediaIdOpts = sortByGroupedLabel(hierarchy.itemOptions, (m) => m.name);
+  const mediaOrderIdsMatchingFilter = hierarchy.matchingOrderIds;
 
   const rows = useMemo(() => {
     const lc = q.trim().toLowerCase();
@@ -181,13 +169,13 @@ export function MediaDataEntryPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2 justify-start">
           <DateRangePicker from={from} to={to} onFromChange={setFrom} onToChange={setTo} />
-          <select value={fMedia} onChange={(e) => { setFMedia(e.target.value); setFOrder(''); setFMediaId(''); }} className={sel}>
+          <select value={fMedia} onChange={(e) => setFMedia(e.target.value)} className={sel}>
             <option value="">{t('entry.chooseMedia')}</option>
             {mediaOpts.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
           </select>
-          <select value={fOrder} onChange={(e) => { setFOrder(e.target.value); setFMediaId(''); }} className={sel}>
+          <select value={fOrder} onChange={(e) => setFOrder(e.target.value)} className={sel}>
             <option value="">{t('entry.chooseMediaOrder')}</option>
-            {orderOpts.map((o) => <option key={o.id} value={String(o.id)}>{o.name}</option>)}
+            {orderOpts.map((o) => <option key={hierarchyKey(o.name)} value={hierarchyKey(o.name)}>{o.name}</option>)}
           </select>
           <select value={fMediaId} onChange={(e) => setFMediaId(e.target.value)} className={sel}>
             <option value="">{t('entry.chooseMediaId')}</option>

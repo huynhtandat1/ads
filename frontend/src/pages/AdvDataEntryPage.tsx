@@ -10,6 +10,7 @@ import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload, IconUpload } from '../components/icons';
 import { dayMonth, defaultDateRange, useDatesInRange, yesterdayRange } from '../lib/date';
 import { sortByGroupedLabel } from '../lib/optionSort';
+import { bidirectionalHierarchyOptions, hierarchyKey } from '../lib/hierarchyFilters';
 
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
@@ -28,6 +29,8 @@ export function AdvDataEntryPage({
   // re-render when source data changes
   useCollection(COLLECTION);
   useCollection('rates'); // lịch sử đơn giá theo ngày
+  const advertisersAll = useCollection('advertisers');
+  const adOrdersAll = useCollection('adOrders');
   const adIdsAll = useCollection('adIds');
 
   const [defaultFrom, defaultTo] = screen === 'g3b' ? yesterdayRange() : defaultDateRange();
@@ -82,37 +85,16 @@ export function AdvDataEntryPage({
   useEffect(load, [from, to]); // reload when range changes
   useEffect(() => { setPage(1); }, [from, to, fAdv, fOrder, fAdId, fType, fPrice, fStatus, q, dateDir]);
 
-  // Cascading dropdown option lists
-  const advOpts = sortByGroupedLabel(getAll('advertisers'), (r) => r.name);
-  const orderOpts = useMemo(
-    () => {
-      const seen = new Set<string>();
-      return sortByGroupedLabel(getAll('adOrders').filter((o) => {
-        if (fAdv && String(o.advertiserId) !== fAdv) return false;
-        const key = String(o.name ?? '').trim().toLowerCase();
-        if (!key || seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      }), (o) => o.name);
-    },
-    [fAdv, adIdsAll],
-  );
-  // fOrder giữ id của 1 đơn đại diện, nhưng dropdown đã gộp theo TÊN (nhiều nhà QC
-  // có thể cùng tên đơn) → lọc phải khớp MỌI đơn cùng tên, không chỉ 1 id.
-  const orderIdsMatchingFilter = useMemo(() => {
-    if (!fOrder) return null;
-    const picked = getAll('adOrders').find((o) => String(o.id) === fOrder);
-    const name = norm(picked?.name);
-    return new Set(getAll('adOrders').filter((o) => norm(o.name) === name).map((o) => o.id));
-  }, [fOrder, adIdsAll]);
-
-  const adIdOpts = useMemo(
-    () => sortByGroupedLabel(
-      adIdsAll.filter((a) => (!fAdv || String(a.advertiserId) === fAdv) && (!orderIdsMatchingFilter || orderIdsMatchingFilter.has(a.adOrderId as number))),
-      (a) => a.name,
-    ),
-    [fAdv, orderIdsMatchingFilter, adIdsAll],
-  );
+  // Ba facet lọc hai chiều: chọn bất kỳ NQC / Đơn / ID đều thu hẹp hai ô còn lại.
+  const hierarchy = useMemo(() => bidirectionalHierarchyOptions({
+    parents: advertisersAll, orders: adOrdersAll, items: adIdsAll,
+    parentId: fAdv, orderKey: fOrder, itemId: fAdId,
+    orderParentField: 'advertiserId', itemParentField: 'advertiserId', itemOrderField: 'adOrderId',
+  }), [advertisersAll, adOrdersAll, adIdsAll, fAdv, fOrder, fAdId]);
+  const advOpts = sortByGroupedLabel(hierarchy.parentOptions, (r) => r.name);
+  const orderOpts = sortByGroupedLabel(hierarchy.orderOptions, (o) => o.name);
+  const adIdOpts = sortByGroupedLabel(hierarchy.itemOptions, (a) => a.name);
+  const orderIdsMatchingFilter = hierarchy.matchingOrderIds;
 
   // Visible rows
   const rows = useMemo(() => {
@@ -269,13 +251,13 @@ export function AdvDataEntryPage({
         </div>
         <div className="flex flex-wrap items-center gap-2 justify-start">
           <DateRangePicker from={from} to={to} onFromChange={setFrom} onToChange={setTo} />
-          <select value={fAdv} onChange={(e) => { setFAdv(e.target.value); setFOrder(''); setFAdId(''); }} className={sel}>
+          <select value={fAdv} onChange={(e) => setFAdv(e.target.value)} className={sel}>
             <option value="">{t('entry.chooseAdv')}</option>
             {advOpts.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
           </select>
-          <select value={fOrder} onChange={(e) => { setFOrder(e.target.value); setFAdId(''); }} className={sel}>
+          <select value={fOrder} onChange={(e) => setFOrder(e.target.value)} className={sel}>
             <option value="">{t('entry.chooseOrder')}</option>
-            {orderOpts.map((o) => <option key={o.id} value={String(o.id)}>{o.name}</option>)}
+            {orderOpts.map((o) => <option key={hierarchyKey(o.name)} value={hierarchyKey(o.name)}>{o.name}</option>)}
           </select>
           <select value={fAdId} onChange={(e) => setFAdId(e.target.value)} className={sel}>
             <option value="">{t('entry.chooseAdId')}</option>
