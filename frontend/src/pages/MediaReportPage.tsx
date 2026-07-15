@@ -27,14 +27,15 @@ const midStatusOf = (r: Row): boolean => {
 
 function compute(r: Row) {
   const coefficient = Number(r.coefficient ?? 1) || 1;
-  const fallbackBase = receivableOf(r.type, { unitPrice: r.unitPrice, traffic: r.traffic, settlement: r.settlement }) ?? 0;
-  const receivable = r.receivable != null ? Number(r.receivable) || 0 : round3(fallbackBase * coefficient);
+  const fallbackBase = receivableOf(r.type, { unitPrice: r.unitPrice, traffic: r.traffic, settlement: r.settlement });
+  const fallbackReceivable = fallbackBase == null ? null : round3(fallbackBase * coefficient);
+  const receivable = r.receivable != null ? Number(r.receivable) || 0 : fallbackReceivable;
   const mediaId = getAll('mediaIds').find((m) => m.id === r.mediaIdId);
   const fallbackShareRate = Number(mediaId?.profitShare ?? r.shareRate ?? 0) || 0;
   const shareRate = r.mediaIdId != null
     ? effectiveValue('mediaId', r.mediaIdId, 'profitShare', String(r.date || ''), fallbackShareRate)
     : fallbackShareRate;
-  const actual = round3(receivable * (shareRate / 100));
+  const actual = receivable == null ? null : round3(receivable * (shareRate / 100));
   return { receivable, shareRate, coefficient, actual };
 }
 
@@ -125,8 +126,8 @@ export function MediaReportPage() {
     return {
       traffic: s.traffic + (Number(r.traffic) || 0),
       settlement: s.settlement + (Number(r.settlement) || 0),
-      receivable: s.receivable + c.receivable,
-      actual: s.actual + c.actual,
+      receivable: s.receivable + (c.receivable ?? 0),
+      actual: s.actual + (c.actual ?? 0),
     };
   }, { traffic: 0, settlement: 0, receivable: 0, actual: 0 });
 
@@ -143,7 +144,7 @@ export function MediaReportPage() {
       const c = compute(r);
       return [
         i + 1, r.date, refName('media', r.mediaId), refName('mediaOrders', r.mediaOrderId), r.type, r.objectId,
-        r.unitPrice, r.traffic, r.settlement, c.receivable, `${c.shareRate}%`, c.actual,
+        r.unitPrice, r.traffic, r.settlement, c.receivable ?? '', `${c.shareRate}%`, c.actual ?? '',
         midStatusOf(r) ? t('entry.online') : t('entry.offline'),
       ];
     });
@@ -276,9 +277,13 @@ export function MediaReportPage() {
                         <td className="px-3 py-2 text-right">{r.unitPrice}</td>
                         <td className="px-3 py-2 text-right">{r.traffic == null ? <span className="text-gray-300">—</span> : Number(r.traffic).toLocaleString()}</td>
                         <td className="px-3 py-2 text-right">{r.settlement == null ? <span className="text-gray-300">—</span> : money(r.settlement)}</td>
-                        <td className="px-3 py-2 text-right font-medium text-gray-700">{money(c.receivable)}</td>
+                        <td className="px-3 py-2 text-right font-medium text-gray-700">
+                          {c.receivable == null ? <span className="text-gray-300">—</span> : money(c.receivable)}
+                        </td>
                         <td className="px-3 py-2 text-right text-gray-600">{c.shareRate}%</td>
-                        <td className="px-3 py-2 text-right font-semibold text-emerald-600">{money(c.actual)}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-emerald-600">
+                          {c.actual == null ? <span className="text-gray-300">—</span> : money(c.actual)}
+                        </td>
                         <td className="px-3 py-2">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${midStatusOf(r) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
                             {midStatusOf(r) ? t('entry.online') : t('entry.offline')}

@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { receivableOf } from '../frontend/src/lib/billing.ts';
+import { nullableNumber, receivableOf, round3OrNull } from '../frontend/src/lib/billing.ts';
 
 const TOL = 1e-9;
 
@@ -102,7 +102,7 @@ describe('receivableOf() — frontend/src/lib/billing.ts', () => {
     });
   });
 
-  describe('base = settlement || traffic (fallback chain)', () => {
+  describe('entered settlement takes precedence over traffic', () => {
     test('settlement wins when both present', () => {
       assert.equal(receivableOf('CPM', { unitPrice: 8, traffic: 5000, settlement: 10000 }), 80);
     });
@@ -114,6 +114,22 @@ describe('receivableOf() — frontend/src/lib/billing.ts', () => {
     });
     test('null settlement falls back to traffic', () => {
       assert.equal(receivableOf('CPA', { unitPrice: 10, traffic: 100, settlement: null as any }), 1000);
+    });
+  });
+
+  describe('null-preserving persistence helpers', () => {
+    test('blank/null/undefined remain null instead of becoming 0', () => {
+      assert.equal(nullableNumber(''), null);
+      assert.equal(nullableNumber(null), null);
+      assert.equal(nullableNumber(undefined), null);
+    });
+    test('an entered zero remains numeric zero', () => {
+      assert.equal(nullableNumber(0), 0);
+      assert.equal(nullableNumber('0'), 0);
+    });
+    test('nullable rounding preserves blank computed amounts', () => {
+      assert.equal(round3OrNull(null), null);
+      assert.equal(round3OrNull(1.23456), 1.235);
     });
   });
 

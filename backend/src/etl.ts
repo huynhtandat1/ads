@@ -10,14 +10,19 @@ const SOURCE_DB = process.env.SOURCE_DB || 'ads_management';
 const sourceUrl = (() => { const u = new URL(TARGET); u.pathname = '/' + SOURCE_DB; return u.toString(); })();
 
 const num = (v: unknown) => Number(v ?? 0);
+const nullableNum = (v: unknown): number | null => {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
 const bool = (s: unknown) => String(s).toLowerCase() === 'active' || String(s).toLowerCase() === 'confirmed';
 
 // Số tiền phải thu tính lại theo loại (đồng bộ với frontend/src/lib/billing.ts và seed.ts):
 //  CPM = giá×cơ sở/1000 (cost per mille) · CPC/CPA = giá×cơ sở · CPS = cơ sở×giá(%).
 //  KHÔNG lấy revenue có sẵn của DB nguồn vì nguồn có thể đã có /1000 hoặc chưa
 //  → tính lại từ đầu cho nhất quán.
-function receivableOf(type: string | undefined, price: number, base: number): number {
-  if (!price || !base) return 0;
+function receivableOf(type: string | undefined, price: number, base: number | null): number | null {
+  if (!price || base == null) return null;
   if (type === 'CPS') return (base * price) / 100;
   if (type === 'CPM') return (price * base) / 1000;
   return price * base;
@@ -77,16 +82,19 @@ async function main() {
 
   db.importAdv = daily.map((r) => {
     const site = adSiteById.get(r.adSiteId);
-    const base = num(r.amount1) || num(r.qty); // quyết toán, rớt về lưu lượng
-    const receivable = Math.round(receivableOf(site?.billingMethod, num(r.unitPriceSnapshot), base));
+    const traffic = nullableNum(r.qty);
+    const settlement = nullableNum(r.amount1);
+    const base = settlement !== null ? settlement : traffic; // quyết toán đã nhập (kể cả 0) là chuẩn
+    const rawReceivable = receivableOf(site?.billingMethod, num(r.unitPriceSnapshot), base);
+    const receivable = rawReceivable == null ? null : Math.round(rawReceivable);
     // Giữ TỶ LỆ rebate của nguồn (rebateAmount/revenue) nhưng áp lên receivable đã tính đúng thang.
     const rebateRate = num(r.revenue) ? num(r.rebateAmount) / num(r.revenue) : 0;
     return {
       id: r.id, date: r.d, objectId: site?.name ?? String(r.adSiteId), adIdId: r.adSiteId,
       advertiserId: site?.upstreamId, adOrderId: site?.adOrderId, type: site?.billingMethod,
-      unitPrice: num(r.unitPriceSnapshot), traffic: num(r.qty), settlement: num(r.amount1),
-      receivable, revenue: receivable, cost: Math.round(receivable * rebateRate),
-      clicks: num(r.qty), source: 'Advertiser', status: bool(r.status),
+      unitPrice: num(r.unitPriceSnapshot), traffic, settlement,
+      receivable, revenue: receivable, cost: receivable == null ? null : Math.round(receivable * rebateRate),
+      clicks: traffic, source: 'Advertiser', status: bool(r.status),
     };
   });
 
@@ -95,15 +103,18 @@ async function main() {
     const site = adSiteById.get(r.adSiteId);
     const link = linkByAdSite.get(r.adSiteId);
     const down = downById.get(link.downstreamId);
-    const base = num(r.amount1) || num(r.qty);
-    const receivable = Math.round(receivableOf(site?.billingMethod, num(r.unitPriceSnapshot), base));
+    const traffic = nullableNum(r.qty);
+    const settlement = nullableNum(r.amount1);
+    const base = settlement !== null ? settlement : traffic;
+    const rawReceivable = receivableOf(site?.billingMethod, num(r.unitPriceSnapshot), base);
+    const receivable = rawReceivable == null ? null : Math.round(rawReceivable);
     const shareRate = Math.round(num(down?.payoutRate) * 100);
-    const actual = Math.round(receivable * (shareRate / 100));
+    const actual = receivable == null ? null : Math.round(receivable * (shareRate / 100));
     return {
       id: r.id, date: r.d, objectId: `MID_${link.id}`, mediaIdId: link.id, mediaId: link.downstreamId,
       mediaOrderId: null, adIdId: r.adSiteId, advertiserId: site?.upstreamId, adOrderId: site?.adOrderId, type: site?.billingMethod,
-      unitPrice: num(r.unitPriceSnapshot), traffic: num(r.qty), settlement: num(r.amount1), coefficient: 1,
-      receivable, shareRate, actual, revenue: receivable, cost: actual, clicks: num(r.qty),
+      unitPrice: num(r.unitPriceSnapshot), traffic, settlement, coefficient: 1,
+      receivable, shareRate, actual, revenue: receivable, cost: actual, clicks: traffic,
       source: 'Media', status: bool(r.status),
     };
   });

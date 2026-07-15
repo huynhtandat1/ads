@@ -9,6 +9,18 @@ export interface BillingInputs {
 // Đã nhập = có giá trị số (kể cả 0); rỗng/null/undefined = CHƯA nhập.
 const entered = (v: Maybe): v is number => v !== '' && v != null;
 
+/** Chuẩn hóa ô số: rỗng giữ nguyên nghĩa "chưa nhập", không biến thành 0. */
+export function nullableNumber(v: unknown): number | null {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Làm tròn số tiền nhưng vẫn bảo toàn trạng thái chưa có dữ liệu. */
+export function round3OrNull(v: number | null): number | null {
+  return v == null ? null : Math.round(v * 1000) / 1000;
+}
+
 // "Số tiền phải thu" theo spec (khách chốt 07-2026):
 //  - Quyết toán ĐÃ NHẬP (kể cả = 0) là chuẩn — lưu lượng tự vô hiệu; CHƯA nhập → dùng lưu lượng.
 //    (Ô còn nút "+数值" là chưa nhập → lưu null, KHÔNG được ép về 0 khi lưu.)

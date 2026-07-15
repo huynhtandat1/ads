@@ -1,5 +1,5 @@
 import { getAll, effectiveValue, type Row } from '../data/store';
-import { receivableOf } from './billing';
+import { nullableNumber, receivableOf, round3OrNull } from './billing';
 import { round3 } from './format';
 
 /** Loại hình của 1 media ID: ưu tiên type khai báo, rớt về type của ID quảng cáo nguồn. */
@@ -34,15 +34,12 @@ export function calcMediaCell(m: Row, cellDate: string) {
   // Phải trả tính từ base ĐÃ áp hệ số (không nhân hệ số lần nữa). Tính giữ 3 số lẻ,
   // hiển thị money() lo phần rút về 2 số lẻ.
   const receivable = receivableOf(type, { unitPrice, traffic, settlement });
-  const payable = receivable == null ? null : round3(receivable);          // Số tiền phải trả
+  const payable = round3OrNull(receivable);          // Số tiền phải trả
   const netPay = payable == null ? null : round3(payable * (accountShare / 100)); // Số tiền thực trả
   return { type, traffic, settlement, unitPrice, coef, accountShare, payable, netPay };
 }
 
-/** Chuẩn hóa "đã nhập hay chưa": ''/null/undefined → null (chưa nhập), còn lại → số. */
-const enteredOf = (v: unknown): number | null => (v == null || v === '' ? null : Number(v));
-
-/** Các trường tiền/tỷ lệ phải khớp giữa bản ghi đã lưu và số hiện hành (so số thuần). */
+/** Các trường tiền/tỷ lệ phải khớp, đồng thời phân biệt rõ chưa có dữ liệu và số 0. */
 const MONEY_SYNC_FIELDS = ['unitPrice', 'coefficient', 'payable', 'shareRate', 'actual'] as const;
 
 /**
@@ -56,10 +53,10 @@ export function isMediaRecordStale(record: Row): boolean {
   const m = getAll('mediaIds').find((x) => x.id === record.mediaIdId || x.name === record.objectId);
   if (!m) return false; // media ID đã xóa khỏi danh mục → không còn nguồn để so
   const c = calcMediaCell(m, String(record.date || ''));
-  if (enteredOf(record.traffic ?? record.clicks) !== enteredOf(c.traffic)) return true;
-  if (enteredOf(record.settlement) !== enteredOf(c.settlement)) return true;
-  const fresh: Record<(typeof MONEY_SYNC_FIELDS)[number], number> = {
-    unitPrice: c.unitPrice, coefficient: c.coef, payable: c.payable ?? 0, shareRate: c.accountShare, actual: c.netPay ?? 0,
+  if (nullableNumber(record.traffic ?? record.clicks) !== nullableNumber(c.traffic)) return true;
+  if (nullableNumber(record.settlement) !== nullableNumber(c.settlement)) return true;
+  const fresh: Record<(typeof MONEY_SYNC_FIELDS)[number], number | null> = {
+    unitPrice: c.unitPrice, coefficient: c.coef, payable: c.payable, shareRate: c.accountShare, actual: c.netPay,
   };
-  return MONEY_SYNC_FIELDS.some((f) => Number(record[f] ?? 0) !== fresh[f]);
+  return MONEY_SYNC_FIELDS.some((f) => nullableNumber(record[f]) !== fresh[f]);
 }

@@ -146,8 +146,8 @@ export function MediaDataEntryPage() {
       // Giữ null cho ô CHƯA nhập từ thượng nguồn (spec 07-2026: quyết toán 0 là giá trị hợp lệ).
       type: c.type, unitPrice: c.unitPrice, traffic: c.traffic === '' ? null : Number(c.traffic),
       settlement: c.settlement === '' ? null : Number(c.settlement),
-      coefficient: c.coef, payable: c.payable ?? 0, shareRate: c.accountShare, actual: c.netPay ?? 0, receivable: c.payable ?? 0,
-      revenue: c.payable ?? 0, cost: c.netPay ?? 0, clicks: c.traffic === '' ? null : Number(c.traffic), source: 'Media', status: true,
+      coefficient: c.coef, payable: c.payable, shareRate: c.accountShare, actual: c.netPay, receivable: c.payable,
+      revenue: c.payable, cost: c.netPay, clicks: c.traffic === '' ? null : Number(c.traffic), source: 'Media', status: true,
     };
   };
 
@@ -261,7 +261,11 @@ export function MediaDataEntryPage() {
                           <RateEditor value={c.unitPrice} workingDate={cellDate} suffix={c.type === 'CPS' ? '%' : ''} integer={c.type === 'CPS'} disabled={!canEdit}
                             onSet={(v, eff) => { setRate('mediaId', m.id, 'unitPrice', v, eff); toast(t('entry.effSaved')); }} />
                         </td>
-                        <td className="px-3 py-2 text-right">{c.type === 'CPS' ? money2(Number(c.traffic) || 0) : readVal(c.traffic)}</td>
+                        <td className="px-3 py-2 text-right">
+                          {c.traffic === '' || c.traffic == null
+                            ? <span className="text-gray-300">—</span>
+                            : c.type === 'CPS' ? money2(Number(c.traffic)) : readVal(c.traffic)}
+                        </td>
                         <td className="px-3 py-2 text-right">{readVal(c.settlement)}</td>
                         <td className="px-3 py-2">
                           <RateEditor value={Number((c.coef * 100).toFixed(2))} workingDate={cellDate} suffix="%" disabled={!canEdit}

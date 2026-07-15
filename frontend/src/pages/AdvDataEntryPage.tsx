@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, refName, effectiveValue, setRate, type Row } from '../data/store';
-import { receivableOf, type BillingInputs } from '../lib/billing';
-import { round3 } from '../lib/format';
+import { nullableNumber, receivableOf, round3OrNull, type BillingInputs } from '../lib/billing';
 import { Pager } from '../components/Pager';
 import { RateEditor } from '../components/RateEditor';
 import { DateRangePicker } from '../components/DateRangePicker';
@@ -181,26 +180,26 @@ export function AdvDataEntryPage({
   // phải thu lệch → nút "Lưu" sáng lại nhắc lưu số mới (spec 07-2026: 操作部分高亮).
   const isStale = (existing: Row, ad: Row, cellDate: string) => {
     const price = priceOf(ad, cellDate);
-    const fresh = round3(receivableOf(ad.type, {
+    const fresh = round3OrNull(receivableOf(ad.type, {
       unitPrice: price, traffic: existing.traffic ?? existing.clicks ?? '', settlement: existing.settlement ?? '',
-    }) ?? 0);
-    return Number(existing.unitPrice ?? 0) !== price || Number(existing.receivable ?? 0) !== fresh;
+    }));
+    return Number(existing.unitPrice ?? 0) !== price || nullableNumber(existing.receivable) !== fresh;
   };
 
   const saveRow = (ad: Row, cellDate: string) => {
     const key = `${ad.id}|${cellDate}`;
     const d = draft[key] || { unitPrice: '', traffic: '', settlement: '' };
     const price = priceOf(ad, cellDate);
-    const receivable = round3(receivableOf(ad.type, { unitPrice: price, traffic: d.traffic, settlement: d.settlement }) ?? 0);
+    const receivable = round3OrNull(receivableOf(ad.type, { unitPrice: price, traffic: d.traffic, settlement: d.settlement }));
     const payload = {
       date: cellDate, objectId: ad.name, adIdId: ad.id, advertiserId: ad.advertiserId, adOrderId: ad.adOrderId,
       // Giữ null cho ô CHƯA nhập — ép về 0 sẽ biến "chưa nhập" thành "đã nhập 0"
       // và làm phải thu rớt về 0 sai (spec 07-2026: quyết toán 0 là giá trị hợp lệ).
-      type: ad.type, unitPrice: price, traffic: d.traffic === '' ? null : Number(d.traffic),
-      settlement: d.settlement === '' ? null : Number(d.settlement), receivable,
+      type: ad.type, unitPrice: price, traffic: nullableNumber(d.traffic),
+      settlement: nullableNumber(d.settlement), receivable,
       // cost = 0: phía NQC chỉ có THU (phải thu); quyết toán là CƠ SỞ tính phải thu,
       // không phải chi phí. Chi cho media nằm ở importMedia (spec: Lợi nhuận = Thu − Chi media − Thuế).
-      revenue: receivable, cost: 0, clicks: d.traffic === '' ? null : Number(d.traffic),
+      revenue: receivable, cost: 0, clicks: nullableNumber(d.traffic),
       source, status: true,
     };
     const existing = recordOf(ad, cellDate);

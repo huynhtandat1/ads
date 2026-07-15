@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
 import { effectiveValue, getAll, refName, useDB, type Row } from '../data/store';
-import { receivableOf } from '../lib/billing';
-import { round3 } from '../lib/format';
+import { nullableNumber, receivableOf, round3OrNull } from '../lib/billing';
 import { exportCSV } from '../lib/export';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { Pager } from '../components/Pager';
@@ -28,10 +27,10 @@ const isStaleAdv = (r: Row): boolean => {
   const ad = getAll('adIds').find((a) => a.id === r.adIdId || a.name === r.objectId);
   if (!ad) return false; // ID đã xóa khỏi danh mục → không còn nguồn để so
   const price = effectiveValue('adId', ad.id, 'unitPrice', String(r.date || ''), Number(ad.unitPrice) || 0);
-  const fresh = round3(receivableOf(String(r.type), {
+  const fresh = round3OrNull(receivableOf(String(r.type), {
     unitPrice: price, traffic: r.traffic ?? r.clicks ?? '', settlement: r.settlement ?? '',
-  }) ?? 0);
-  return Number(r.unitPrice ?? 0) !== price || Number(r.receivable ?? 0) !== fresh;
+  }));
+  return Number(r.unitPrice ?? 0) !== price || nullableNumber(r.receivable) !== fresh;
 };
 
 export function AdvReportPage() {
@@ -262,7 +261,9 @@ export function AdvReportPage() {
                       <td className="px-3 py-2 text-right">{r.unitPrice}</td>
                       <td className="px-3 py-2 text-right">{r.traffic == null ? <span className="text-gray-300">—</span> : Number(r.traffic).toLocaleString()}</td>
                       <td className="px-3 py-2 text-right">{r.settlement == null ? <span className="text-gray-300">—</span> : money(r.settlement)}</td>
-                      <td className="px-3 py-2 text-right font-semibold text-emerald-600">{money(r.receivable)}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-emerald-600">
+                        {r.receivable == null ? <span className="text-gray-300">—</span> : money(r.receivable)}
+                      </td>
                       <td className="px-3 py-2">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${adStatusOf(r) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
                           {adStatusOf(r) ? t('entry.online') : t('entry.offline')}
