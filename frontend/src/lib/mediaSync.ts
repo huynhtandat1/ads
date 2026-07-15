@@ -15,8 +15,10 @@ export const advSourceOf = (m: Row, cellDate: string) =>
  */
 export function calcMediaCell(m: Row, cellDate: string) {
   const adv = advSourceOf(m, cellDate);
-  const rawTraffic = adv ? Number(adv.traffic ?? adv.clicks ?? 0) : null;
-  const rawSettlement = adv ? Number(adv.settlement ?? 0) : null;
+  // Phân biệt "đã nhập 0" và "chưa nhập" (null): quyết toán đã nhập (kể cả 0) là chuẩn,
+  // chưa nhập mới rớt về lưu lượng (spec 07-2026) — nên KHÔNG ép null về 0 ở đây.
+  const rawTraffic = !adv || (adv.traffic == null && adv.clicks == null) ? null : Number(adv.traffic ?? adv.clicks ?? 0);
+  const rawSettlement = !adv || adv.settlement == null || adv.settlement === '' ? null : Number(adv.settlement);
   const type = mediaTypeOf(m);
   const unitPrice = effectiveValue('mediaId', m.id, 'unitPrice', cellDate, Number(m.unitPrice) || 0);
   const coef = effectiveValue('mediaId', m.id, 'coefficient', cellDate, 1);

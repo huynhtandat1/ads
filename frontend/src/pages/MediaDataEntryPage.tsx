@@ -143,9 +143,11 @@ export function MediaDataEntryPage() {
     return {
       date: cellDate, objectId: m.name, mediaIdId: m.id, mediaId: m.mediaId, mediaOrderId: m.mediaOrderId, adIdId: m.adIdId,
       advertiserId: m.advertiserId, adOrderId: m.adOrderId,
-      type: c.type, unitPrice: c.unitPrice, traffic: Number(c.traffic) || 0, settlement: Number(c.settlement) || 0,
+      // Giữ null cho ô CHƯA nhập từ thượng nguồn (spec 07-2026: quyết toán 0 là giá trị hợp lệ).
+      type: c.type, unitPrice: c.unitPrice, traffic: c.traffic === '' ? null : Number(c.traffic),
+      settlement: c.settlement === '' ? null : Number(c.settlement),
       coefficient: c.coef, payable: c.payable ?? 0, shareRate: c.accountShare, actual: c.netPay ?? 0, receivable: c.payable ?? 0,
-      revenue: c.payable ?? 0, cost: c.netPay ?? 0, clicks: Number(c.traffic) || 0, source: 'Media', status: true,
+      revenue: c.payable ?? 0, cost: c.netPay ?? 0, clicks: c.traffic === '' ? null : Number(c.traffic), source: 'Media', status: true,
     };
   };
 

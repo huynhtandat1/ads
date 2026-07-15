@@ -274,8 +274,8 @@ export function MediaReportPage() {
                         <td className="px-3 py-2"><span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium">{r.type}</span></td>
                         <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-700">{r.objectId}</td>
                         <td className="px-3 py-2 text-right">{r.unitPrice}</td>
-                        <td className="px-3 py-2 text-right">{Number(r.traffic).toLocaleString()}</td>
-                        <td className="px-3 py-2 text-right">{money(r.settlement)}</td>
+                        <td className="px-3 py-2 text-right">{r.traffic == null ? <span className="text-gray-300">—</span> : Number(r.traffic).toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right">{r.settlement == null ? <span className="text-gray-300">—</span> : money(r.settlement)}</td>
                         <td className="px-3 py-2 text-right font-medium text-gray-700">{money(c.receivable)}</td>
                         <td className="px-3 py-2 text-right text-gray-600">{c.shareRate}%</td>
                         <td className="px-3 py-2 text-right font-semibold text-emerald-600">{money(c.actual)}</td>
