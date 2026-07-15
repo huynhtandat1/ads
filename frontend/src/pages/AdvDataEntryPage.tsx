@@ -360,11 +360,12 @@ export function AdvDataEntryPage({
                       </span>
                     </td>
                     <td className="px-3 py-2">
-                      <div className="flex items-center gap-1.5 whitespace-nowrap">
+                      {/* Cùng chữ "Xác nhận"; đã lưu → disabled, còn thay đổi → bấm được (spec 07-2026). */}
+                      <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
                         {canCreate || canEdit ? (
-                          <button onClick={() => saveRow(ad, cellDate)}
-                            className={`h-7 px-2.5 rounded-lg text-xs font-medium ${isSaved ? 'bg-gray-100 text-emerald-700' : 'bg-emerald-500 text-white hover:bg-emerald-600'}`}>
-                            {isSaved ? t('entry.savedShort') : t('entry.saveRow')}
+                          <button onClick={() => saveRow(ad, cellDate)} disabled={isSaved}
+                            className={`h-7 px-2.5 rounded-lg text-xs font-medium ${isSaved ? 'bg-gray-100 text-emerald-700 cursor-default' : 'bg-emerald-500 text-white hover:bg-emerald-600'}`}>
+                            {t('entry.saveRow')}
                           </button>
                         ) : null}
                       </div>
