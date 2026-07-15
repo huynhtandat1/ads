@@ -9,11 +9,12 @@ import { Pager } from '../components/Pager';
 import { IconSearch, IconDownload } from '../components/icons';
 import { dayMonth, todayRange } from '../lib/date';
 import { sortByGroupedLabel } from '../lib/optionSort';
-import { bidirectionalHierarchyOptions, hierarchyKey } from '../lib/hierarchyFilters';
+import { bidirectionalFacetOptions, hierarchyKey } from '../lib/hierarchyFilters';
 
 const COLLECTION = 'importAdv';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
+const TYPES = ['CPM', 'CPC', 'CPA', 'CPS'];
 
 // Spec §9: cột Trạng thái đọc "từ trạng thái ID hiện tại" (Bật/Tắt trong danh mục),
 // không phải trạng thái xác nhận của dòng dữ liệu. ID đã bị xóa → rớt về status dòng.
@@ -60,41 +61,53 @@ export function AdvReportPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const hierarchy = useMemo(() => bidirectionalHierarchyOptions({
-    parents: getAll('advertisers'), orders: getAll('adOrders'), items: getAll('adIds'),
-    parentId: fAdv, orderKey: fOrder, itemId: fAdId,
-    orderParentField: 'advertiserId', itemParentField: 'advertiserId', itemOrderField: 'adOrderId',
-  }), [db, fAdv, fOrder, fAdId]);
-  const advertiserOptions = sortByGroupedLabel(hierarchy.parentOptions, (a) => a.name);
-  const orderOptions = sortByGroupedLabel(hierarchy.orderOptions, (o) => o.name);
-  const adIdOptions = sortByGroupedLabel(hierarchy.itemOptions, (a) => a.name);
-  const orderIdsMatchingFilter = hierarchy.matchingOrderIds;
-
-  const filteredRows = useMemo(() => {
+  const facets = useMemo(() => {
     const lc = q.trim().toLowerCase();
-    return getAll(COLLECTION).filter((r) => {
+    const orderById = new Map(getAll('adOrders').map((r) => [String(r.id), r] as const));
+    const candidates = getAll(COLLECTION).filter((r) => {
       if (!allDates && from && r.date < from) return false;
       if (!allDates && to && r.date > to) return false;
-      if (fAdv && String(r.advertiserId) !== fAdv) return false;
-      if (orderIdsMatchingFilter && !orderIdsMatchingFilter.has(r.adOrderId as number)) return false;
-      if (fAdId && String(r.adIdId) !== fAdId) return false;
-      if (fType && r.type !== fType) return false;
-      if (fPrice && String(r.unitPrice) !== fPrice) return false;
-      if (fStatus === 'on' && !adStatusOf(r)) return false;
-      if (fStatus === 'off' && adStatusOf(r)) return false;
       if (lc) {
         // Tìm mờ theo spec: NQC / đơn QC / ID QC / loại / đơn giá (tỷ lệ chia).
         const hay = `${r.objectId} ${refName('advertisers', r.advertiserId)} ${refName('adOrders', r.adOrderId)} ${r.type ?? ''} ${r.unitPrice ?? ''}`.toLowerCase();
         if (!hay.includes(lc)) return false;
       }
       return true;
-    }).sort((a, b) =>
+    });
+    return bidirectionalFacetOptions(candidates, {
+      parent: fAdv, order: fOrder, item: fAdId, type: fType, price: fPrice,
+      status: fStatus === 'all' ? '' : fStatus,
+    }, {
+      parent: (r) => String(r.advertiserId),
+      order: (r) => hierarchyKey(orderById.get(String(r.adOrderId))?.name),
+      item: (r) => String(r.adIdId),
+      type: (r) => String(r.type ?? ''),
+      price: (r) => String(r.unitPrice ?? ''),
+      status: (r) => adStatusOf(r) ? 'on' : 'off',
+    });
+  }, [from, to, allDates, fAdv, fOrder, fAdId, fType, fPrice, fStatus, q, db]);
+  const advertiserOptions = sortByGroupedLabel(getAll('advertisers').filter((a) => facets.options.parent.has(String(a.id))), (a) => a.name);
+  const seenOrders = new Set<string>();
+  const orderOptions = sortByGroupedLabel(getAll('adOrders').filter((o) => {
+    const key = hierarchyKey(o.name);
+    if (!facets.options.order.has(key) || seenOrders.has(key)) return false;
+    seenOrders.add(key);
+    return true;
+  }), (o) => o.name);
+  const adIdOptions = sortByGroupedLabel(getAll('adIds').filter((a) => facets.options.item.has(String(a.id))), (a) => a.name);
+  const typeOptions = TYPES.filter((type) => facets.options.type.has(type));
+  const priceOptions = Array.from(facets.options.price).map(Number).sort((a, b) => a - b);
+  const statusOptions = [
+    { value: 'on', label: t('entry.online') },
+    { value: 'off', label: t('entry.offline') },
+  ].filter((option) => facets.options.status.has(option.value));
+
+  const filteredRows = useMemo(() => [...facets.rows].sort((a, b) =>
       // Ngày theo dateDir (mặc định tăng dần); cùng ngày thì theo chữ cái đầu NQC → đơn QC → ID QC (spec).
       String(a.date).localeCompare(String(b.date)) * dateDir ||
       norm(refName('advertisers', a.advertiserId)).localeCompare(norm(refName('advertisers', b.advertiserId))) ||
       norm(refName('adOrders', a.adOrderId)).localeCompare(norm(refName('adOrders', b.adOrderId))) ||
-      norm(a.objectId).localeCompare(norm(b.objectId)));
-  }, [from, to, allDates, fAdv, orderIdsMatchingFilter, fAdId, fType, fPrice, fStatus, q, dateDir, db]);
+      norm(a.objectId).localeCompare(norm(b.objectId))), [facets.rows, dateDir]);
 
   const runQuery = () => setResult(filteredRows);
 
@@ -105,8 +118,6 @@ export function AdvReportPage() {
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const curPage = Math.min(page, totalPages);
   const pageRows = rows.slice((curPage - 1) * pageSize, curPage * pageSize);
-  const priceOptions = Array.from(new Set(getAll(COLLECTION).map((r) => Number(r.unitPrice) || 0)))
-    .sort((a, b) => a - b);
   const totals = rows.reduce(
     (s, r) => ({ traffic: s.traffic + (Number(r.traffic) || 0), settlement: s.settlement + (Number(r.settlement) || 0), receivable: s.receivable + (Number(r.receivable) || 0) }),
     { traffic: 0, settlement: 0, receivable: 0 },
@@ -169,7 +180,7 @@ export function AdvReportPage() {
           </select>
           <select value={fType} onChange={(e) => setFType(e.target.value)} className={sel}>
             <option value="">{t('col.type')}</option>
-            {sortByGroupedLabel(['CPM', 'CPC', 'CPA', 'CPS'], (x) => x).map((x) => <option key={x} value={x}>{x}</option>)}
+            {sortByGroupedLabel(typeOptions, (x) => x).map((x) => <option key={x} value={x}>{x}</option>)}
           </select>
           <select value={fPrice} onChange={(e) => setFPrice(e.target.value)} className={sel}>
             <option value="">{t('report.unitPriceShort')}</option>
@@ -177,10 +188,7 @@ export function AdvReportPage() {
           </select>
           <select value={fStatus} onChange={(e) => setFStatus(e.target.value as typeof fStatus)} className={sel}>
             <option value="all">{t('common.status')}: {t('common.all')}</option>
-            {sortByGroupedLabel([
-              { value: 'on', label: t('entry.online') },
-              { value: 'off', label: t('entry.offline') },
-            ], (o) => o.label).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {sortByGroupedLabel(statusOptions, (o) => o.label).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <div className="relative">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />
@@ -239,8 +247,8 @@ export function AdvReportPage() {
                     return (
                     <tr key={r.id} title={stale ? t('report.stale') : undefined}
                       className={`border-b border-gray-50 ${stale ? 'bg-amber-50 hover:bg-amber-100/70' : 'hover:bg-cyan-50/30'}`}>
-                      {/* Giữ STT liên tục kể cả dòng lệch — ⚠ chỉ là tiền tố cảnh báo. */}
-                      <td className="px-3 py-2 whitespace-nowrap text-gray-400">{stale ? `⚠ ${(curPage - 1) * pageSize + i + 1}` : (curPage - 1) * pageSize + i + 1}</td>
+                      {/* STT luôn chỉ hiển thị số; trạng thái lệch được báo bằng nền vàng + tooltip của dòng. */}
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-400">{(curPage - 1) * pageSize + i + 1}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-gray-600">{dayMonth(String(r.date))}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{refName('advertisers', r.advertiserId)}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{refName('adOrders', r.adOrderId)}</td>

@@ -10,11 +10,12 @@ import { IconSearch, IconDownload } from '../components/icons';
 import { dayMonth, todayRange } from '../lib/date';
 import { isMediaRecordStale } from '../lib/mediaSync';
 import { sortByGroupedLabel } from '../lib/optionSort';
-import { bidirectionalHierarchyOptions, hierarchyKey } from '../lib/hierarchyFilters';
+import { bidirectionalFacetOptions, hierarchyKey } from '../lib/hierarchyFilters';
 
 const COLLECTION = 'importMedia';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
+const TYPES = ['CPM', 'CPC', 'CPA', 'CPS'];
 
 // Tính toán giữ 3 số lẻ; hiển thị money() rút về 2 số lẻ. (Trước đây làm tròn nguyên
 // từng dòng khiến "thực trả" 22 > "phải trả" 21,64 khi share 100%.)
@@ -65,41 +66,53 @@ export function MediaReportPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const hierarchy = useMemo(() => bidirectionalHierarchyOptions({
-    parents: getAll('media'), orders: getAll('mediaOrders'), items: getAll('mediaIds'),
-    parentId: fMedia, orderKey: fOrder, itemId: fMediaId,
-    orderParentField: 'mediaId', itemParentField: 'mediaId', itemOrderField: 'mediaOrderId',
-  }), [db, fMedia, fOrder, fMediaId]);
-  const mediaOptions = sortByGroupedLabel(hierarchy.parentOptions, (m) => m.name);
-  const orderOptions = sortByGroupedLabel(hierarchy.orderOptions, (o) => o.name);
-  const mediaIdOptions = sortByGroupedLabel(hierarchy.itemOptions, (m) => m.name);
-  const orderIdsMatchingFilter = hierarchy.matchingOrderIds;
-
-  const filteredRows = useMemo(() => {
+  const facets = useMemo(() => {
     const lc = q.trim().toLowerCase();
-    return getAll(COLLECTION).filter((r) => {
+    const orderById = new Map(getAll('mediaOrders').map((r) => [String(r.id), r] as const));
+    const candidates = getAll(COLLECTION).filter((r) => {
       if (!allDates && from && r.date < from) return false;
       if (!allDates && to && r.date > to) return false;
-      if (fMedia && String(r.mediaId) !== fMedia) return false;
-      if (orderIdsMatchingFilter && !orderIdsMatchingFilter.has(r.mediaOrderId as number)) return false;
-      if (fMediaId && String(r.mediaIdId) !== fMediaId) return false;
-      if (fType && r.type !== fType) return false;
-      if (fPrice && String(r.unitPrice) !== fPrice) return false;
-      if (fStatus === 'on' && !midStatusOf(r)) return false;
-      if (fStatus === 'off' && midStatusOf(r)) return false;
       if (lc) {
         // Tìm mờ theo spec: media / đơn QC media / media ID / loại / đơn giá / tỷ lệ chia.
         const hay = `${r.objectId} ${refName('media', r.mediaId)} ${refName('mediaOrders', r.mediaOrderId)} ${r.type ?? ''} ${r.unitPrice ?? ''} ${r.shareRate ?? ''}`.toLowerCase();
         if (!hay.includes(lc)) return false;
       }
       return true;
-    }).sort((a, b) =>
+    });
+    return bidirectionalFacetOptions(candidates, {
+      parent: fMedia, order: fOrder, item: fMediaId, type: fType, price: fPrice,
+      status: fStatus === 'all' ? '' : fStatus,
+    }, {
+      parent: (r) => String(r.mediaId),
+      order: (r) => hierarchyKey(orderById.get(String(r.mediaOrderId))?.name),
+      item: (r) => String(r.mediaIdId),
+      type: (r) => String(r.type ?? ''),
+      price: (r) => String(r.unitPrice ?? ''),
+      status: (r) => midStatusOf(r) ? 'on' : 'off',
+    });
+  }, [from, to, allDates, fMedia, fOrder, fMediaId, fType, fPrice, fStatus, q, db]);
+  const mediaOptions = sortByGroupedLabel(getAll('media').filter((m) => facets.options.parent.has(String(m.id))), (m) => m.name);
+  const seenOrders = new Set<string>();
+  const orderOptions = sortByGroupedLabel(getAll('mediaOrders').filter((o) => {
+    const key = hierarchyKey(o.name);
+    if (!facets.options.order.has(key) || seenOrders.has(key)) return false;
+    seenOrders.add(key);
+    return true;
+  }), (o) => o.name);
+  const mediaIdOptions = sortByGroupedLabel(getAll('mediaIds').filter((m) => facets.options.item.has(String(m.id))), (m) => m.name);
+  const typeOptions = TYPES.filter((type) => facets.options.type.has(type));
+  const priceOptions = Array.from(facets.options.price).map(Number).sort((a, b) => a - b);
+  const statusOptions = [
+    { value: 'on', label: t('entry.online') },
+    { value: 'off', label: t('entry.offline') },
+  ].filter((option) => facets.options.status.has(option.value));
+
+  const filteredRows = useMemo(() => [...facets.rows].sort((a, b) =>
       // Ngày theo dateDir (mặc định tăng dần); cùng ngày thì theo chữ cái đầu media → đơn QC media → media ID.
       String(a.date).localeCompare(String(b.date)) * dateDir ||
       norm(refName('media', a.mediaId)).localeCompare(norm(refName('media', b.mediaId))) ||
       norm(refName('mediaOrders', a.mediaOrderId)).localeCompare(norm(refName('mediaOrders', b.mediaOrderId))) ||
-      norm(a.objectId).localeCompare(norm(b.objectId)));
-  }, [from, to, allDates, fMedia, orderIdsMatchingFilter, fMediaId, fType, fPrice, fStatus, q, dateDir, db]);
+      norm(a.objectId).localeCompare(norm(b.objectId))), [facets.rows, dateDir]);
 
   const runQuery = () => setResult(filteredRows);
 
@@ -110,8 +123,6 @@ export function MediaReportPage() {
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const curPage = Math.min(page, totalPages);
   const pageRows = rows.slice((curPage - 1) * pageSize, curPage * pageSize);
-  const priceOptions = Array.from(new Set(getAll(COLLECTION).map((r) => Number(r.unitPrice) || 0)))
-    .sort((a, b) => a - b);
   const totals = rows.reduce((s, r) => {
     const c = compute(r);
     return {
@@ -183,7 +194,7 @@ export function MediaReportPage() {
           </select>
           <select value={fType} onChange={(e) => setFType(e.target.value)} className={sel}>
             <option value="">{t('col.type')}</option>
-            {sortByGroupedLabel(['CPM', 'CPC', 'CPA', 'CPS'], (x) => x).map((x) => <option key={x} value={x}>{x}</option>)}
+            {sortByGroupedLabel(typeOptions, (x) => x).map((x) => <option key={x} value={x}>{x}</option>)}
           </select>
           <select value={fPrice} onChange={(e) => setFPrice(e.target.value)} className={sel}>
             <option value="">{t('report.unitPriceShort')}</option>
@@ -191,10 +202,7 @@ export function MediaReportPage() {
           </select>
           <select value={fStatus} onChange={(e) => setFStatus(e.target.value as typeof fStatus)} className={sel}>
             <option value="all">{t('common.status')}: {t('common.all')}</option>
-            {sortByGroupedLabel([
-              { value: 'on', label: t('entry.online') },
-              { value: 'off', label: t('entry.offline') },
-            ], (o) => o.label).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {sortByGroupedLabel(statusOptions, (o) => o.label).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <div className="relative">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />

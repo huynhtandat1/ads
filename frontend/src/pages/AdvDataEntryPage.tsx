@@ -10,10 +10,11 @@ import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload, IconUpload } from '../components/icons';
 import { dayMonth, defaultDateRange, useDatesInRange, yesterdayRange } from '../lib/date';
 import { sortByGroupedLabel } from '../lib/optionSort';
-import { bidirectionalHierarchyOptions, hierarchyKey } from '../lib/hierarchyFilters';
+import { bidirectionalFacetOptions, hierarchyKey } from '../lib/hierarchyFilters';
 
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
+const TYPES = ['CPM', 'CPC', 'CPA', 'CPS'];
 
 type Draft = BillingInputs;
 
@@ -85,36 +86,43 @@ export function AdvDataEntryPage({
   useEffect(load, [from, to]); // reload when range changes
   useEffect(() => { setPage(1); }, [from, to, fAdv, fOrder, fAdId, fType, fPrice, fStatus, q, dateDir]);
 
-  // Ba facet lọc hai chiều: chọn bất kỳ NQC / Đơn / ID đều thu hẹp hai ô còn lại.
-  const hierarchy = useMemo(() => bidirectionalHierarchyOptions({
-    parents: advertisersAll, orders: adOrdersAll, items: adIdsAll,
-    parentId: fAdv, orderKey: fOrder, itemId: fAdId,
-    orderParentField: 'advertiserId', itemParentField: 'advertiserId', itemOrderField: 'adOrderId',
-  }), [advertisersAll, adOrdersAll, adIdsAll, fAdv, fOrder, fAdId]);
-  const advOpts = sortByGroupedLabel(hierarchy.parentOptions, (r) => r.name);
-  const orderOpts = sortByGroupedLabel(hierarchy.orderOptions, (o) => o.name);
-  const adIdOpts = sortByGroupedLabel(hierarchy.itemOptions, (a) => a.name);
-  const orderIdsMatchingFilter = hierarchy.matchingOrderIds;
-
-  // Visible rows
-  const rows = useMemo(() => {
+  // Tất cả dropdown là facet hai chiều: chọn Loại/Giá/Trạng thái cũng lọc ngược NQC/Đơn/ID.
+  const facets = useMemo(() => {
     const lc = q.trim().toLowerCase();
-    return adIdsAll.filter((ad) => {
-      if (fAdv && String(ad.advertiserId) !== fAdv) return false;
-      if (orderIdsMatchingFilter && !orderIdsMatchingFilter.has(ad.adOrderId as number)) return false;
-      if (fAdId && String(ad.id) !== fAdId) return false;
-      if (fType && ad.type !== fType) return false;
-      if (fPrice && String(ad.unitPrice ?? '') !== fPrice) return false;
-      const online = ad.status !== false;
-      if (fStatus === 'online' && !online) return false;
-      if (fStatus === 'offline' && online) return false;
-      if (lc) {
-        const hay = `${ad.name} ${refName('advertisers', ad.advertiserId)} ${refName('adOrders', ad.adOrderId)}`.toLowerCase();
-        if (!hay.includes(lc)) return false;
-      }
-      return true;
+    const advertiserById = new Map(advertisersAll.map((r) => [String(r.id), r] as const));
+    const orderById = new Map(adOrdersAll.map((r) => [String(r.id), r] as const));
+    const candidates = lc ? adIdsAll.filter((ad) => {
+      const hay = `${ad.name} ${advertiserById.get(String(ad.advertiserId))?.name ?? ''} ${orderById.get(String(ad.adOrderId))?.name ?? ''}`.toLowerCase();
+      return hay.includes(lc);
+    }) : adIdsAll;
+    return bidirectionalFacetOptions(candidates, {
+      parent: fAdv, order: fOrder, item: fAdId, type: fType, price: fPrice,
+      status: fStatus === 'all' ? '' : fStatus,
+    }, {
+      parent: (ad) => String(ad.advertiserId),
+      order: (ad) => hierarchyKey(orderById.get(String(ad.adOrderId))?.name),
+      item: (ad) => String(ad.id),
+      type: (ad) => String(ad.type ?? ''),
+      price: (ad) => String(ad.unitPrice ?? ''),
+      status: (ad) => ad.status !== false ? 'online' : 'offline',
     });
-  }, [adIdsAll, fAdv, orderIdsMatchingFilter, fAdId, fType, fPrice, fStatus, q]);
+  }, [advertisersAll, adOrdersAll, adIdsAll, fAdv, fOrder, fAdId, fType, fPrice, fStatus, q]);
+  const advOpts = sortByGroupedLabel(advertisersAll.filter((r) => facets.options.parent.has(String(r.id))), (r) => r.name);
+  const seenOrders = new Set<string>();
+  const orderOpts = sortByGroupedLabel(adOrdersAll.filter((o) => {
+    const key = hierarchyKey(o.name);
+    if (!facets.options.order.has(key) || seenOrders.has(key)) return false;
+    seenOrders.add(key);
+    return true;
+  }), (o) => o.name);
+  const adIdOpts = sortByGroupedLabel(adIdsAll.filter((a) => facets.options.item.has(String(a.id))), (a) => a.name);
+  const typeOptions = TYPES.filter((type) => facets.options.type.has(type));
+  const priceOptions = Array.from(facets.options.price).map(Number).sort((a, b) => a - b);
+  const statusOptions = [
+    { value: 'online', label: t('entry.online') },
+    { value: 'offline', label: t('entry.offline') },
+  ].filter((option) => facets.options.status.has(option.value));
+  const rows = facets.rows;
 
   // Mỗi dòng = 1 (ad, cellDate) lấy từ draft keys; sort theo ngày (dateDir) rồi ad.
   const cellRows = useMemo(() => {
@@ -136,11 +144,6 @@ export function AdvDataEntryPage({
     }
     return out;
   }, [rows, draft, dateDir]);
-
-  const priceOptions = useMemo(
-    () => Array.from(new Set(adIdsAll.map((a) => Number(a.unitPrice) || 0))).sort((a, b) => a - b),
-    [adIdsAll],
-  );
 
   const totalRows = cellRows.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
@@ -265,7 +268,7 @@ export function AdvDataEntryPage({
           </select>
           <select value={fType} onChange={(e) => setFType(e.target.value)} className={sel}>
             <option value="">{t('col.type')}</option>
-            {sortByGroupedLabel(['CPM', 'CPC', 'CPA', 'CPS'], (x) => x).map((x) => <option key={x} value={x}>{x}</option>)}
+            {sortByGroupedLabel(typeOptions, (x) => x).map((x) => <option key={x} value={x}>{x}</option>)}
           </select>
           <select value={fPrice} onChange={(e) => setFPrice(e.target.value)} className={sel}>
             <option value="">{t('report.unitPriceShort')}</option>
@@ -273,10 +276,7 @@ export function AdvDataEntryPage({
           </select>
           <select value={fStatus} onChange={(e) => setFStatus(e.target.value as typeof fStatus)} className={sel}>
             <option value="all">{t('entry.allStatus')}</option>
-            {sortByGroupedLabel([
-              { value: 'online', label: t('entry.online') },
-              { value: 'offline', label: t('entry.offline') },
-            ], (o) => o.label).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {sortByGroupedLabel(statusOptions, (o) => o.label).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <div className="relative">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />

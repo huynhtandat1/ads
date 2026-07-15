@@ -1,60 +1,76 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bidirectionalHierarchyOptions, hierarchyKey } from '../frontend/src/lib/hierarchyFilters.ts';
+import { bidirectionalFacetOptions, hierarchyKey } from '../frontend/src/lib/hierarchyFilters.ts';
 
-const parents = [
-  { id: 1, name: 'Parent A' },
-  { id: 2, name: 'Parent B' },
-];
-const orders = [
-  { id: 10, parentId: 1, name: 'Common' },
-  { id: 11, parentId: 1, name: 'Only A' },
-  { id: 20, parentId: 2, name: 'Common' },
-  { id: 21, parentId: 2, name: 'Only B' },
-];
-const items = [
-  { id: 100, parentId: 1, orderId: 10, name: 'A-Common' },
-  { id: 101, parentId: 1, orderId: 11, name: 'A-Only' },
-  { id: 200, parentId: 2, orderId: 20, name: 'B-Common' },
-  { id: 201, parentId: 2, orderId: 21, name: 'B-Only' },
+const rows = [
+  { parent: '1', order: 'common', item: '100', type: 'CPA', price: '10', status: 'online' },
+  { parent: '1', order: 'only a', item: '101', type: 'CPM', price: '20', status: 'offline' },
+  { parent: '2', order: 'common', item: '200', type: 'CPA', price: '30', status: 'offline' },
+  { parent: '2', order: 'only b', item: '201', type: 'CPS', price: '40', status: 'online' },
 ];
 
-const options = (parentId = '', orderKey = '', itemId = '') => bidirectionalHierarchyOptions({
-  parents, orders, items, parentId, orderKey, itemId,
-  orderParentField: 'parentId', itemParentField: 'parentId', itemOrderField: 'orderId',
-});
-const ids = (rows: { id: number }[]) => rows.map((row) => row.id);
-const names = (rows: { name?: unknown }[]) => rows.map((row) => hierarchyKey(row.name));
+type Facet = 'parent' | 'order' | 'item' | 'type' | 'price' | 'status';
+const empty: Record<Facet, string> = {
+  parent: '', order: '', item: '', type: '', price: '', status: '',
+};
+const options = (selected: Partial<Record<Facet, string>> = {}) => bidirectionalFacetOptions(
+  rows,
+  { ...empty, ...selected },
+  {
+    parent: (row) => row.parent,
+    order: (row) => hierarchyKey(row.order),
+    item: (row) => row.item,
+    type: (row) => row.type,
+    price: (row) => row.price,
+    status: (row) => row.status,
+  },
+);
+const values = (set: Set<string>) => [...set];
 
-describe('bidirectionalHierarchyOptions()', () => {
-  test('không chọn gì: giữ toàn bộ cây và gộp đơn trùng tên', () => {
+describe('bidirectionalFacetOptions()', () => {
+  test('không chọn gì: giữ toàn bộ dữ liệu và toàn bộ option', () => {
     const result = options();
-    assert.deepEqual(ids(result.parentOptions), [1, 2]);
-    assert.deepEqual(names(result.orderOptions), ['common', 'only a', 'only b']);
-    assert.deepEqual(ids(result.itemOptions), [100, 101, 200, 201]);
+    assert.equal(result.rows.length, 4);
+    assert.deepEqual(values(result.options.parent), ['1', '2']);
+    assert.deepEqual(values(result.options.order), ['common', 'only a', 'only b']);
   });
 
-  test('chọn parent: lọc order và item xuống dưới', () => {
-    const result = options('1');
-    assert.deepEqual(names(result.orderOptions), ['common', 'only a']);
-    assert.deepEqual(ids(result.itemOptions), [100, 101]);
+  test('chọn parent: lọc các facet phía sau', () => {
+    const result = options({ parent: '1' });
+    assert.deepEqual(result.rows.map((row) => row.item), ['100', '101']);
+    assert.deepEqual(values(result.options.order), ['common', 'only a']);
+    assert.deepEqual(values(result.options.type), ['CPA', 'CPM']);
+    assert.deepEqual(values(result.options.price), ['10', '20']);
   });
 
   test('chọn order: lọc ngược parent và lọc xuôi item', () => {
-    const result = options('', 'common');
-    assert.deepEqual(ids(result.parentOptions), [1, 2]);
-    assert.deepEqual(ids(result.itemOptions), [100, 200]);
-    assert.deepEqual([...result.matchingOrderIds!], [10, 20]);
+    const result = options({ order: 'common' });
+    assert.deepEqual(values(result.options.parent), ['1', '2']);
+    assert.deepEqual(values(result.options.item), ['100', '200']);
   });
 
-  test('chọn item: lọc ngược chính xác parent và order', () => {
-    const result = options('', '', '201');
-    assert.deepEqual(ids(result.parentOptions), [2]);
-    assert.deepEqual(names(result.orderOptions), ['only b']);
+  test('chọn item: lọc ngược chính xác các facet còn lại', () => {
+    const result = options({ item: '201' });
+    assert.deepEqual(values(result.options.parent), ['2']);
+    assert.deepEqual(values(result.options.order), ['only b']);
+    assert.deepEqual(values(result.options.type), ['CPS']);
+    assert.deepEqual(values(result.options.status), ['online']);
   });
 
-  test('kết hợp parent + order: chỉ còn item tương thích', () => {
-    const result = options('2', 'common');
-    assert.deepEqual(ids(result.itemOptions), [200]);
+  test('chọn Loại: lọc ngược parent, order, item, giá và trạng thái', () => {
+    const result = options({ type: 'CPA' });
+    assert.deepEqual(result.rows.map((row) => row.item), ['100', '200']);
+    assert.deepEqual(values(result.options.parent), ['1', '2']);
+    assert.deepEqual(values(result.options.order), ['common']);
+    assert.deepEqual(values(result.options.item), ['100', '200']);
+    assert.deepEqual(values(result.options.price), ['10', '30']);
+    assert.deepEqual(values(result.options.status), ['online', 'offline']);
+  });
+
+  test('mỗi facet không tự khóa chính nó', () => {
+    const result = options({ parent: '1', type: 'CPA' });
+    assert.deepEqual(values(result.options.parent), ['1', '2']);
+    assert.deepEqual(values(result.options.type), ['CPA', 'CPM']);
+    assert.deepEqual(result.rows.map((row) => row.item), ['100']);
   });
 });
