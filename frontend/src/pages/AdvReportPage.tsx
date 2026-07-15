@@ -252,7 +252,8 @@ export function AdvReportPage() {
                     return (
                     <tr key={r.id} title={stale ? t('report.stale') : undefined}
                       className={`border-b border-gray-50 ${stale ? 'bg-amber-50 hover:bg-amber-100/70' : 'hover:bg-cyan-50/30'}`}>
-                      <td className="px-3 py-2 whitespace-nowrap text-gray-400">{stale ? '⚠' : (curPage - 1) * pageSize + i + 1}</td>
+                      {/* Giữ STT liên tục kể cả dòng lệch — ⚠ chỉ là tiền tố cảnh báo. */}
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-400">{stale ? `⚠ ${(curPage - 1) * pageSize + i + 1}` : (curPage - 1) * pageSize + i + 1}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-gray-600">{dayMonth(String(r.date))}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{refName('advertisers', r.advertiserId)}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{refName('adOrders', r.adOrderId)}</td>
