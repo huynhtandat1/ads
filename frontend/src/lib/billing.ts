@@ -6,9 +6,6 @@ export interface BillingInputs {
   settlement: Maybe;
 }
 
-// Đã nhập = có giá trị số (kể cả 0); rỗng/null/undefined = CHƯA nhập.
-const entered = (v: Maybe): v is number => v !== '' && v != null;
-
 /** Chuẩn hóa ô số: rỗng giữ nguyên nghĩa "chưa nhập", không biến thành 0. */
 export function nullableNumber(v: unknown): number | null {
   if (v == null || v === '') return null;
@@ -29,11 +26,12 @@ export function round3OrNull(v: number | null): number | null {
 //  - CPS: Tỷ lệ chia (%) × cơ sở  (đơn giá đóng vai trò tỷ lệ %).
 
 export function receivableOf(type: string, d: BillingInputs): number | null {
-  const price = Number(d.unitPrice);
-  const hasSettlement = entered(d.settlement);
-  const base = hasSettlement ? Number(d.settlement) : Number(d.traffic) || 0;
-  if (!price) return null;
-  if (!hasSettlement && !base) return null; // chưa có cả quyết toán lẫn lưu lượng
+  const price = nullableNumber(d.unitPrice);
+  const settlement = nullableNumber(d.settlement);
+  const traffic = nullableNumber(d.traffic);
+  // Mọi số 0 đã nhập đều là dữ liệu hợp lệ. Chỉ null mới mang nghĩa "chưa nhập".
+  const base = settlement !== null ? settlement : traffic;
+  if (price === null || base === null) return null;
   if (type === 'CPS') return (base * price) / 100;
   if (type === 'CPM') return (price * base) / 1000;
   return price * base;

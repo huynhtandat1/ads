@@ -22,7 +22,7 @@ const bool = (s: unknown) => String(s).toLowerCase() === 'active' || String(s).t
 //  KHÔNG lấy revenue có sẵn của DB nguồn vì nguồn có thể đã có /1000 hoặc chưa
 //  → tính lại từ đầu cho nhất quán.
 function receivableOf(type: string | undefined, price: number, base: number | null): number | null {
-  if (!price || base == null) return null;
+  if (!Number.isFinite(price) || base == null) return null;
   if (type === 'CPS') return (base * price) / 100;
   if (type === 'CPM') return (price * base) / 1000;
   return price * base;

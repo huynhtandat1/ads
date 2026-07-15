@@ -137,14 +137,17 @@ describe('receivableOf() — frontend/src/lib/billing.ts', () => {
     test('all empty → null', () => {
       assert.equal(receivableOf('CPM', { unitPrice: '', traffic: '', settlement: '' }), null);
     });
-    test('unitPrice=0 → null (treated as falsy)', () => {
-      assert.equal(receivableOf('CPM', { unitPrice: 0, traffic: 1000, settlement: 1000 }), null);
+    test('unitPrice=0 đã nhập → 0', () => {
+      assert.equal(receivableOf('CPM', { unitPrice: 0, traffic: 1000, settlement: 1000 }), 0);
     });
     test('traffic=0, settlement=0 (đã nhập) → 0', () => {
       assert.equal(receivableOf('CPM', { unitPrice: 8, traffic: 0, settlement: 0 }), 0);
     });
-    test('traffic=0, settlement chưa nhập → null', () => {
-      assert.equal(receivableOf('CPM', { unitPrice: 8, traffic: 0, settlement: null }), null);
+    test('traffic=0 đã nhập, settlement chưa nhập → 0', () => {
+      assert.equal(receivableOf('CPM', { unitPrice: 8, traffic: 0, settlement: null }), 0);
+    });
+    test('traffic và settlement đều chưa nhập → null', () => {
+      assert.equal(receivableOf('CPM', { unitPrice: 8, traffic: '', settlement: null }), null);
     });
     test('unitPrice undefined → null', () => {
       assert.equal(receivableOf('CPA', { unitPrice: undefined as any, traffic: 100, settlement: 100 }), null);
