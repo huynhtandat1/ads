@@ -137,7 +137,7 @@ export function MediaReportPage() {
       return [
         i + 1, r.date, refName('media', r.mediaId), refName('mediaOrders', r.mediaOrderId), r.type, r.objectId,
         r.unitPrice, r.traffic, r.settlement, c.receivable, `${c.shareRate}%`, c.actual,
-        midStatusOf(r) ? t('common.on') : t('common.off'),
+        midStatusOf(r) ? t('entry.online') : t('entry.offline'),
       ];
     });
     exportCSV('media_report', HEADERS, data);
@@ -194,8 +194,8 @@ export function MediaReportPage() {
           <select value={fStatus} onChange={(e) => setFStatus(e.target.value as typeof fStatus)} className={sel}>
             <option value="all">{t('common.status')}: {t('common.all')}</option>
             {sortByGroupedLabel([
-              { value: 'on', label: t('common.on') },
-              { value: 'off', label: t('common.off') },
+              { value: 'on', label: t('entry.online') },
+              { value: 'off', label: t('entry.offline') },
             ], (o) => o.label).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <div className="relative">
@@ -274,7 +274,7 @@ export function MediaReportPage() {
                         <td className="px-3 py-2 text-right font-semibold text-emerald-600">{money(c.actual)}</td>
                         <td className="px-3 py-2">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${midStatusOf(r) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                            {midStatusOf(r) ? t('common.on') : t('common.off')}
+                            {midStatusOf(r) ? t('entry.online') : t('entry.offline')}
                           </span>
                         </td>
                       </tr>

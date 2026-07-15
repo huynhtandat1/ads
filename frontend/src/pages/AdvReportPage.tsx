@@ -126,7 +126,7 @@ export function AdvReportPage() {
   const doExport = () => {
     const data = rows.map((r, i) => [
       i + 1, r.date, refName('advertisers', r.advertiserId), refName('adOrders', r.adOrderId), r.type, r.objectId,
-      r.unitPrice, r.traffic, r.settlement, r.receivable, adStatusOf(r) ? t('common.on') : t('common.off'),
+      r.unitPrice, r.traffic, r.settlement, r.receivable, adStatusOf(r) ? t('entry.online') : t('entry.offline'),
     ]);
     exportCSV('advertiser_report', HEADERS, data);
   };
@@ -185,8 +185,8 @@ export function AdvReportPage() {
           <select value={fStatus} onChange={(e) => setFStatus(e.target.value as typeof fStatus)} className={sel}>
             <option value="all">{t('common.status')}: {t('common.all')}</option>
             {sortByGroupedLabel([
-              { value: 'on', label: t('common.on') },
-              { value: 'off', label: t('common.off') },
+              { value: 'on', label: t('entry.online') },
+              { value: 'off', label: t('entry.offline') },
             ], (o) => o.label).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <div className="relative">
@@ -258,7 +258,7 @@ export function AdvReportPage() {
                       <td className="px-3 py-2 text-right font-semibold text-emerald-600">{money(r.receivable)}</td>
                       <td className="px-3 py-2">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${adStatusOf(r) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                          {adStatusOf(r) ? t('common.on') : t('common.off')}
+                          {adStatusOf(r) ? t('entry.online') : t('entry.offline')}
                         </span>
                       </td>
                     </tr>
