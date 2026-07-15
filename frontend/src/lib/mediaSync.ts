@@ -39,21 +39,27 @@ export function calcMediaCell(m: Row, cellDate: string) {
   return { type, traffic, settlement, unitPrice, coef, accountShare, payable, netPay };
 }
 
-/** Các trường suy ra từ thượng nguồn phải khớp giữa bản ghi đã lưu và số hiện hành. */
-export const MEDIA_SYNC_FIELDS = ['traffic', 'settlement', 'unitPrice', 'coefficient', 'payable', 'shareRate', 'actual'] as const;
+/** Chuẩn hóa "đã nhập hay chưa": ''/null/undefined → null (chưa nhập), còn lại → số. */
+const enteredOf = (v: unknown): number | null => (v == null || v === '' ? null : Number(v));
+
+/** Các trường tiền/tỷ lệ phải khớp giữa bản ghi đã lưu và số hiện hành (so số thuần). */
+const MONEY_SYNC_FIELDS = ['unitPrice', 'coefficient', 'payable', 'shareRate', 'actual'] as const;
 
 /**
  * Bản ghi importMedia đã lưu có LỆCH với số tính lại từ thượng nguồn không?
  * (NQC sửa lưu lượng/quyết toán, hoặc đơn giá/hệ số/tỷ lệ đổi hiệu lực sau khi lưu.)
  * Dùng cho nút "Lưu" sáng lại ở g3c và tô sáng dòng chưa đồng bộ ở g4d.
+ * Lưu lượng/quyết toán so PHÂN BIỆT NULL: "trống" và "0" là hai khái niệm (spec 07-2026) —
+ * bản ghi cũ lưu 0 trong khi thượng nguồn trống phải được nhắc lưu lại thành trống.
  */
 export function isMediaRecordStale(record: Row): boolean {
   const m = getAll('mediaIds').find((x) => x.id === record.mediaIdId || x.name === record.objectId);
   if (!m) return false; // media ID đã xóa khỏi danh mục → không còn nguồn để so
   const c = calcMediaCell(m, String(record.date || ''));
-  const fresh: Record<(typeof MEDIA_SYNC_FIELDS)[number], number> = {
-    traffic: Number(c.traffic) || 0, settlement: Number(c.settlement) || 0, unitPrice: c.unitPrice,
-    coefficient: c.coef, payable: c.payable ?? 0, shareRate: c.accountShare, actual: c.netPay ?? 0,
+  if (enteredOf(record.traffic ?? record.clicks) !== enteredOf(c.traffic)) return true;
+  if (enteredOf(record.settlement) !== enteredOf(c.settlement)) return true;
+  const fresh: Record<(typeof MONEY_SYNC_FIELDS)[number], number> = {
+    unitPrice: c.unitPrice, coefficient: c.coef, payable: c.payable ?? 0, shareRate: c.accountShare, actual: c.netPay ?? 0,
   };
-  return MEDIA_SYNC_FIELDS.some((f) => Number(record[f] ?? 0) !== fresh[f]);
+  return MONEY_SYNC_FIELDS.some((f) => Number(record[f] ?? 0) !== fresh[f]);
 }
