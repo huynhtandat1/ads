@@ -10,7 +10,7 @@ export default {
     deleted: '已删除', toggled: '状态已更新', confirmDelete: '确定要删除吗？',
     duplicate: '名称已存在，不能重复',
     saveRejected: '保存失败：服务器拒绝了该操作',
-    noData: '暂无数据', page: '第', of: '/', rows: '条', total: '共',
+    noData: '暂无数据', page: '第', of: '/', rows: '条', total: '共', perPage: '条/页',
     selectPh: '-- 请选择 --', from: '起始日期', to: '结束日期', apply: '应用',
     createNew: '新建', editItem: '编辑', loginError: '用户名或密码错误',
     dashboard: '概览', welcome: '欢迎回来',

@@ -10,7 +10,7 @@ export default {
     deleted: 'Deleted', toggled: 'Status updated', confirmDelete: 'Are you sure you want to delete?',
     duplicate: 'Name already exists, must be unique',
     saveRejected: 'Save failed: rejected by the server',
-    noData: 'No data', page: 'Page', of: 'of', rows: 'rows', total: 'Total',
+    noData: 'No data', page: 'Page', of: 'of', rows: 'rows', total: 'Total', perPage: 'rows/page',
     selectPh: '-- Select --', from: 'From', to: 'To', apply: 'Apply',
     createNew: 'Create New', editItem: 'Edit', loginError: 'Invalid username or password',
     dashboard: 'Overview', welcome: 'Welcome back',

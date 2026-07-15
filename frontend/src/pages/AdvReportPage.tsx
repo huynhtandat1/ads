@@ -6,6 +6,7 @@ import { receivableOf } from '../lib/billing';
 import { round3 } from '../lib/format';
 import { exportCSV } from '../lib/export';
 import { DateRangePicker } from '../components/DateRangePicker';
+import { Pager } from '../components/Pager';
 import { IconSearch, IconDownload } from '../components/icons';
 import { dayMonth, todayRange } from '../lib/date';
 import { sortByGroupedLabel } from '../lib/optionSort';
@@ -55,6 +56,9 @@ export function AdvReportPage() {
   // Sort cột ngày: mặc định TĂNG dần (spec docx 07-2026), click header để đảo chiều.
   const [dateDir, setDateDir] = useState<1 | -1>(1);
   const [result, setResult] = useState<Row[] | null>(null); // null = chưa truy vấn
+  // Phân trang thống nhất toàn site: mặc định 10, chọn 10/30/50 (spec 07-2026).
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const orderIdsMatchingFilter = useMemo(() => {
     if (!fOrder) return null;
@@ -92,9 +96,12 @@ export function AdvReportPage() {
   const runQuery = () => setResult(filteredRows);
 
   useEffect(() => { setResult(filteredRows); }, [filteredRows]); // lọc ngay khi đổi điều kiện
-
+  useEffect(() => { setPage(1); }, [from, to, allDates, fAdv, fOrder, fAdId, fType, fPrice, fStatus, q]);
 
   const rows = result ?? [];
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const curPage = Math.min(page, totalPages);
+  const pageRows = rows.slice((curPage - 1) * pageSize, curPage * pageSize);
   const orderOptions = (() => {
     const seen = new Set<string>();
     return sortByGroupedLabel(getAll('adOrders').filter((o) => {
@@ -241,12 +248,12 @@ export function AdvReportPage() {
                     <td className="px-3 py-2 text-cyan-300">{money(totals.receivable)}</td>
                     <td className="px-3 py-2" />
                   </tr>
-                  {rows.map((r, i) => {
+                  {pageRows.map((r, i) => {
                     const stale = isStaleAdv(r);
                     return (
                     <tr key={r.id} title={stale ? t('report.stale') : undefined}
                       className={`border-b border-gray-50 ${stale ? 'bg-amber-50 hover:bg-amber-100/70' : 'hover:bg-cyan-50/30'}`}>
-                      <td className="px-3 py-2 whitespace-nowrap text-gray-400">{stale ? '⚠' : i + 1}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-400">{stale ? '⚠' : (curPage - 1) * pageSize + i + 1}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-gray-600">{dayMonth(String(r.date))}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{refName('advertisers', r.advertiserId)}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{refName('adOrders', r.adOrderId)}</td>
@@ -269,6 +276,10 @@ export function AdvReportPage() {
             </tbody>
           </table>
         </div>
+        {result !== null && rows.length > 0 && (
+          <Pager total={rows.length} page={curPage} totalPages={totalPages} pageSize={pageSize}
+            onPage={setPage} onPageSize={setPageSize} />
+        )}
       </div>
     </div>
   );

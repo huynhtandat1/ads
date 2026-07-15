@@ -5,6 +5,7 @@ import { receivableOf } from '../lib/billing';
 import { round3 } from '../lib/format';
 import { exportCSV } from '../lib/export';
 import { DateRangePicker } from '../components/DateRangePicker';
+import { Pager } from '../components/Pager';
 import { IconSearch, IconDownload } from '../components/icons';
 import { dayMonth, todayRange } from '../lib/date';
 import { isMediaRecordStale } from '../lib/mediaSync';
@@ -58,6 +59,9 @@ export function MediaReportPage() {
   // Sort cột ngày: mặc định TĂNG dần (spec 07-2026 — mọi trang thống nhất), click header đảo chiều.
   const [dateDir, setDateDir] = useState<1 | -1>(1);
   const [result, setResult] = useState<Row[] | null>(null);
+  // Phân trang thống nhất toàn site: mặc định 10, chọn 10/30/50 (spec 07-2026).
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const orderIdsMatchingFilter = useMemo(() => {
     if (!fOrder) return null;
@@ -95,9 +99,12 @@ export function MediaReportPage() {
   const runQuery = () => setResult(filteredRows);
 
   useEffect(() => { setResult(filteredRows); }, [filteredRows]);
-
+  useEffect(() => { setPage(1); }, [from, to, allDates, fMedia, fOrder, fMediaId, fType, fPrice, fStatus, q]);
 
   const rows = result ?? [];
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const curPage = Math.min(page, totalPages);
+  const pageRows = rows.slice((curPage - 1) * pageSize, curPage * pageSize);
   const orderOptions = (() => {
     const seen = new Set<string>();
     return sortByGroupedLabel(getAll('mediaOrders').filter((o) => {
@@ -252,7 +259,7 @@ export function MediaReportPage() {
                     <td className="px-3 py-2 text-cyan-300">{money(totals.actual)}</td>
                     <td className="px-3 py-2" />
                   </tr>
-                  {rows.map((r, i) => {
+                  {pageRows.map((r, i) => {
                     const c = compute(r);
                     // Bản ghi lệch với số tính lại từ thượng nguồn (NQC/đơn giá/hệ số đổi
                     // sau khi lưu) → tô sáng nhắc lưu lại ở g3c (spec 07-2026: 操作部分高亮).
@@ -260,7 +267,7 @@ export function MediaReportPage() {
                     return (
                       <tr key={r.id} title={stale ? t('report.stale') : undefined}
                         className={`border-b border-gray-50 ${stale ? 'bg-amber-50 hover:bg-amber-100/70' : 'hover:bg-cyan-50/30'}`}>
-                        <td className="px-3 py-2 whitespace-nowrap text-gray-400">{stale ? '⚠' : i + 1}</td>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-400">{stale ? '⚠' : (curPage - 1) * pageSize + i + 1}</td>
                         <td className="px-3 py-2 whitespace-nowrap text-gray-600">{dayMonth(String(r.date))}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{refName('media', r.mediaId)}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{refName('mediaOrders', r.mediaOrderId)}</td>
@@ -285,6 +292,10 @@ export function MediaReportPage() {
             </tbody>
           </table>
         </div>
+        {result !== null && rows.length > 0 && (
+          <Pager total={rows.length} page={curPage} totalPages={totalPages} pageSize={pageSize}
+            onPage={setPage} onPageSize={setPageSize} />
+        )}
       </div>
     </div>
   );

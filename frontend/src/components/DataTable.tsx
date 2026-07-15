@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Row } from '../data/store';
+import { Pager } from './Pager';
 import { Toggle } from './Toggle';
 import { IconSearch, IconDownload, IconFilter } from './icons';
 import { exportCSV } from '../lib/export';
@@ -68,6 +69,7 @@ export function DataTable({
   const [showFilters, setShowFilters] = useState(false);
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null);
   const [page, setPage] = useState(1);
+  const [size, setSize] = useState(pageSize); // 10/30/50 dòng/trang, chọn ở footer
 
   const applyActiveFilters = (source: Row[], skip: { toolbarKey?: string; columnKey?: string } = {}) => {
     let data = [...source];
@@ -136,9 +138,9 @@ export function DataTable({
     return data;
   }, [rows, filters, filterVals, colFilters, q, sort, columns, searchKeys]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / size));
   const curPage = Math.min(page, totalPages);
-  const pageRows = filtered.slice((curPage - 1) * pageSize, curPage * pageSize);
+  const pageRows = filtered.slice((curPage - 1) * size, curPage * size);
 
   // ID columns are hidden from the UI (still available in CSV export).
   const visibleColumns = columns.filter((c) => c.type !== 'id');
@@ -290,17 +292,8 @@ export function DataTable({
         </table>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between p-4 text-sm text-gray-500">
-        <span>{t('common.total')} {filtered.length} {t('common.rows')}</span>
-        <div className="flex items-center gap-1">
-          <button disabled={curPage <= 1} onClick={() => setPage(curPage - 1)}
-            className="h-8 px-3 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50">‹</button>
-          <span className="px-3">{curPage} / {totalPages}</span>
-          <button disabled={curPage >= totalPages} onClick={() => setPage(curPage + 1)}
-            className="h-8 px-3 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50">›</button>
-        </div>
-      </div>
+      <Pager total={filtered.length} page={curPage} totalPages={totalPages} pageSize={size}
+        onPage={setPage} onPageSize={setSize} />
     </div>
   );
 }

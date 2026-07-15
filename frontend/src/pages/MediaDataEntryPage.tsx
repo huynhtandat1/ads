@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, refName, setRate, type Row } from '../data/store';
+import { Pager } from '../components/Pager';
 import { RateEditor } from '../components/RateEditor';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload } from '../components/icons';
@@ -108,7 +109,7 @@ export function MediaDataEntryPage() {
     });
   }, [mediaIdsAll, fMedia, mediaOrderIdsMatchingFilter, fMediaId, fType, fPrice, fStatus, q, savedIds]);
 
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState(10);
 
   // Mỗi dòng = 1 (mediaId, ngày) cho mỗi ngày trong [from, to]; record cũ (nếu có) khớp theo ngày.
   // Trước đây chỉ tạo dòng cho ngày CÓ record nên sót ngày chưa nhập giữa range.
@@ -299,16 +300,8 @@ export function MediaDataEntryPage() {
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between p-4 text-sm text-gray-500 border-t border-gray-100">
-          <span>{t('common.total')} {totalRows} {t('common.rows')}</span>
-          <div className="flex items-center gap-1">
-            <button disabled={curPage <= 1} onClick={() => setPage(curPage - 1)}
-              className="h-8 px-3 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50">‹</button>
-            <span className="px-3">{curPage} / {totalPages}</span>
-            <button disabled={curPage >= totalPages} onClick={() => setPage(curPage + 1)}
-              className="h-8 px-3 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50">›</button>
-          </div>
-        </div>
+        <Pager total={totalRows} page={curPage} totalPages={totalPages} pageSize={pageSize}
+          onPage={setPage} onPageSize={setPageSize} />
       </div>
     </div>
   );

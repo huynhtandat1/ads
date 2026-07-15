@@ -10,7 +10,7 @@ export default {
     deleted: 'Đã xóa', toggled: 'Đã cập nhật trạng thái', confirmDelete: 'Bạn chắc chắn muốn xóa?',
     duplicate: 'Tên đã tồn tại, không được trùng',
     saveRejected: 'Lưu thất bại: máy chủ từ chối thao tác này',
-    noData: 'Không có dữ liệu', page: 'Trang', of: 'trên', rows: 'dòng', total: 'Tổng',
+    noData: 'Không có dữ liệu', page: 'Trang', of: 'trên', rows: 'dòng', total: 'Tổng', perPage: 'dòng/trang',
     selectPh: '-- Chọn --', from: 'Từ ngày', to: 'Đến ngày', apply: 'Áp dụng',
     createNew: 'Tạo mới', editItem: 'Chỉnh sửa', loginError: 'Sai tên đăng nhập hoặc mật khẩu',
     dashboard: 'Tổng quan', welcome: 'Chào mừng trở lại',

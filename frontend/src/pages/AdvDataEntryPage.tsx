@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useCollection, getAll, create, update, refName, effectiveValue, setRate, type Row } from '../data/store';
 import { receivableOf, type BillingInputs } from '../lib/billing';
 import { round3 } from '../lib/format';
+import { Pager } from '../components/Pager';
 import { RateEditor } from '../components/RateEditor';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload, IconUpload } from '../components/icons';
@@ -45,6 +46,9 @@ export function AdvDataEntryPage({
   const [draft, setDraft] = useState<Record<string, Draft>>({});
   // Sort cột ngày: mặc định TĂNG dần (spec docx 07-2026), click header để đảo chiều.
   const [dateDir, setDateDir] = useState<1 | -1>(1);
+  // Phân trang thống nhất toàn site: mặc định 10, chọn 10/30/50 (spec 07-2026).
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<{ key: string; field: 'traffic' | 'settlement' } | null>(null);
 
@@ -77,6 +81,7 @@ export function AdvDataEntryPage({
   };
 
   useEffect(load, [from, to]); // reload when range changes
+  useEffect(() => { setPage(1); }, [from, to, fAdv, fOrder, fAdId, fType, fPrice, fStatus, q, dateDir]);
 
   // Cascading dropdown option lists
   const advOpts = sortByGroupedLabel(getAll('advertisers'), (r) => r.name);
@@ -155,6 +160,11 @@ export function AdvDataEntryPage({
     () => Array.from(new Set(adIdsAll.map((a) => Number(a.unitPrice) || 0))).sort((a, b) => a - b),
     [adIdsAll],
   );
+
+  const totalRows = cellRows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  const curPage = Math.min(page, totalPages);
+  const pageRows = cellRows.slice((curPage - 1) * pageSize, curPage * pageSize);
 
   const setCell = (key: string, field: keyof Draft, value: string) => {
     setDraft((d) => ({ ...d, [key]: { ...d[key], [field]: value === '' ? '' : Number(value) } }));
@@ -329,7 +339,7 @@ export function AdvDataEntryPage({
               {cellRows.length === 0 && (
                 <tr><td colSpan={12} className="px-3 py-12 text-center text-gray-400">{t('common.noData')}</td></tr>
               )}
-              {cellRows.map(({ ad, cellDate, key }, i) => {
+              {pageRows.map(({ ad, cellDate, key }, i) => {
                 const d = draft[key] || { unitPrice: ad.unitPrice ?? '', traffic: '', settlement: '' };
                 const price = priceOf(ad, cellDate);
                 const receivable = receivableOf(ad.type, { unitPrice: price, traffic: d.traffic, settlement: d.settlement });
@@ -338,7 +348,7 @@ export function AdvDataEntryPage({
                 const isSaved = savedIds.has(key) && !!existing && !isStale(existing, ad, cellDate);
                 return (
                   <tr key={key} className="border-b border-gray-50 hover:bg-cyan-50/30">
-                    <td className="px-3 py-2 whitespace-nowrap text-gray-400">{i + 1}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-400">{(curPage - 1) * pageSize + i + 1}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-600">{dayMonth(cellDate)}</td>
                     <td className="px-3 py-2 whitespace-nowrap">{refName('advertisers', ad.advertiserId)}</td>
                     <td className="px-3 py-2 whitespace-nowrap">{refName('adOrders', ad.adOrderId)}</td>
@@ -376,6 +386,8 @@ export function AdvDataEntryPage({
             </tbody>
           </table>
         </div>
+        <Pager total={totalRows} page={curPage} totalPages={totalPages} pageSize={pageSize}
+          onPage={setPage} onPageSize={setPageSize} />
       </div>
     </div>
   );
