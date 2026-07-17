@@ -81,7 +81,7 @@ export default {
     aiFill: 'AI 自动填充', aiFilled: '已自动填充数据',
     chooseMedia: '选择媒体', chooseMediaOrder: '选择广告订单', chooseMediaId: '选择媒体ID',
     coefficient: '数据系数', shareRate: '收入分成比例', actual: '实收金额', netPay: '实付金额', fromAdv: '来自广告主录入',
-    confirmAll: '确认全部数据', savedAll: '已确认当日数据',
+    confirmAll: '确认全部数据', confirming: '确认中…', savedAll: '已确认全部数据',
     effNow: '当前生效', effLater: '今后生效', effFrom: '生效起始日', effSaved: '已保存新生效值',
     payable: '应付金额',
   },

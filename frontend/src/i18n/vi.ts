@@ -81,7 +81,7 @@ export default {
     aiFill: 'AI tự động điền', aiFilled: 'đã tự động điền dữ liệu',
     chooseMedia: 'Chọn media', chooseMediaOrder: 'Chọn đơn quảng', chooseMediaId: 'Chọn ID media',
     coefficient: 'Hệ số dữ liệu', shareRate: 'Tỷ lệ chia doanh thu', actual: 'Số tiền thực nhận', netPay: 'Số tiền thực trả', fromAdv: 'từ nhập liệu NQC',
-    confirmAll: 'Xác nhận tất cả dữ liệu', savedAll: 'Đã xác nhận cả ngày',
+    confirmAll: 'Xác nhận tất cả dữ liệu', confirming: 'Đang xác nhận…', savedAll: 'Đã xác nhận tất cả dữ liệu',
     effNow: 'Có hiệu lực hiện tại', effLater: 'Có hiệu lực về sau', effFrom: 'Áp dụng từ ngày', effSaved: 'Đã lưu hiệu lực mới',
     payable: 'Số tiền phải trả',
   },

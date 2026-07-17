@@ -109,6 +109,19 @@ export async function upsertRow(collection: string, row: Row) {
   );
 }
 
+/** Ghi nhiều dòng trong một câu SQL — tránh tạo hàng nghìn request/kết nối khi xác nhận tất cả. */
+export async function upsertRows(collection: string, rows: Row[]) {
+  if (rows.length === 0) return;
+  const values = rows.map((row) => ({ id: row.id, data: row }));
+  await pool.query(
+    `INSERT INTO entities (collection, id, data)
+       SELECT $1, item.id, item.data
+       FROM jsonb_to_recordset($2::jsonb) AS item(id integer, data jsonb)
+     ON CONFLICT (collection, id) DO UPDATE SET data = EXCLUDED.data`,
+    [collection, JSON.stringify(values)],
+  );
+}
+
 export async function deleteRow(collection: string, id: number) {
   await pool.query('DELETE FROM entities WHERE collection = $1 AND id = $2', [collection, id]);
 }

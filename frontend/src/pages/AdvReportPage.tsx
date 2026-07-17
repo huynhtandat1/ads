@@ -5,9 +5,9 @@ import { effectiveValue, getAll, refName, useDB, type Row } from '../data/store'
 import { nullableNumber, receivableOf, round3OrNull } from '../lib/billing';
 import { exportCSV } from '../lib/export';
 import { DateRangePicker } from '../components/DateRangePicker';
-import { Pager } from '../components/Pager';
+import { DEFAULT_PAGE_SIZE, Pager } from '../components/Pager';
 import { IconSearch, IconDownload } from '../components/icons';
-import { dayMonth, todayRange } from '../lib/date';
+import { dayMonth, yesterdayRange } from '../lib/date';
 import { sortByGroupedLabel } from '../lib/optionSort';
 import { bidirectionalFacetOptions, hierarchyKey } from '../lib/hierarchyFilters';
 
@@ -43,7 +43,7 @@ export function AdvReportPage() {
   // — trước đây trang này không subscribe nên phải F5 mới thấy số mới.
   const db = useDB();
 
-  const [defaultFrom, defaultTo] = todayRange();
+  const [defaultFrom, defaultTo] = yesterdayRange();
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
   const [allDates, setAllDates] = useState(false);
@@ -57,9 +57,9 @@ export function AdvReportPage() {
   // Sort cột ngày: mặc định TĂNG dần (spec docx 07-2026), click header để đảo chiều.
   const [dateDir, setDateDir] = useState<1 | -1>(1);
   const [result, setResult] = useState<Row[] | null>(null); // null = chưa truy vấn
-  // Phân trang thống nhất toàn site: mặc định 10, chọn 10/30/50 (spec 07-2026).
+  // Phân trang thống nhất toàn site: mặc định 30, chọn 30/50/100.
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const facets = useMemo(() => {
     const lc = q.trim().toLowerCase();

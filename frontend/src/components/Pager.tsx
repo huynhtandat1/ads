@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
-export const PAGE_SIZES = [10, 30, 50];
+export const PAGE_SIZES = [30, 50, 100];
+export const DEFAULT_PAGE_SIZE = PAGE_SIZES[0];
 
 interface Props {
   total: number;        // tổng số dòng sau lọc
@@ -11,7 +12,7 @@ interface Props {
   onPageSize: (n: number) => void;
 }
 
-/** Footer phân trang thống nhất toàn site: tổng số dòng + chọn 10/30/50 dòng/trang + lật trang. */
+/** Footer phân trang thống nhất toàn site: mặc định 30, chọn 30/50/100 dòng/trang. */
 export function Pager({ total, page, totalPages, pageSize, onPage, onPageSize }: Props) {
   const { t } = useTranslation();
   return (

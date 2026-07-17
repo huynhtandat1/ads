@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Row } from '../data/store';
-import { Pager } from './Pager';
+import { DEFAULT_PAGE_SIZE, Pager } from './Pager';
 import { Toggle } from './Toggle';
 import { IconSearch, IconDownload, IconFilter } from './icons';
 import { exportCSV } from '../lib/export';
@@ -60,7 +60,7 @@ const noFilter = (c: Column) => c.type === 'index' || c.key === 'actions';
 
 export function DataTable({
   columns, rows, toolbarLeft, filters = [], searchKeys, onToggle,
-  canExport = true, exportName = 'export', pageSize = 10, filterKeys,
+  canExport = true, exportName = 'export', pageSize = DEFAULT_PAGE_SIZE, filterKeys,
 }: Props) {
   const { t } = useTranslation();
   const [q, setQ] = useState('');
@@ -69,7 +69,7 @@ export function DataTable({
   const [showFilters, setShowFilters] = useState(false);
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null);
   const [page, setPage] = useState(1);
-  const [size, setSize] = useState(pageSize); // 10/30/50 dòng/trang, chọn ở footer
+  const [size, setSize] = useState(pageSize); // mặc định 30; chọn 30/50/100 ở footer
 
   const applyActiveFilters = (source: Row[], skip: { toolbarKey?: string; columnKey?: string } = {}) => {
     let data = [...source];

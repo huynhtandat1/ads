@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
-import { useCollection, getAll, create, update, refName, effectiveValue, setRate, type Row } from '../data/store';
+import { useCollection, getAll, create, update, bulkUpsert, refName, effectiveValue, setRate, type Row } from '../data/store';
 import { nullableNumber, receivableOf, round3OrNull, type BillingInputs } from '../lib/billing';
-import { Pager } from '../components/Pager';
+import { DEFAULT_PAGE_SIZE, Pager } from '../components/Pager';
 import { RateEditor } from '../components/RateEditor';
 import { DateRangePicker } from '../components/DateRangePicker';
-import { IconSearch, IconDownload, IconUpload } from '../components/icons';
+import { IconSearch, IconUpload } from '../components/icons';
 import { dayMonth, defaultDateRange, useDatesInRange, yesterdayRange } from '../lib/date';
 import { sortByGroupedLabel } from '../lib/optionSort';
 import { bidirectionalFacetOptions, hierarchyKey } from '../lib/hierarchyFilters';
@@ -49,11 +49,12 @@ export function AdvDataEntryPage({
   const [draft, setDraft] = useState<Record<string, Draft>>({});
   // Sort cột ngày: mặc định TĂNG dần (spec docx 07-2026), click header để đảo chiều.
   const [dateDir, setDateDir] = useState<1 | -1>(1);
-  // Phân trang thống nhất toàn site: mặc định 10, chọn 10/30/50 (spec 07-2026).
+  // Phân trang thống nhất toàn site: mặc định 30, chọn 30/50/100.
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<{ key: string; field: 'traffic' | 'settlement' } | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const canCreate = can(screen, 'create');
   const canEdit = can(screen, 'edit');
@@ -171,12 +172,12 @@ export function AdvDataEntryPage({
     return Number(existing.unitPrice ?? 0) !== price || nullableNumber(existing.receivable) !== fresh;
   };
 
-  const saveRow = (ad: Row, cellDate: string) => {
+  const buildPayload = (ad: Row, cellDate: string) => {
     const key = `${ad.id}|${cellDate}`;
     const d = draft[key] || { unitPrice: '', traffic: '', settlement: '' };
     const price = priceOf(ad, cellDate);
     const receivable = round3OrNull(receivableOf(ad.type, { unitPrice: price, traffic: d.traffic, settlement: d.settlement }));
-    const payload = {
+    return {
       date: cellDate, objectId: ad.name, adIdId: ad.id, advertiserId: ad.advertiserId, adOrderId: ad.adOrderId,
       // Giữ null cho ô CHƯA nhập — ép về 0 sẽ biến "chưa nhập" thành "đã nhập 0"
       // và làm phải thu rớt về 0 sai (spec 07-2026: quyết toán 0 là giá trị hợp lệ).
@@ -187,11 +188,43 @@ export function AdvDataEntryPage({
       revenue: receivable, cost: 0, clicks: nullableNumber(d.traffic),
       source, status: true,
     };
+  };
+
+  const persistRow = (ad: Row, cellDate: string) => {
+    const payload = buildPayload(ad, cellDate);
     const existing = recordOf(ad, cellDate);
     if (existing) update(COLLECTION, existing.id, payload);
     else create(COLLECTION, payload as Omit<Row, 'id'>);
+  };
+
+  const saveRow = (ad: Row, cellDate: string) => {
+    const key = `${ad.id}|${cellDate}`;
+    persistRow(ad, cellDate);
     setSavedIds((s) => new Set(s).add(key));
     toast(t('entry.savedRow'));
+  };
+
+  // Xác nhận toàn bộ dữ liệu đang khớp khoảng ngày + bộ lọc, kể cả các trang phân trang khác.
+  const confirmAll = async () => {
+    if (confirming || (!canCreate && !canEdit) || cellRows.length === 0) return;
+    setConfirming(true);
+    try {
+      const batch = cellRows.map(({ ad, cellDate }) => {
+        const existing = recordOf(ad, cellDate);
+        return { ...(existing ? { id: existing.id } : {}), ...buildPayload(ad, cellDate) };
+      });
+      await bulkUpsert(COLLECTION, batch);
+      setSavedIds((saved) => {
+        const next = new Set(saved);
+        cellRows.forEach(({ key }) => next.add(key));
+        return next;
+      });
+      toast(t('entry.savedAll'));
+    } catch {
+      // bulkUpsert đã khôi phục cache và phát đúng một thông báo lỗi.
+    } finally {
+      setConfirming(false);
+    }
   };
 
   // AI auto-fill: simulate fetching traffic/settlement from an external source for visible rows.
@@ -289,9 +322,9 @@ export function AdvDataEntryPage({
               <IconUpload width={16} height={16} /> {t('entry.aiFill')}
             </button>
           )}
-          <button onClick={load}
-            className="h-9 px-4 inline-flex items-center gap-1.5 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600">
-            <IconDownload width={16} height={16} /> {t('entry.load')}
+          <button onClick={confirmAll} disabled={confirming || (!canCreate && !canEdit) || cellRows.length === 0}
+            className="h-9 px-4 inline-flex items-center rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed">
+            {confirming ? t('entry.confirming') : t('entry.saveRow')}
           </button>
         </div>
       </div>

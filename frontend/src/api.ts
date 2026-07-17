@@ -33,6 +33,8 @@ export const api = {
     req<{ token: string; user: any; db: DB }>('POST', '/login', { username, password }),
   fetchDB: () => req<{ db: DB }>('GET', '/db'),
   create: (c: string, row: Row) => req<{ log?: Row; row?: Row }>('POST', `/${c}`, row),
+  bulkUpsert: (c: string, rows: Partial<Row>[]) =>
+    req<{ log?: Row; rows: Row[] }>('POST', `/${c}/bulk`, { rows }),
   update: (c: string, id: number, patch: Partial<Row>) => req<{ log?: Row }>('PUT', `/${c}/${id}`, patch),
   remove: (c: string, id: number) => req<{ log?: Row }>('DELETE', `/${c}/${id}`),
   toggle: (c: string, id: number) => req<{ log?: Row }>('POST', `/${c}/${id}/toggle`),

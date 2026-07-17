@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
-import { initDb, loadAll, upsertRow, deleteRow } from './db.js';
+import { initDb, loadAll, upsertRow, upsertRows, deleteRow } from './db.js';
 import type { DB, Row } from './seed.js';
 
 const PORT = Number(process.env.PORT) || 8787;
@@ -280,6 +280,7 @@ app.get('/api/settlement/preview', auth, (req, res) => {
 
 // Chỉ cho phép ghi vào các collection đã biết (tránh bơm rác vào các collection tùy ý).
 const WRITABLE = new Set(Object.keys(COLLECTION_SCREEN).concat(['settleAdv', 'settleMedia']));
+const BULK_IMPORTS = new Set(['importAI', 'importAdv', 'importMedia']);
 
 function checkRbac(req: Request, res: Response): boolean {
   const user = (req as any).user as SessionUser;
@@ -361,6 +362,47 @@ app.post('/api/_restore', auth, asyncHandler(async (req, res) => {
   await deleteRow('quarantine', Number(qid));
   const log = await writeLog(user, 'restore', `${q.collection} #${q.originalId}`);
   res.json({ ok: true, log });
+}));
+
+// Xác nhận hàng loạt dữ liệu nhập: một request + một câu SQL + một log.
+// Không dùng create/update phía client theo vòng lặp vì hàng nghìn request đồng thời
+// sẽ làm quá tải server và khiến UI báo thành công trước khi dữ liệu thực sự được lưu.
+app.post('/api/:collection/bulk', auth, asyncHandler(async (req, res) => {
+  const c = req.params.collection;
+  if (!BULK_IMPORTS.has(c)) return res.status(404).json({ error: 'bulk unsupported' });
+  const input = req.body?.rows;
+  if (!Array.isArray(input) || input.length > 10_000) return res.status(400).json({ error: 'invalid bulk rows' });
+
+  const user = (req as any).user as SessionUser;
+  const screen = COLLECTION_SCREEN[c];
+  const currentRows = db[c] || [];
+  const currentById = new Map(currentRows.map((row) => [Number(row.id), row] as const));
+  let nextId = currentRows.reduce((max, row) => Math.max(max, Number(row.id) || 0), 0);
+  let createdCount = 0, updatedCount = 0;
+  const prepared: Row[] = [];
+
+  for (const raw of input) {
+    if (!raw || typeof raw !== 'object') return res.status(400).json({ error: 'invalid bulk row' });
+    const requestedId = raw.id == null ? undefined : Number(raw.id);
+    const current = requestedId == null ? undefined : currentById.get(requestedId);
+    const action = current ? 'edit' : 'create';
+    if (screen && !can(user, screen, action)) return res.status(403).json({ error: 'forbidden' });
+
+    const row = { ...(current || {}), ...raw, id: current ? current.id : ++nextId } as Row;
+    if (outOfScope(user, c, current) || outOfScope(user, c, row)) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
+    if (hasInvalidNumber(c, row)) return res.status(400).json({ error: 'invalid number' });
+    prepared.push(row);
+    if (current) updatedCount++; else createdCount++;
+  }
+
+  await upsertRows(c, prepared);
+  const savedById = new Map(prepared.map((row) => [row.id, row] as const));
+  const created = prepared.filter((row) => !currentById.has(row.id));
+  db[c] = [...created, ...currentRows.map((row) => savedById.get(row.id) ?? row)];
+  const log = await writeLog(user, 'confirm', `${c}: ${createdCount} create, ${updatedCount} edit`);
+  res.json({ ok: true, rows: prepared, log });
 }));
 
 app.post('/api/:collection', auth, asyncHandler(async (req, res) => {

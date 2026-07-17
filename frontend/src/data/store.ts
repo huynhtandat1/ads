@@ -64,6 +64,28 @@ export function create(c: string, data: Omit<Row, 'id'>): Row {
   return row;
 }
 
+/**
+ * Ghi hàng loạt và chỉ cập nhật cache sau khi server xác nhận thành công.
+ * Lỗi của cả lô chỉ phát một thông báo, thay vì một toast cho mỗi dòng.
+ */
+export async function bulkUpsert(c: string, rows: Partial<Row>[]): Promise<Row[]> {
+  try {
+    const result = await api.bulkUpsert(c, rows);
+    const current = db[c] || [];
+    const currentIds = new Set(current.map((row) => row.id));
+    const savedById = new Map(result.rows.map((row) => [row.id, row] as const));
+    const created = result.rows.filter((row) => !currentIds.has(row.id));
+    db[c] = [...created, ...current.map((row) => savedById.get(row.id) ?? row)];
+    emit();
+    appendLog(result.log);
+    return result.rows;
+  } catch (e) {
+    notifySaveError(kindOf(e));
+    console.error('bulk upsert failed', e);
+    throw e;
+  }
+}
+
 export function update(c: string, id: number, patch: Partial<Row>) {
   const before = (db[c] || []).find((r) => r.id === id);
   db[c] = (db[c] || []).map((r) => (r.id === id ? { ...r, ...patch } : r));

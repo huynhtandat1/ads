@@ -81,7 +81,7 @@ export default {
     aiFill: 'AI Auto-fill', aiFilled: 'auto-filled data',
     chooseMedia: 'Select Media', chooseMediaOrder: 'Select Ad Order', chooseMediaId: 'Select Media ID',
     coefficient: 'Data Coefficient', shareRate: 'Revenue Share', actual: 'Net Received', netPay: 'Net Payable', fromAdv: 'from advertiser input',
-    confirmAll: 'Confirm All Data', savedAll: 'Day data confirmed',
+    confirmAll: 'Confirm All Data', confirming: 'Confirming…', savedAll: 'All data confirmed',
     effNow: 'Effective now', effLater: 'Effective later', effFrom: 'Effective from', effSaved: 'New effective value saved',
     payable: 'Payable',
   },

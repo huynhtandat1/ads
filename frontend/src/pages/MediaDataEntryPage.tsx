@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
-import { useCollection, getAll, create, update, refName, setRate, type Row } from '../data/store';
-import { Pager } from '../components/Pager';
+import { useCollection, getAll, create, update, bulkUpsert, refName, setRate, type Row } from '../data/store';
+import { DEFAULT_PAGE_SIZE, Pager } from '../components/Pager';
 import { RateEditor } from '../components/RateEditor';
 import { DateRangePicker } from '../components/DateRangePicker';
-import { IconSearch, IconDownload } from '../components/icons';
+import { IconSearch } from '../components/icons';
 import { dayMonth, inRange, useDatesInRange, yesterdayRange } from '../lib/date';
 import { calcMediaCell, isMediaRecordStale, mediaTypeOf } from '../lib/mediaSync';
 import { sortByGroupedLabel } from '../lib/optionSort';
@@ -51,6 +51,7 @@ export function MediaDataEntryPage() {
   // Sort cột ngày: mặc định TĂNG dần (spec 07-2026 — mọi trang thống nhất), click header đảo chiều.
   const [dateDir, setDateDir] = useState<1 | -1>(1);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [confirming, setConfirming] = useState(false);
 
   const canCreate = can(screen, 'create');
   const canEdit = can(screen, 'edit');
@@ -113,7 +114,7 @@ export function MediaDataEntryPage() {
   ].filter((option) => facets.options.status.has(option.value));
   const rows = facets.rows;
 
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   // Mỗi dòng = 1 (mediaId, ngày) cho mỗi ngày trong [from, to]; record cũ (nếu có) khớp theo ngày.
   // Trước đây chỉ tạo dòng cho ngày CÓ record nên sót ngày chưa nhập giữa range.
@@ -153,12 +154,39 @@ export function MediaDataEntryPage() {
   const recordOf = (m: Row, cellDate: string) =>
     getAll(COLLECTION).find((r) => String(r.date) === cellDate && (r.mediaIdId === m.id || r.objectId === m.name));
 
-  const saveRow = (m: Row, cellDate: string) => {
+  const persistRow = (m: Row, cellDate: string) => {
     const existing = recordOf(m, cellDate);
     if (existing) update(COLLECTION, existing.id, buildPayload(m, cellDate));
     else create(COLLECTION, buildPayload(m, cellDate) as Omit<Row, 'id'>);
+  };
+
+  const saveRow = (m: Row, cellDate: string) => {
+    persistRow(m, cellDate);
     setSavedIds((s) => new Set(s).add(`${m.id}|${cellDate}`));
     toast(t('entry.savedRow'));
+  };
+
+  // Xác nhận toàn bộ dữ liệu đang khớp khoảng ngày + bộ lọc, kể cả các trang phân trang khác.
+  const confirmAll = async () => {
+    if (confirming || (!canCreate && !canEdit) || cellRows.length === 0) return;
+    setConfirming(true);
+    try {
+      const batch = cellRows.map(({ m, cellDate }) => {
+        const existing = recordOf(m, cellDate);
+        return { ...(existing ? { id: existing.id } : {}), ...buildPayload(m, cellDate) };
+      });
+      await bulkUpsert(COLLECTION, batch);
+      setSavedIds((saved) => {
+        const next = new Set(saved);
+        cellRows.forEach(({ key }) => next.add(key));
+        return next;
+      });
+      toast(t('entry.savedAll'));
+    } catch {
+      // bulkUpsert đã khôi phục cache và phát đúng một thông báo lỗi.
+    } finally {
+      setConfirming(false);
+    }
   };
 
   const sel = "h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-200";
@@ -209,9 +237,9 @@ export function MediaDataEntryPage() {
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('common.searchPh')}
               className="h-9 pl-8 pr-3 rounded-lg border border-gray-200 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-cyan-200" />
           </div>
-          <button onClick={load}
-            className="h-9 px-4 inline-flex items-center gap-1.5 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600">
-            <IconDownload width={16} height={16} /> {t('entry.load')}
+          <button onClick={confirmAll} disabled={confirming || (!canCreate && !canEdit) || cellRows.length === 0}
+            className="h-9 px-4 inline-flex items-center rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed">
+            {confirming ? t('entry.confirming') : t('entry.saveRow')}
           </button>
         </div>
       </div>
