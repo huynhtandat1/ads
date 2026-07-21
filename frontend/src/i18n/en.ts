@@ -56,9 +56,9 @@ export default {
     confirmPurge: 'Permanently delete this record? Cannot be undone.',
     origin: 'From', name: 'Name', time: 'Time', by: 'By', empty: 'No quarantined records',
   },
-  perm: { view: 'View', create: 'Create', edit: 'Edit', delete: 'Delete', export: 'Export', screen: 'Screen' },
+  perm: { view: 'View', create: 'Create', edit: 'Edit', delete: 'Delete', export: 'Export', screen: 'Screen', noView: 'Role must have at least one View permission, cannot save empty.' },
   report: {
-    totalRevenue: 'Total Revenue', totalCost: 'Total Cost', totalProfit: 'Total Profit', avgMargin: 'Avg Margin', records: 'records',
+    totalRevenue: 'Total Revenue', totalCost: 'Total Cost', totalProfit: 'Total Profit', margin: 'Margin', records: 'records',
     eyebrow: 'REPORT', thisMonth: 'This Month', lastMonth: 'Last Month', query: 'Query', exportExcel: 'Export Excel',
     business: 'Business', allDates: 'All Dates', confirmFilter: 'Confirmed', grandTotal: 'Grand Total',
     stale: 'Source data changed — re-save on the entry page',

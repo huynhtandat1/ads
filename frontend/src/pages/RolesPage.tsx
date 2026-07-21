@@ -66,12 +66,25 @@ export function RolesPage() {
   };
 
   const save = () => {
-    if (editing) { update('roles', editing.id, { permissions: JSON.stringify(matrix) }); toast(t('common.saved')); setEditing(null); }
+    if (!editing) return;
+    // Chặn vô tình xóa hết quyền — nếu không còn screen nào có view=true thì vai trò
+    // bị "khóa" khỏi mọi trang, user bị block ngay lập tức.
+    const hasAnyView = Object.values(matrix).some((p) => p?.view);
+    if (!hasAnyView) { toast(t('perm.noView'), 'error'); return; }
+    update('roles', editing.id, { permissions: JSON.stringify(matrix) });
+    toast(t('common.saved'));
+    setEditing(null);
   };
 
   const saveNew = () => {
-    if (!newName.trim()) return;
-    create('roles', { name: newName.trim().toUpperCase(), permissions: JSON.stringify(emptyPerms()), status: true } as Omit<Row, 'id'>);
+    const name = newName.trim().toUpperCase();
+    if (!name) return;
+    // Chặn trùng tên: backend trả 409 nhưng frontend toast "Đã lưu" lừa user vì create()
+    // là optimistic — bản ghi hiện ra rồi mới bị rollback khi server từ chối.
+    if (rows.some((r) => String(r.name).toUpperCase() === name)) {
+      toast(t('common.duplicate'), 'error'); return;
+    }
+    create('roles', { name, permissions: JSON.stringify(emptyPerms()), status: true } as Omit<Row, 'id'>);
     toast(t('common.saved')); setCreating(false); setNewName('');
   };
 

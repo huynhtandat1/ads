@@ -46,8 +46,8 @@ export function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         <Stat label={t('report.totalRevenue')} value={money(tot.revenue)} accent="text-cyan-600" />
         <Stat label={t('report.totalCost')} value={money(tot.cost)} accent="text-orange-500" />
-        <Stat label={t('report.totalProfit')} value={money(tot.profit)} accent="text-emerald-600" />
-        <Stat label={t('report.avgMargin')} value={tot.margin + '%'} />
+        <Stat label={t('report.totalProfit')} value={money(tot.afterTax)} accent="text-emerald-600" />
+        <Stat label={t('report.margin')} value={tot.margin + '%'} />
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Stat label={t('menu.g1a')} value={String(advN)} />

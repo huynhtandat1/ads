@@ -56,9 +56,9 @@ export default {
     confirmPurge: '永久删除该记录？不可撤销。',
     origin: '所属模块', name: '名称', time: '时间', by: '操作人', empty: '暂无隔离记录',
   },
-  perm: { view: '查看', create: '创建', edit: '编辑', delete: '删除', export: '导出', screen: '界面' },
+  perm: { view: '查看', create: '创建', edit: '编辑', delete: '删除', export: '导出', screen: '界面', noView: '角色必须至少保留一项“查看”权限，不能全部清空。' },
   report: {
-    totalRevenue: '总收入', totalCost: '总成本', totalProfit: '总利润', avgMargin: '平均利润率', records: '条记录',
+    totalRevenue: '总收入', totalCost: '总成本', totalProfit: '总利润', margin: '利润率', records: '条记录',
     eyebrow: '报表', thisMonth: '本月', lastMonth: '上月', query: '查询', exportExcel: '导出 Excel',
     business: '业务', allDates: '全部日期', confirmFilter: '已确认', grandTotal: '总计',
     stale: '上游数据已变更 — 请在录入页面重新保存',

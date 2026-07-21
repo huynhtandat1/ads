@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { getAll, setActor, hydrate, clearDB, refreshFromServer } from '../data/store';
+import { getAll, setActor, hydrate, clearDB, refreshFromServer, useCollection } from '../data/store';
 import { api, setToken, clearToken, hasToken } from '../api';
 
 export type PermAction = 'view' | 'create' | 'edit' | 'delete' | 'export';
@@ -83,7 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [user, booting]);
 
-  const perms = useMemo(() => (user ? resolvePerms(user.role) : {}), [user, booting]);
+  // Subscribe roles collection để khi admin sửa quyền của role user đang dùng, hook
+  // re-render và perms được resolve lại ngay (không cần logout/login).
+  const roles = useCollection('roles');
+  const perms = useMemo(() => (user ? resolvePerms(user.role) : {}), [user, booting, roles]);
 
   const login = async (username: string, password: string) => {
     try {

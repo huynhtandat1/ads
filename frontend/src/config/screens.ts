@@ -35,6 +35,7 @@ export interface CrudFieldCfg {
   derive?: { watch: string; from: string; source: string }; // giá trị lấy tự động từ bản ghi field khác trỏ tới
   hidden?: boolean; // không hiển thị trong form (vẫn giữ/derive giá trị)
   digitsOnly?: boolean; // chỉ cho nhập chữ số (vd: số điện thoại)
+  skipRequiredOnEdit?: boolean; // required khi tạo, không required khi sửa (vd password)
   placeholderKey?: string; // i18n key cho placeholder
   sortActiveOptions?: boolean; // dropdown optionsFrom: ẩn bản ghi đã tắt + xếp số → Latin → Hán (pinyin)
   usedOnce?: { collection: string; field: string }; // ẩn option đã được bản ghi khác trong collection.field dùng
@@ -216,7 +217,7 @@ export const SCREENS: Record<string, ScreenConfig> = {
     fields: [
       { key: 'username', labelKey: 'col.username', type: 'text', required: true },
       // Password: bắt buộc khi tạo; khi sửa, bỏ trống = giữ nguyên.
-      { key: 'password', labelKey: 'common.password', type: 'password', required: true, placeholderKey: 'common.passwordPlaceholder' },
+      { key: 'password', labelKey: 'common.password', type: 'password', required: true, skipRequiredOnEdit: true, placeholderKey: 'common.passwordPlaceholder' },
       { key: 'fullName', labelKey: 'col.fullName', type: 'text' },
       { key: 'email', labelKey: 'col.email', type: 'email' },
       { key: 'role', labelKey: 'col.roleName', type: 'select', required: true, optionsFrom: 'roles', optionValue: 'name', optionLabel: 'name' },

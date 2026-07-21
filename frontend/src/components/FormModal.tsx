@@ -23,6 +23,7 @@ export interface FieldDef {
   derive?: { watch: string; from: string; source: string }; // giá trị tự lấy từ bản ghi field khác trỏ tới → read-only
   hidden?: boolean; // không render trong form (vẫn giữ/derive/validate giá trị)
   digitsOnly?: boolean; // chỉ cho nhập chữ số (vd: số điện thoại)
+  skipRequiredOnEdit?: boolean; // field required khi tạo, không required khi sửa (vd: password)
   placeholder?: string;     // raw placeholder
   placeholderKey?: string;  // i18n key cho placeholder
   sortActiveOptions?: boolean; // dropdown optionsFrom: lọc status=false + xếp theo nhóm ký tự đầu
@@ -80,9 +81,12 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
 
   const submit = () => {
     const errs: Record<string, string> = {};
+    const isEdit = !!initial;
     for (const f of fields) {
       const raw = vals[f.key];
-      if (f.required && (raw === '' || raw == null)) {
+      // skipRequiredOnEdit: required khi tạo, không required khi sửa (vd password).
+      const required = f.required && !(f.skipRequiredOnEdit && isEdit);
+      if (required && (raw === '' || raw == null)) {
         errs[f.key] = t('common.required');
         continue;
       }
@@ -139,7 +143,7 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
           {fields.filter((f) => !f.hidden).map((f) => (
             <div key={f.key} className={f.half ? 'col-span-1' : 'col-span-2'}>
               <label className="block text-sm font-medium text-gray-600 mb-1.5">
-                {(f.labelMap ? (f.labelMap.options[String(vals[f.labelMap.watch] ?? '')] ?? f.labelMap.default) : f.label)} {f.required && <span className="text-rose-500">*</span>}
+                {(f.labelMap ? (f.labelMap.options[String(vals[f.labelMap.watch] ?? '')] ?? f.labelMap.default) : f.label)} {f.required && !(f.skipRequiredOnEdit && initial) && <span className="text-rose-500">*</span>}
               </label>
               {f.type === 'toggle' ? (
                 <Toggle on={!!vals[f.key]} onChange={() => set(f.key, !vals[f.key])} />

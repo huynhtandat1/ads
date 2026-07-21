@@ -56,9 +56,9 @@ export default {
     confirmPurge: 'Xóa vĩnh viễn bản ghi này? Không thể hoàn tác.',
     origin: 'Thuộc mục', name: 'Tên', time: 'Thời gian', by: 'Người thực hiện', empty: 'Chưa có bản ghi cô lập',
   },
-  perm: { view: 'Xem', create: 'Tạo', edit: 'Sửa', delete: 'Xóa', export: 'Xuất', screen: 'Màn hình' },
+  perm: { view: 'Xem', create: 'Tạo', edit: 'Sửa', delete: 'Xóa', export: 'Xuất', screen: 'Màn hình', noView: 'Vai trò phải có ít nhất một quyền Xem, không thể lưu khi rỗng.' },
   report: {
-    totalRevenue: 'Tổng doanh thu', totalCost: 'Tổng chi phí', totalProfit: 'Tổng lợi nhuận', avgMargin: 'Tỷ suất TB', records: 'bản ghi',
+    totalRevenue: 'Tổng doanh thu', totalCost: 'Tổng chi phí', totalProfit: 'Tổng lợi nhuận', margin: 'Tỷ suất', records: 'bản ghi',
     eyebrow: 'BÁO CÁO', thisMonth: 'Tháng này', lastMonth: 'Tháng trước', query: 'Truy vấn', exportExcel: 'Xuất Excel',
     business: 'Nghiệp vụ', allDates: 'Tất cả ngày', confirmFilter: 'Đã xác nhận', grandTotal: 'Tổng cộng',
     stale: 'Số liệu nguồn đã thay đổi — hãy lưu lại ở trang nhập liệu',
