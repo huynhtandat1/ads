@@ -81,6 +81,10 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
       if (params.fAdv && String(r.advertiserId) !== params.fAdv) continue;
       const dim = spec.dim(r);
       if (!dim) continue;
+      // Bỏ dòng thiếu ngày: ngược lại effectiveValue sẽ rơi về params.to → thuế lệch
+      // cho cả cụm, che giấu lỗi dữ liệu khỏi người dùng.
+      const date = String(r.date || '');
+      if (!date) continue;
       if (lc && !dim.toLowerCase().includes(lc)) continue;
       const g = map.get(dim) || { revenue: 0, cost: 0, daily: new Map(), adv: new Map(), med: new Map() };
       // perfOf: dòng importMedia chỉ đóng góp phần CHI — doanh thu của cùng link
@@ -99,7 +103,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
       // (hiển thị money() còn 2) — cùng phép tính với g4a nên hai màn khớp, đúng khi suất
       // đổi giữa kỳ, không lệch kiểu Σround(ngày) ≠ round(Σ).
       const tax = round3(Array.from(g.daily.entries()).reduce(
-        (s, [date, p]) => s + (p * effectiveValue('tax', 0, 'point', isDate(date) ? date : params.to || todayStr, TAX_PCT)) / 100,
+        (s, [date, p]) => s + (p * effectiveValue('tax', 0, 'point', isDate(date) ? date : todayStr, TAX_PCT)) / 100,
         0,
       ));
       const idName = (m: Map<number, number>, collection: string) =>

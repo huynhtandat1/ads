@@ -17,7 +17,8 @@ const COLLECTIONS = ['importAI', 'importAdv', 'importMedia'];
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 interface DailyCell { biz: string; date: string; profit: number; tax: number }
-interface BizRow { biz: string; today: number; month: number; monthTax: number }
+// raw giữ giá trị thô trước khi làm tròn để cộng Σ chính xác (spec không lệch vài xu).
+interface BizRow { biz: string; today: number; month: number; monthTax: number; rawToday: number; rawMonth: number; rawMonthTax: number }
 
 const bizNameOf = (r: Row): string => {
   // Nghiệp vụ theo đơn QC của ID QUẢNG CÁO (khóa chung thu↔chi); hồ sơ Media ID có thể
@@ -77,6 +78,7 @@ export function TotalProfitPage() {
       const biz = bizNameOf(r);
       if (!biz) continue;
       const date = String(r.date || '');
+      if (!date) continue; // bỏ dòng thiếu ngày: thuế theo effectiveValue sẽ lệch cho cả cụm.
       if (from && date < from) continue;
       if (to && date > to) continue;
       const perf = perfOf(c, r);
@@ -104,16 +106,24 @@ export function TotalProfitPage() {
       .map(([biz, g]) => ({
         biz,
         today: round3(g.today),
-        month: round3(g.month - round3(g.monthTax)),
+        month: round3(g.month - g.monthTax),
         monthTax: round3(g.monthTax),
+        // giữ raw để Σ cộng xong rồi round 1 lần, tránh Σround ≠ round(Σ).
+        rawToday: g.today, rawMonth: g.month, rawMonthTax: g.monthTax,
       }))
       .sort((a, b) => b.month - a.month);
     return { rows: out, todayDate: dayCol };
   }, [from, to, db]);
 
+  // Σ cộng raw (chưa round) rồi round 1 lần — khớp với export CSV và không lệch kiểu Σround ≠ round(Σ).
   const totals = rows.reduce((s, r) => ({
-    today: s.today + r.today, month: s.month + r.month, monthTax: s.monthTax + r.monthTax,
-  }), { today: 0, month: 0, monthTax: 0 });
+    today: round3(s.todayRaw + r.rawToday),
+    month: round3(s.monthRaw + r.rawMonth - r.rawMonthTax),
+    monthTax: round3(s.monthTaxRaw + r.rawMonthTax),
+    todayRaw: s.todayRaw + r.rawToday,
+    monthRaw: s.monthRaw + r.rawMonth,
+    monthTaxRaw: s.monthTaxRaw + r.rawMonthTax,
+  }), { today: 0, month: 0, monthTax: 0, todayRaw: 0, monthRaw: 0, monthTaxRaw: 0 });
 
   const dailyTotal = daily.reduce((s, d) => ({
     profit: s.profit + d.profit,

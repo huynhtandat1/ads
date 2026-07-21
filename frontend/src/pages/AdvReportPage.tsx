@@ -118,8 +118,14 @@ export function AdvReportPage() {
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const curPage = Math.min(page, totalPages);
   const pageRows = rows.slice((curPage - 1) * pageSize, curPage * pageSize);
+  // Phân biệt "chưa nhập" (null) và "đã nhập 0" — null bỏ qua khỏi tổng để Σ phản ánh
+  // đúng số liệu thực, không ngầm cộng dòng trống thành 0 (spec 07-2026).
   const totals = rows.reduce(
-    (s, r) => ({ traffic: s.traffic + (Number(r.traffic) || 0), settlement: s.settlement + (Number(r.settlement) || 0), receivable: s.receivable + (Number(r.receivable) || 0) }),
+    (s, r) => ({
+      traffic: s.traffic + (nullableNumber(r.traffic ?? r.clicks) ?? 0),
+      settlement: s.settlement + (nullableNumber(r.settlement) ?? 0),
+      receivable: s.receivable + (nullableNumber(r.receivable) ?? 0),
+    }),
     { traffic: 0, settlement: 0, receivable: 0 },
   );
 

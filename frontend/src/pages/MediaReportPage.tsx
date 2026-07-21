@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { effectiveValue, getAll, refName, useDB, type Row } from '../data/store';
-import { receivableOf } from '../lib/billing';
+import { receivableOf, nullableNumber } from '../lib/billing';
 import { round3 } from '../lib/format';
 import { exportCSV } from '../lib/export';
 import { DateRangePicker } from '../components/DateRangePicker';
@@ -28,10 +28,12 @@ const midStatusOf = (r: Row): boolean => {
 };
 
 function compute(r: Row) {
+  // r.receivable đã chứa coefficient (mediaSync tính trên dữ liệu đã scale); chỉ dùng
+  // làm fallback khi bản ghi thiếu trường này.
   const coefficient = Number(r.coefficient ?? 1) || 1;
   const fallbackBase = receivableOf(r.type, { unitPrice: r.unitPrice, traffic: r.traffic, settlement: r.settlement });
   const fallbackReceivable = fallbackBase == null ? null : round3(fallbackBase * coefficient);
-  const receivable = r.receivable != null ? Number(r.receivable) || 0 : fallbackReceivable;
+  const receivable = r.receivable != null ? Number(r.receivable) : fallbackReceivable;
   const mediaId = getAll('mediaIds').find((m) => m.id === r.mediaIdId);
   const fallbackShareRate = Number(mediaId?.profitShare ?? r.shareRate ?? 0) || 0;
   const shareRate = r.mediaIdId != null
@@ -123,13 +125,16 @@ export function MediaReportPage() {
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const curPage = Math.min(page, totalPages);
   const pageRows = rows.slice((curPage - 1) * pageSize, curPage * pageSize);
+  // Phân biệt "chưa nhập" (null) và "đã nhập 0" — dùng nullableNumber để nhất quán
+// với billing.ts; receivable/actual do compute() trả về null khi thiếu dữ liệu nên
+// bỏ qua khỏi tổng thay vì cộng 0 (spec 07-2026).
   const totals = rows.reduce((s, r) => {
     const c = compute(r);
     return {
-      traffic: s.traffic + (Number(r.traffic) || 0),
-      settlement: s.settlement + (Number(r.settlement) || 0),
-      receivable: s.receivable + (c.receivable ?? 0),
-      actual: s.actual + (c.actual ?? 0),
+      traffic: s.traffic + (nullableNumber(r.traffic) ?? 0),
+      settlement: s.settlement + (nullableNumber(r.settlement) ?? 0),
+      receivable: s.receivable + (nullableNumber(c.receivable) ?? 0),
+      actual: s.actual + (nullableNumber(c.actual) ?? 0),
     };
   }, { traffic: 0, settlement: 0, receivable: 0, actual: 0 });
 
