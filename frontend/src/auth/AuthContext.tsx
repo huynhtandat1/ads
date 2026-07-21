@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { getAll, setActor, hydrate, clearDB } from '../data/store';
+import { getAll, setActor, hydrate, clearDB, refreshFromServer } from '../data/store';
 import { api, setToken, clearToken, hasToken } from '../api';
 
 export type PermAction = 'view' | 'create' | 'edit' | 'delete' | 'export';
@@ -52,6 +52,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('ko-unauthorized', onUnauth);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Tự nhận dữ liệu mới mà không cần F5: đồng bộ định kỳ khi tab đang hiển thị,
+  // đồng thời đồng bộ ngay khi người dùng quay lại cửa sổ/tab.
+  useEffect(() => {
+    if (!user || booting || !hasToken()) return;
+    let disposed = false;
+    let running = false;
+    const sync = async () => {
+      if (disposed || running || document.visibilityState === 'hidden') return;
+      running = true;
+      try { await refreshFromServer(); }
+      catch (e) {
+        // Mất mạng tạm thời không phá cache hiện tại; 401 đã có listener tự đăng xuất.
+        if ((e as Error)?.message !== 'unauthorized') console.warn('background sync failed', e);
+      } finally {
+        running = false;
+      }
+    };
+    const onFocus = () => { void sync(); };
+    const onVisibility = () => { if (document.visibilityState === 'visible') void sync(); };
+    const timer = window.setInterval(() => { void sync(); }, 5_000);
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [user, booting]);
 
   const perms = useMemo(() => (user ? resolvePerms(user.role) : {}), [user, booting]);
 

@@ -29,13 +29,25 @@ export function calcMediaCell(m: Row, cellDate: string) {
   //   - Lưu lượng CPS = TIỀN (giá trị đơn hàng) → giữ 3 số lẻ (round3) để cộng dồn
   //     chính xác; hiển thị money() rút về 2 số lẻ.
   // Quyết toán là tiền nên cũng giữ 3 số lẻ.
-  const traffic = rawTraffic == null ? '' : (type === 'CPS' ? round3(rawTraffic * coef) : Math.floor(rawTraffic * coef));
-  const settlement = rawSettlement == null ? '' : round3(rawSettlement * coef);
+  const scaledTraffic = rawTraffic == null ? '' : (type === 'CPS' ? round3(rawTraffic * coef) : Math.floor(rawTraffic * coef));
+  const scaledSettlement = rawSettlement == null ? '' : round3(rawSettlement * coef);
   // Phải trả tính từ base ĐÃ áp hệ số (không nhân hệ số lần nữa). Tính giữ 3 số lẻ,
   // hiển thị money() lo phần rút về 2 số lẻ.
-  const receivable = receivableOf(type, { unitPrice, traffic, settlement });
+  const receivable = receivableOf(type, { unitPrice, traffic: scaledTraffic, settlement: scaledSettlement });
   const payable = round3OrNull(receivable);          // Số tiền phải trả
   const netPay = payable == null ? null : round3(payable * (accountShare / 100)); // Số tiền thực trả
+  // CPS: hai cột Lưu lượng/Số tiền & Quyết toán/Số tiền phía media hiển thị SỐ SAU 分成
+  // của NQC (giá trị đơn hàng × tỷ lệ chia NQC %) — media không được đọc giá trị đơn hàng
+  // gốc (yêu cầu 07-2026: 广告主数据录入之后，媒体数据应读取分成后金额).
+  // Công thức phải trả GIỮ NGUYÊN trên giá trị gốc đã áp hệ số (tính ở trên).
+  let traffic = scaledTraffic;
+  let settlement = scaledSettlement;
+  if (type === 'CPS') {
+    const adId = getAll('adIds').find((a) => a.id === m.adIdId);
+    const advRate = effectiveValue('adId', m.adIdId, 'unitPrice', cellDate, Number(adId?.unitPrice) || 0);
+    if (traffic !== '') traffic = round3(Number(traffic) * (advRate / 100));
+    if (settlement !== '') settlement = round3(Number(settlement) * (advRate / 100));
+  }
   return { type, traffic, settlement, unitPrice, coef, accountShare, payable, netPay };
 }
 

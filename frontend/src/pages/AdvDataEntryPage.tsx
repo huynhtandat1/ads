@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../auth/AuthContext';
@@ -28,7 +28,7 @@ export function AdvDataEntryPage({
   const { can } = useAuth();
   const COLLECTION = collection;
   // re-render when source data changes
-  useCollection(COLLECTION);
+  const records = useCollection(COLLECTION);
   useCollection('rates'); // lịch sử đơn giá theo ngày
   const advertisersAll = useCollection('advertisers');
   const adOrdersAll = useCollection('adOrders');
@@ -47,6 +47,7 @@ export function AdvDataEntryPage({
   const [q, setQ] = useState('');
 
   const [draft, setDraft] = useState<Record<string, Draft>>({});
+  const dirtyKeys = useRef(new Set<string>());
   // Sort cột ngày: mặc định TĂNG dần (spec docx 07-2026), click header để đảo chiều.
   const [dateDir, setDateDir] = useState<1 | -1>(1);
   // Phân trang thống nhất toàn site: mặc định 30, chọn 30/50/100.
@@ -62,11 +63,10 @@ export function AdvDataEntryPage({
   // Load saved values for the selected range into the editable grid.
   // Mỗi ad có 1 dòng / ngày trong [from, to]; record cũ (nếu có) điền vào đúng dòng của ngày đó.
   // Trước đây chỉ tạo dòng cho ngày CÓ record nên sót ngày chưa nhập giữa range.
-  const load = () => {
+  const load = (preserveDirty = false) => {
     const next: Record<string, Draft> = {};
     const saved = new Set<string>();
-    const records = getAll(COLLECTION);
-    for (const ad of getAll('adIds')) {
+    for (const ad of adIdsAll) {
       const adRecs = records.filter((r) => r.adIdId === ad.id || r.objectId === ad.name);
       for (const d of datesInRange) {
         const rec = adRecs.find((r) => String(r.date) === d);
@@ -79,12 +79,24 @@ export function AdvDataEntryPage({
         if (rec) saved.add(key);
       }
     }
-    setDraft(next);
+    setDraft((previous) => {
+      if (preserveDirty) {
+        for (const key of dirtyKeys.current) {
+          if (previous[key] && next[key]) next[key] = previous[key];
+        }
+      }
+      return next;
+    });
+    for (const key of dirtyKeys.current) saved.delete(key);
     setSavedIds(saved);
-    setEditing(null);
+    if (!preserveDirty) setEditing(null);
   };
 
-  useEffect(load, [from, to]); // reload when range changes
+  useEffect(() => {
+    dirtyKeys.current.clear();
+    load(false);
+  }, [from, to]); // reload when range changes
+  useEffect(() => { load(true); }, [records, adIdsAll]); // nhận dữ liệu mới từ đồng bộ nền
   useEffect(() => { setPage(1); }, [from, to, fAdv, fOrder, fAdId, fType, fPrice, fStatus, q, dateDir]);
 
   // Tất cả dropdown là facet hai chiều: chọn Loại/Giá/Trạng thái cũng lọc ngược NQC/Đơn/ID.
@@ -152,6 +164,7 @@ export function AdvDataEntryPage({
   const pageRows = cellRows.slice((curPage - 1) * pageSize, curPage * pageSize);
 
   const setCell = (key: string, field: keyof Draft, value: string) => {
+    dirtyKeys.current.add(key);
     setDraft((d) => ({ ...d, [key]: { ...d[key], [field]: value === '' ? '' : Number(value) } }));
     setSavedIds((s) => { const next = new Set(s); next.delete(key); return next; });
   };
@@ -199,6 +212,7 @@ export function AdvDataEntryPage({
 
   const saveRow = (ad: Row, cellDate: string) => {
     const key = `${ad.id}|${cellDate}`;
+    dirtyKeys.current.delete(key);
     persistRow(ad, cellDate);
     setSavedIds((s) => new Set(s).add(key));
     toast(t('entry.savedRow'));
@@ -214,6 +228,7 @@ export function AdvDataEntryPage({
         return { ...(existing ? { id: existing.id } : {}), ...buildPayload(ad, cellDate) };
       });
       await bulkUpsert(COLLECTION, batch);
+      cellRows.forEach(({ key }) => dirtyKeys.current.delete(key));
       setSavedIds((saved) => {
         const next = new Set(saved);
         cellRows.forEach(({ key }) => next.add(key));
@@ -230,6 +245,8 @@ export function AdvDataEntryPage({
   // AI auto-fill: simulate fetching traffic/settlement from an external source for visible rows.
   // Ghi vào dòng đầu tiên (cellDate = from) của mỗi ad đang hiển thị.
   const aiFill = () => {
+    const changedKeys = new Set(rows.map((ad) => `${ad.id}|${from}`));
+    changedKeys.forEach((key) => dirtyKeys.current.add(key));
     setDraft((d) => {
       const next = { ...d };
       for (const ad of rows) {
@@ -241,6 +258,11 @@ export function AdvDataEntryPage({
           settlement: 1000 + Math.floor(Math.random() * 9000),
         };
       }
+      return next;
+    });
+    setSavedIds((saved) => {
+      const next = new Set(saved);
+      changedKeys.forEach((key) => next.delete(key));
       return next;
     });
     toast(`${source}: ${t('entry.aiFilled')}`);

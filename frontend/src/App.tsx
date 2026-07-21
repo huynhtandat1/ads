@@ -56,16 +56,19 @@ export default function App() {
             <Route element={<Layout />}>
               <Route index element={<Dashboard />} />
 
-              <Route path="advertisers" element={<Guard screen="g1a"><CrudPage screen="g1a" /></Guard>} />
-              <Route path="ad-orders" element={<Guard screen="g1b"><CrudPage screen="g1b" /></Guard>} />
-              <Route path="ad-ids" element={<Guard screen="g1c"><CrudPage screen="g1c" /></Guard>} />
+              {/* key={screen}: các route dùng chung component nằm cùng vị trí cây React →
+                  không có key thì React tái sử dụng instance, bộ lọc/draft của trang trước
+                  dính sang trang sau (vd lọc ở g1c làm g2c trống dữ liệu). */}
+              <Route path="advertisers" element={<Guard screen="g1a"><CrudPage key="g1a" screen="g1a" /></Guard>} />
+              <Route path="ad-orders" element={<Guard screen="g1b"><CrudPage key="g1b" screen="g1b" /></Guard>} />
+              <Route path="ad-ids" element={<Guard screen="g1c"><CrudPage key="g1c" screen="g1c" /></Guard>} />
 
-              <Route path="media" element={<Guard screen="g2a"><CrudPage screen="g2a" /></Guard>} />
-              <Route path="media-orders" element={<Guard screen="g2b"><CrudPage screen="g2b" /></Guard>} />
-              <Route path="media-ids" element={<Guard screen="g2c"><CrudPage screen="g2c" /></Guard>} />
+              <Route path="media" element={<Guard screen="g2a"><CrudPage key="g2a" screen="g2a" /></Guard>} />
+              <Route path="media-orders" element={<Guard screen="g2b"><CrudPage key="g2b" screen="g2b" /></Guard>} />
+              <Route path="media-ids" element={<Guard screen="g2c"><CrudPage key="g2c" screen="g2c" /></Guard>} />
 
-              <Route path="import-ai" element={<Guard screen="g3a"><AdvDataEntryPage screen="g3a" collection="importAI" source="AI" titleKey="menu.g3a" ai /></Guard>} />
-              <Route path="import-advertiser" element={<Guard screen="g3b"><AdvDataEntryPage /></Guard>} />
+              <Route path="import-ai" element={<Guard screen="g3a"><AdvDataEntryPage key="g3a" screen="g3a" collection="importAI" source="AI" titleKey="menu.g3a" ai /></Guard>} />
+              <Route path="import-advertiser" element={<Guard screen="g3b"><AdvDataEntryPage key="g3b" /></Guard>} />
               <Route path="import-media" element={<Guard screen="g3c"><MediaDataEntryPage /></Guard>} />
 
               <Route path="report-profit" element={<Guard screen="g4a"><TotalProfitPage /></Guard>} />
@@ -73,12 +76,12 @@ export default function App() {
               <Route path="report-advertiser" element={<Guard screen="g4c"><AdvReportPage /></Guard>} />
               <Route path="report-media" element={<Guard screen="g4d"><MediaReportPage /></Guard>} />
 
-              <Route path="settle-advertiser" element={<Guard screen="g5a"><SettlementPage screen="g5a" collection="settleAdv" titleKey="menu.g5a" targetFrom="advertisers" previewType="adv" /></Guard>} />
-              <Route path="settle-media" element={<Guard screen="g5b"><SettlementPage screen="g5b" collection="settleMedia" titleKey="menu.g5b" targetFrom="media" previewType="media" /></Guard>} />
+              <Route path="settle-advertiser" element={<Guard screen="g5a"><SettlementPage key="g5a" screen="g5a" collection="settleAdv" titleKey="menu.g5a" targetFrom="advertisers" previewType="adv" /></Guard>} />
+              <Route path="settle-media" element={<Guard screen="g5b"><SettlementPage key="g5b" screen="g5b" collection="settleMedia" titleKey="menu.g5b" targetFrom="media" previewType="media" /></Guard>} />
 
               <Route path="logs" element={<Guard screen="g6"><LogsPage /></Guard>} />
 
-              <Route path="users" element={<Guard screen="g7a"><CrudPage screen="g7a" /></Guard>} />
+              <Route path="users" element={<Guard screen="g7a"><CrudPage key="g7a" screen="g7a" /></Guard>} />
               <Route path="roles" element={<Guard screen="g7b"><RolesPage /></Guard>} />
               <Route path="data-isolation" element={<Guard screen="g7c"><DataIsolationPage /></Guard>} />
 

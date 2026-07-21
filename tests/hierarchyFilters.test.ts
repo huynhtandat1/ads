@@ -67,6 +67,14 @@ describe('bidirectionalFacetOptions()', () => {
     assert.deepEqual(values(result.options.status), ['online', 'offline']);
   });
 
+  test('chọn trạng thái: lọc hai chiều theo Trực tuyến/Ngoại tuyến', () => {
+    const result = options({ status: 'offline' });
+    assert.deepEqual(result.rows.map((row) => row.item), ['101', '200']);
+    assert.deepEqual(values(result.options.parent), ['1', '2']);
+    assert.deepEqual(values(result.options.type), ['CPM', 'CPA']);
+    assert.deepEqual(values(result.options.status), ['online', 'offline']);
+  });
+
   test('mỗi facet không tự khóa chính nó', () => {
     const result = options({ parent: '1', type: 'CPA' });
     assert.deepEqual(values(result.options.parent), ['1', '2']);

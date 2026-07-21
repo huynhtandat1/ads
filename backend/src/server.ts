@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
-import { initDb, loadAll, upsertRow, upsertRows, deleteRow } from './db.js';
+import { initDb, loadAll, upsertRow, upsertRows, deleteRow, moveRow, importNaturalKey } from './db.js';
 import type { DB, Row } from './seed.js';
 
 const PORT = Number(process.env.PORT) || 8787;
@@ -196,15 +196,42 @@ function mediaActualOf(source: DB, r: Row): number {
 
 // Bộ đếm id log tăng đơn điệu (tránh Math.max(...spread) tràn stack và tránh trùng id).
 let logSeq = 5000;
-async function writeLog(user: SessionUser, action: string, object: string): Promise<Row> {
+
+/** Nạp lại nguồn sự thật và giữ bộ đếm log luôn lớn hơn mọi id đã có trong DB. */
+async function reloadDbFromStorage() {
+  db = await loadAll();
+  logSeq = (db.logs || []).reduce((mx, r) => Math.max(mx, Number(r.id) || 0), logSeq);
+}
+
+// Cache RAM và PostgreSQL phải đổi như một khối. Xếp tuần tự mutation cùng GET /api/db
+// để polling không nạp snapshot cũ đúng lúc một request khác đang ghi/đang cấp id mới.
+let dbLockTail = Promise.resolve();
+async function acquireDbLock(): Promise<() => void> {
+  const previous = dbLockTail;
+  let release!: () => void;
+  const current = new Promise<void>((resolve) => { release = resolve; });
+  dbLockTail = previous.then(() => current, () => current);
+  await previous.catch(() => undefined);
+  return release;
+}
+
+async function writeLog(user: SessionUser, action: string, object: string): Promise<Row | undefined> {
   const id = ++logSeq;
   const row: Row = {
     id, time: new Date().toISOString().slice(0, 19).replace('T', ' '),
     user: user.username, action, object, ip: '127.0.0.1', detail: '—', status: true,
   };
-  db.logs = [row, ...(db.logs || [])];
-  await upsertRow('logs', row);
-  return row;
+  try {
+    // Audit chỉ xuất hiện trong cache sau khi PostgreSQL đã nhận bản ghi.
+    await upsertRow('logs', row);
+    db.logs = [row, ...(db.logs || [])];
+    return row;
+  } catch (e) {
+    // Không biến một nghiệp vụ đã lưu thành "thất bại" chỉ vì audit log lỗi.
+    // Lỗi vẫn được ghi ra stderr để hệ thống giám sát phát hiện.
+    console.error('[audit] cannot persist log:', e);
+    return undefined;
+  }
 }
 
 // ----- App -----
@@ -219,6 +246,29 @@ const allowOrigin = (origin: string | undefined, cb: (err: Error | null, allow?:
 };
 app.use(cors({ origin: allowOrigin }));
 app.use(express.json({ limit: '5mb' }));
+app.use(async (req, res, next) => {
+  const needsLock = req.method !== 'GET' || req.path === '/api/db';
+  if (!needsLock) return next();
+  // Nếu client ngắt kết nối trong lúc đang chờ lock, không được giữ lock vĩnh viễn.
+  let closedWhileWaiting = false;
+  const markClosed = () => { closedWhileWaiting = true; };
+  res.once('close', markClosed);
+  const release = await acquireDbLock();
+  res.removeListener('close', markClosed);
+  if (closedWhileWaiting || res.destroyed) {
+    release();
+    return;
+  }
+  let released = false;
+  const done = () => {
+    if (released) return;
+    released = true;
+    release();
+  };
+  res.once('finish', done);
+  res.once('close', done);
+  next();
+});
 
 // Bọc async handler để lỗi được chuyển sang error middleware thay vì crash im lặng.
 const asyncHandler =
@@ -232,6 +282,8 @@ const asyncHandler =
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 app.post('/api/login', asyncHandler(async (req, res) => {
+  // Đăng nhập mới cũng phải nhận dữ liệu vừa được ETL/cập nhật trực tiếp trong PostgreSQL.
+  await reloadDbFromStorage();
   const { username, password } = (req.body || {}) as { username?: unknown; password?: unknown };
   if (typeof username !== 'string' || typeof password !== 'string') {
     return res.status(400).json({ error: 'username/password required' });
@@ -242,8 +294,9 @@ app.post('/api/login', asyncHandler(async (req, res) => {
   if (!v.ok) return res.status(401).json({ error: 'invalid credentials' });
   // Bản ghi plaintext cũ → nâng cấp sang hash ngay (migrate dần).
   if (v.needUpgrade) {
-    u.password = hashPassword(password);
-    await upsertRow('users', u);
+    const upgraded = { ...u, password: hashPassword(password) } as Row;
+    await upsertRow('users', upgraded);
+    Object.assign(u, upgraded);
   }
   const user: SessionUser = { id: u.id, username: u.username, fullName: u.fullName, role: u.role, scope: u.scope ?? 'all' };
   const token = signToken(u.id);
@@ -251,9 +304,12 @@ app.post('/api/login', asyncHandler(async (req, res) => {
   res.json({ token, user, db: isolate(user) });
 }));
 
-app.get('/api/db', auth, (req, res) => {
+app.get('/api/db', auth, asyncHandler(async (req, res) => {
+  // PostgreSQL là nguồn sự thật. ETL hoặc tiến trình quản trị có thể cập nhật DB
+  // ngoài API đang chạy, vì vậy phải nạp lại trước khi frontend đồng bộ dữ liệu.
+  await reloadDbFromStorage();
   res.json({ db: isolate((req as any).user) });
-});
+}));
 
 // Settlement preview (#2): tổng hợp số tiền theo đối tượng + kỳ.
 app.get('/api/settlement/preview', auth, (req, res) => {
@@ -342,10 +398,9 @@ app.post('/api/_quarantine', auth, asyncHandler(async (req, res) => {
   if ((db.quarantine || []).some((r) => r.id === Number(safeQrow.id))) {
     return res.status(409).json({ error: 'quarantine id exists' });
   }
+  await moveRow(collection, Number(id), 'quarantine', safeQrow);
   db.quarantine = [safeQrow, ...(db.quarantine || [])];
-  await upsertRow('quarantine', safeQrow);
   db[collection] = (db[collection] || []).filter((r) => r.id !== Number(id));
-  await deleteRow(collection, Number(id));
   const log = await writeLog(user, 'quarantine', `${collection} #${id}`);
   res.json({ ok: true, log });
 }));
@@ -356,10 +411,9 @@ app.post('/api/_restore', auth, asyncHandler(async (req, res) => {
   const { qid } = req.body || {};
   const q = (db.quarantine || []).find((r) => r.id === Number(qid));
   if (!q) return res.status(404).json({ error: 'not found' });
+  await moveRow('quarantine', Number(qid), q.collection, q.data);
   db[q.collection] = [q.data, ...(db[q.collection] || [])];
-  await upsertRow(q.collection, q.data);
   db.quarantine = (db.quarantine || []).filter((r) => r.id !== Number(qid));
-  await deleteRow('quarantine', Number(qid));
   const log = await writeLog(user, 'restore', `${q.collection} #${q.originalId}`);
   res.json({ ok: true, log });
 }));
@@ -377,14 +431,24 @@ app.post('/api/:collection/bulk', auth, asyncHandler(async (req, res) => {
   const screen = COLLECTION_SCREEN[c];
   const currentRows = db[c] || [];
   const currentById = new Map(currentRows.map((row) => [Number(row.id), row] as const));
+  // Khóa tự nhiên (ngày × ID): client cache cũ gửi create cho record đã tồn tại
+  // → server quy về update bản ghi hiện có thay vì tạo bản trùng.
+  const byNaturalKey = new Map<string, Row>();
+  for (const row of currentRows) {
+    const nk = importNaturalKey(c, row);
+    if (nk) byNaturalKey.set(nk, row);
+  }
   let nextId = currentRows.reduce((max, row) => Math.max(max, Number(row.id) || 0), 0);
-  let createdCount = 0, updatedCount = 0;
-  const prepared: Row[] = [];
+  const preparedById = new Map<number, Row>();
 
   for (const raw of input) {
     if (!raw || typeof raw !== 'object') return res.status(400).json({ error: 'invalid bulk row' });
     const requestedId = raw.id == null ? undefined : Number(raw.id);
-    const current = requestedId == null ? undefined : currentById.get(requestedId);
+    let current = requestedId == null ? undefined : currentById.get(requestedId);
+    if (!current) {
+      const nk = importNaturalKey(c, raw);
+      if (nk) current = byNaturalKey.get(nk);
+    }
     const action = current ? 'edit' : 'create';
     if (screen && !can(user, screen, action)) return res.status(403).json({ error: 'forbidden' });
 
@@ -393,10 +457,14 @@ app.post('/api/:collection/bulk', auth, asyncHandler(async (req, res) => {
       return res.status(403).json({ error: 'forbidden' });
     }
     if (hasInvalidNumber(c, row)) return res.status(400).json({ error: 'invalid number' });
-    prepared.push(row);
-    if (current) updatedCount++; else createdCount++;
+    preparedById.set(row.id, row); // trùng id trong cùng lô → bản sau thắng (tránh lỗi upsert 2 lần 1 id)
+    const nk = importNaturalKey(c, row);
+    if (nk) byNaturalKey.set(nk, row);
   }
 
+  const prepared = [...preparedById.values()];
+  const createdCount = prepared.filter((row) => !currentById.has(row.id)).length;
+  const updatedCount = prepared.length - createdCount;
   await upsertRows(c, prepared);
   const savedById = new Map(prepared.map((row) => [row.id, row] as const));
   const created = prepared.filter((row) => !currentById.has(row.id));
@@ -412,6 +480,19 @@ app.post('/api/:collection', auth, asyncHandler(async (req, res) => {
   if (row == null || row.id == null || !Number.isFinite(Number(row.id))) return res.status(400).json({ error: 'invalid id' });
   if (outOfScope((req as any).user, c, row)) return res.status(403).json({ error: 'forbidden' });
   if (hasInvalidNumber(c, row)) return res.status(400).json({ error: 'invalid number' });
+  // Dữ liệu nhập liệu: cùng (ngày × ID) đã có bản ghi → cache client cũ không thấy nên
+  // gửi create; server quy về GHI ĐÈ bản ghi hiện có, không tạo bản trùng thứ hai.
+  const naturalKey = importNaturalKey(c, row);
+  if (naturalKey) {
+    const existing = (db[c] || []).find((r) => r.id !== Number(row.id) && importNaturalKey(c, r) === naturalKey);
+    if (existing) {
+      const merged = { ...existing, ...row, id: existing.id } as Row;
+      await upsertRow(c, merged);
+      db[c] = (db[c] || []).map((r) => (r.id === existing.id ? merged : r));
+      const log = await writeLog((req as any).user, 'edit', `${c} #${existing.id}`);
+      return res.json({ ok: true, row: merged, log });
+    }
+  }
   // Client tự cấp id từ dữ liệu ĐÃ lọc theo scope nên có thể đụng bản ghi họ không thấy
   // → server cấp lại id kế tiếp (client đồng bộ theo row trả về) thay vì từ chối.
   if ((db[c] || []).some((r) => r.id === Number(row.id))) {
@@ -422,8 +503,8 @@ app.post('/api/:collection', auth, asyncHandler(async (req, res) => {
   if (c === 'users' && typeof row.password === 'string' && !row.password.includes(':')) {
     row.password = hashPassword(row.password);
   }
-  db[c] = [row, ...(db[c] || [])];
   await upsertRow(c, row);
+  db[c] = [row, ...(db[c] || [])];
   const log = await writeLog((req as any).user, 'create', `${c} #${row.id}`);
   res.json({ ok: true, row, log });
 }));
@@ -432,6 +513,7 @@ app.put('/api/:collection/:id', auth, asyncHandler(async (req, res) => {
   if (!checkRbac(req, res)) return;
   const c = req.params.collection; const id = Number(req.params.id);
   const current = (db[c] || []).find((r) => r.id === id);
+  if (!current) return res.status(404).json({ error: 'not found' });
   // Chặn sửa dữ liệu ngoài scope (kiểm cả bản ghi hiện tại lẫn giá trị mới).
   const user = (req as any).user as SessionUser;
   const next = { ...current, ...req.body };
@@ -449,9 +531,9 @@ app.put('/api/:collection/:id', auth, asyncHandler(async (req, res) => {
     if (patch.password === '' || patch.password.includes(':')) delete patch.password;
     else patch.password = hashPassword(patch.password);
   }
-  let updated: Row | undefined;
-  db[c] = (db[c] || []).map((r) => (r.id === id ? (updated = { ...r, ...patch }) : r));
-  if (updated) await upsertRow(c, updated);
+  const updated = { ...current, ...patch } as Row;
+  await upsertRow(c, updated);
+  db[c] = (db[c] || []).map((r) => (r.id === id ? updated : r));
   const log = await writeLog(user, 'edit', `${c} #${id}`);
   res.json({ ok: true, log });
 }));
@@ -460,9 +542,10 @@ app.delete('/api/:collection/:id', auth, asyncHandler(async (req, res) => {
   if (!checkRbac(req, res)) return;
   const c = req.params.collection; const id = Number(req.params.id);
   const current = (db[c] || []).find((r) => r.id === id);
+  if (!current) return res.status(404).json({ error: 'not found' });
   if (outOfScope((req as any).user, c, current)) return res.status(403).json({ error: 'forbidden' });
-  db[c] = (db[c] || []).filter((r) => r.id !== id);
   await deleteRow(c, id);
+  db[c] = (db[c] || []).filter((r) => r.id !== id);
   const log = await writeLog((req as any).user, 'delete', `${c} #${id}`);
   res.json({ ok: true, log });
 }));
@@ -474,10 +557,11 @@ app.post('/api/:collection/:id/toggle', auth, asyncHandler(async (req, res) => {
   const screen = COLLECTION_SCREEN[c];
   if (screen && !can(user, screen, 'edit')) return res.status(403).json({ error: 'forbidden' });
   const current = (db[c] || []).find((r) => r.id === id);
+  if (!current) return res.status(404).json({ error: 'not found' });
   if (outOfScope(user, c, current)) return res.status(403).json({ error: 'forbidden' });
-  let toggled: Row | undefined;
-  db[c] = (db[c] || []).map((r) => (r.id === id ? (toggled = { ...r, status: !r.status }) : r));
-  if (toggled) await upsertRow(c, toggled);
+  const toggled = { ...current, status: !current.status } as Row;
+  await upsertRow(c, toggled);
+  db[c] = (db[c] || []).map((r) => (r.id === id ? toggled : r));
   const log = await writeLog(user, 'edit', `${c} #${id} toggle`);
   res.json({ ok: true, row: toggled, log });
 }));
@@ -492,9 +576,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 
 async function main() {
   await initDb();
-  db = await loadAll();
-  // Khởi tạo bộ đếm id log từ dữ liệu hiện có (dùng reduce, không spread).
-  logSeq = (db.logs || []).reduce((mx, r) => Math.max(mx, Number(r.id) || 0), 5000);
+  await reloadDbFromStorage();
   app.listen(PORT, () => console.log(`KrakenOcean API (PostgreSQL) on http://localhost:${PORT}`));
 }
 main().catch((e) => {

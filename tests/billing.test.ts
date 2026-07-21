@@ -280,6 +280,42 @@ describe('MediaDataEntryPage.calc() — frontend flow (payable/netPay)', () => {
   });
 });
 
+describe('CPS: cột media hiển thị số SAU 分成 của NQC (calcMediaCell display)', () => {
+  // Mô phỏng phần biến đổi hiển thị trong lib/mediaSync.calcMediaCell:
+  // CPS → cột Lưu lượng/Quyết toán media = giá trị NQC (đã áp hệ số) × tỷ lệ chia NQC %.
+  // payable/netPay vẫn tính từ giá trị gốc đã áp hệ số (không đổi công thức).
+  const round3 = (v: number) => Math.round(v * 1000) / 1000;
+  function displayCells(type: string, advRate: number, rawTraffic: number | null, rawSettlement: number | null, coef = 1) {
+    let traffic: number | '' = rawTraffic == null ? '' : (type === 'CPS' ? round3(rawTraffic * coef) : Math.floor(rawTraffic * coef));
+    let settlement: number | '' = rawSettlement == null ? '' : round3(rawSettlement * coef);
+    if (type === 'CPS') {
+      if (traffic !== '') traffic = round3(Number(traffic) * (advRate / 100));
+      if (settlement !== '') settlement = round3(Number(settlement) * (advRate / 100));
+    }
+    return { traffic, settlement };
+  }
+
+  test('CPS đơn 10000, tỷ lệ NQC 20% → media thấy 2000 (không phải 10000)', () => {
+    assert.deepEqual(displayCells('CPS', 20, 10000, null), { traffic: 2000, settlement: '' });
+  });
+  test('CPS quyết toán 8000, tỷ lệ NQC 25% → media thấy 2000', () => {
+    assert.deepEqual(displayCells('CPS', 25, 10000, 8000), { traffic: 2500, settlement: 2000 });
+  });
+  test('CPS áp hệ số dữ liệu TRƯỚC rồi mới 分成: 10000 × 0.9 × 20% = 1800', () => {
+    assert.deepEqual(displayCells('CPS', 20, 10000, null, 0.9), { traffic: 1800, settlement: '' });
+  });
+  test('chưa nhập (null) giữ nguyên trống, không thành 0', () => {
+    assert.deepEqual(displayCells('CPS', 20, null, null), { traffic: '', settlement: '' });
+  });
+  test('CPM không bị ảnh hưởng (giữ lượt gốc đã áp hệ số)', () => {
+    assert.deepEqual(displayCells('CPM', 20, 10000, null), { traffic: 10000, settlement: '' });
+  });
+  test('payable CPS vẫn tính từ GIÁ TRỊ GỐC: 10000 × 80% media = 8000 (không nhân đôi 分成)', () => {
+    // receivableOf đọc giá trị gốc đã áp hệ số — không dùng số hiển thị sau 分成.
+    assert.equal(receivableOf('CPS', { unitPrice: 80, traffic: 10000, settlement: '' }), 8000);
+  });
+});
+
 describe('Settlement preview — /api/settlement/preview', () => {
   const scoped = {
     advertisers: [{ id: 1, name: 'A' }, { id: 2, name: 'B' }],

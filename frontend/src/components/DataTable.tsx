@@ -35,6 +35,7 @@ interface Props {
   exportName?: string;
   pageSize?: number;
   filterKeys?: string[]; // giới hạn cột nào có dropdown lọc; bỏ trống = tất cả
+  defaultSort?: boolean; // luôn tự sắp đa cột (trái→phải, A→Z) kể cả khi chưa lọc — spec g1*/g2*: sắp theo chữ cái đầu
 }
 
 const money = (v: number) => '¥' + Number(v || 0).toLocaleString();
@@ -60,7 +61,7 @@ const noFilter = (c: Column) => c.type === 'index' || c.key === 'actions';
 
 export function DataTable({
   columns, rows, toolbarLeft, filters = [], searchKeys, onToggle,
-  canExport = true, exportName = 'export', pageSize = DEFAULT_PAGE_SIZE, filterKeys,
+  canExport = true, exportName = 'export', pageSize = DEFAULT_PAGE_SIZE, filterKeys, defaultSort = false,
 }: Props) {
   const { t } = useTranslation();
   const [q, setQ] = useState('');
@@ -118,13 +119,14 @@ export function DataTable({
         ? cmpCol(col, a, b, sort.dir)
         : String(a[sort.key] ?? '').localeCompare(String(b[sort.key] ?? '')) * sort.dir));
     } else {
-      // Không sắp thủ công: nếu có bộ lọc đang bật, tự sắp xếp theo CÁC CỘT CÒN LẠI
-      // (trái→phải, A→Z, nhiều cấp) — bỏ qua chính cột đang được lọc.
+      // Không sắp thủ công: tự sắp xếp đa cột (trái→phải, A→Z, nhiều cấp) — bỏ qua
+      // chính cột đang được lọc. Bật khi có bộ lọc đang hoạt động, hoặc luôn bật
+      // qua defaultSort (spec g1*/g2*: mặc định sắp theo chữ cái đầu).
       const activeKeys = new Set<string>([
         ...filters.filter((f) => { const v = filterVals[f.key]; return v && v !== 'all'; }).map((f) => f.key),
         ...Object.entries(colFilters).filter(([, v]) => v).map(([k]) => k),
       ]);
-      if (activeKeys.size > 0) {
+      if (defaultSort || activeKeys.size > 0) {
         const sortCols = columns.filter((c) =>
           !['index', 'id', 'toggle'].includes(c.type || '') && c.key !== 'actions' && !activeKeys.has(c.key));
         if (sortCols.length) {
@@ -136,7 +138,7 @@ export function DataTable({
       }
     }
     return data;
-  }, [rows, filters, filterVals, colFilters, q, sort, columns, searchKeys]);
+  }, [rows, filters, filterVals, colFilters, q, sort, columns, searchKeys, defaultSort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / size));
   const curPage = Math.min(page, totalPages);

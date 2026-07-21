@@ -160,6 +160,7 @@ export function CrudPage({ screen }: { screen: string }) {
         rows={rows}
         filters={filters}
         filterKeys={cfg.filterKeys}
+        defaultSort={/^g[12]/.test(screen)} // g1*/g2*: mặc định sắp theo chữ cái đầu (spec)
         exportName={cfg.collection}
         canExport={canExport}
         onToggle={canEdit ? (r) => { toggleStatus(cfg.collection, r.id); toast(t('common.toggled')); } : undefined}

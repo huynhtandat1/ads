@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { api } from '../api';
+import { api, mutationState } from '../api';
 
 export type Row = Record<string, any> & { id: number };
 export type DB = Record<string, Row[]>;
@@ -12,6 +12,7 @@ const EMPTY: Row[] = [];
 // to the backend in the background (ids are assigned client-side so references
 // stay consistent across the cache and the server).
 let db: DB = {};
+let dbSignature = JSON.stringify(db);
 const listeners = new Set<() => void>();
 let actor = 'admin';
 
@@ -23,8 +24,31 @@ export function subscribe(l: () => void) { listeners.add(l); return () => { list
 export function snapshot(): DB { return db; }
 export function getAll(c: string): Row[] { return db[c] || EMPTY; }
 
-export function hydrate(d: DB) { db = d || {}; emit(); }
-export function clearDB() { db = {}; emit(); }
+/** Thay cache khi dữ liệu thực sự đổi, tránh render lại toàn site sau mỗi nhịp polling. */
+export function hydrate(d: DB): boolean {
+  const next = d || {};
+  const signature = JSON.stringify(next);
+  if (signature === dbSignature) return false;
+  db = next;
+  dbSignature = signature;
+  emit();
+  return true;
+}
+export function clearDB() { db = {}; dbSignature = JSON.stringify(db); emit(); }
+
+/**
+ * Đồng bộ PostgreSQL → cache frontend mà không ghi đè mutation đang chạy.
+ * Nếu một thao tác ghi bắt đầu trong lúc request GET đang chờ, bỏ kết quả cũ;
+ * nhịp đồng bộ kế tiếp sẽ lấy lại trạng thái mới nhất.
+ */
+export async function refreshFromServer(): Promise<boolean> {
+  const before = mutationState();
+  if (before.pending > 0) return false;
+  const result = await api.fetchDB();
+  const after = mutationState();
+  if (after.pending > 0 || after.version !== before.version) return false;
+  return hydrate(result.db);
+}
 
 export function nextId(c: string): number {
   const rows = db[c] || [];

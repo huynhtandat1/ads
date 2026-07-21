@@ -26,7 +26,7 @@ export function MediaDataEntryPage() {
   const toast = useToast();
   const { can } = useAuth();
   const screen = 'g3c';
-  useCollection(COLLECTION);
+  const records = useCollection(COLLECTION);
   useCollection('importAdv'); // lưu lượng/quyết toán đọc từ đây
   useCollection('rates');     // lịch sử đơn giá/hệ số/tỷ lệ chia TK
   const mediaAll = useCollection('media');
@@ -45,7 +45,7 @@ export function MediaDataEntryPage() {
   const [fMediaId, setFMediaId] = useState('');
   const [fType, setFType] = useState('');
   const [fPrice, setFPrice] = useState('');
-  const [fStatus, setFStatus] = useState<'all' | 'confirmed' | 'unconfirmed'>('all');
+  const [fStatus, setFStatus] = useState<'all' | 'online' | 'offline'>('all');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   // Sort cột ngày: mặc định TĂNG dần (spec 07-2026 — mọi trang thống nhất), click header đảo chiều.
@@ -58,10 +58,9 @@ export function MediaDataEntryPage() {
 
   const load = () => {
     const saved = new Set<string>();
-    const records = getAll(COLLECTION);
     const lo = from, hi = to;
-    for (const m of getAll('mediaIds')) {
-      // Lưu dấu (id × date) đã có record trong khoảng; dùng cho cả filter status và nút "Đã lưu".
+    for (const m of mediaIdsAll) {
+      // Lưu dấu (id × date) đã có record trong khoảng để điều khiển nút "Đã lưu".
       for (const r of records) {
         if (!inRange(String(r.date || ''), lo, hi)) continue;
         if (r.mediaIdId === m.id || r.objectId === m.name) saved.add(`${m.id}|${String(r.date)}`);
@@ -69,11 +68,10 @@ export function MediaDataEntryPage() {
     }
     setSavedIds(saved);
   };
-  useEffect(load, [from, to]);
+  useEffect(load, [from, to, records, mediaIdsAll]);
   useEffect(() => { setPage(1); }, [from, to, fMedia, fOrder, fMediaId, fType, fPrice, fStatus, q]);
 
-  // Tất cả dropdown là facet hai chiều, bao gồm Loại/Giá/Trạng thái xác nhận.
-  const confirmedMediaIds = useMemo(() => new Set([...savedIds].map((key) => key.split('|')[0])), [savedIds]);
+  // Tất cả dropdown là facet hai chiều, bao gồm Loại/Giá/Trạng thái Media ID hiện tại.
   const facets = useMemo(() => {
     const lc = q.trim().toLowerCase();
     const mediaById = new Map(mediaAll.map((r) => [String(r.id), r] as const));
@@ -94,9 +92,9 @@ export function MediaDataEntryPage() {
       item: (m) => String(m.id),
       type: (m) => typeOf(m),
       price: (m) => String(m.unitPrice ?? ''),
-      status: (m) => confirmedMediaIds.has(String(m.id)) ? 'confirmed' : 'unconfirmed',
+      status: (m) => m.status !== false ? 'online' : 'offline',
     });
-  }, [mediaAll, mediaOrdersAll, mediaIdsAll, advertisersAll, adOrdersAll, adIdsAll, confirmedMediaIds, fMedia, fOrder, fMediaId, fType, fPrice, fStatus, q]);
+  }, [mediaAll, mediaOrdersAll, mediaIdsAll, advertisersAll, adOrdersAll, adIdsAll, fMedia, fOrder, fMediaId, fType, fPrice, fStatus, q]);
   const mediaOpts = sortByGroupedLabel(mediaAll.filter((r) => facets.options.parent.has(String(r.id))), (r) => r.name);
   const seenOrders = new Set<string>();
   const orderOpts = sortByGroupedLabel(mediaOrdersAll.filter((o) => {
@@ -109,8 +107,8 @@ export function MediaDataEntryPage() {
   const typeOptions = TYPES.filter((type) => facets.options.type.has(type));
   const priceOptions = Array.from(facets.options.price).map(Number).sort((a, b) => a - b);
   const statusOptions = [
-    { value: 'confirmed', label: t('entry.confirmed') },
-    { value: 'unconfirmed', label: t('entry.unconfirmed') },
+    { value: 'online', label: t('entry.online') },
+    { value: 'offline', label: t('entry.offline') },
   ].filter((option) => facets.options.status.has(option.value));
   const rows = facets.rows;
 

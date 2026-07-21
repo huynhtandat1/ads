@@ -3,29 +3,41 @@ import type { DB, Row } from './data/store';
 const BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:8787/api';
 
 let token = localStorage.getItem('ko_token') || '';
+let pendingMutations = 0;
+let mutationVersion = 0;
+
 export function setToken(t: string) { token = t; localStorage.setItem('ko_token', t); }
 export function clearToken() { token = ''; localStorage.removeItem('ko_token'); }
 export function hasToken() { return !!token; }
+export function mutationState() { return { pending: pendingMutations, version: mutationVersion }; }
 
 async function req<T = any>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(BASE + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-  if (res.status === 401) {
-    // Token hết hiệu lực → buộc đăng nhập lại (tránh thao tác lưu thất bại âm thầm).
-    window.dispatchEvent(new CustomEvent('ko-unauthorized'));
-    throw new Error('unauthorized');
+  // Dùng để ngăn một lần đồng bộ nền ghi đè cache trong lúc mutation đang chạy.
+  // Login không tính là mutation dữ liệu nghiệp vụ.
+  const isMutation = method !== 'GET' && path !== '/login';
+  if (isMutation) { pendingMutations++; mutationVersion++; }
+  try {
+    const res = await fetch(BASE + path, {
+      method,
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+    if (res.status === 401) {
+      // Token hết hiệu lực → buộc đăng nhập lại (tránh thao tác lưu thất bại âm thầm).
+      window.dispatchEvent(new CustomEvent('ko-unauthorized'));
+      throw new Error('unauthorized');
+    }
+    if (!res.ok) {
+      const msg = await res.json().catch(() => ({})) as { error?: string };
+      const err: Error & { status?: number; body?: unknown } = new Error(msg.error || `${res.status} ${res.statusText}`);
+      err.status = res.status;
+      err.body = msg;
+      throw err;
+    }
+    return res.json();
+  } finally {
+    if (isMutation) pendingMutations--;
   }
-  if (!res.ok) {
-    const msg = await res.json().catch(() => ({})) as { error?: string };
-    const err: Error & { status?: number; body?: unknown } = new Error(msg.error || `${res.status} ${res.statusText}`);
-    err.status = res.status;
-    err.body = msg;
-    throw err;
-  }
-  return res.json();
 }
 
 export const api = {

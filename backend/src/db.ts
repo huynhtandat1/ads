@@ -45,6 +45,42 @@ export async function initDb() {
   await pool.query(SCHEMA);
   await seedIfEmpty();
   await reconcileRoles();
+  await dedupeImports();
+}
+
+// Khóa tự nhiên của dữ liệu nhập liệu: mỗi (ngày × ID) chỉ có MỘT bản ghi.
+// Dùng chung cho chống trùng khi ghi (server.ts) và dọn trùng khi khởi động.
+const IMPORT_ID_FIELD: Record<string, string> = {
+  importAdv: 'adIdId', importAI: 'adIdId', importMedia: 'mediaIdId',
+};
+export function importNaturalKey(collection: string, r: Record<string, unknown>): string | null {
+  const idField = IMPORT_ID_FIELD[collection];
+  if (!idField) return null;
+  const entity = r[idField] ?? r.objectId;
+  if (entity == null || r.date == null) return null;
+  return `${String(r.date)}|${String(entity)}`;
+}
+
+// Dọn bản ghi trùng (cùng ngày × cùng ID) đã lọt vào DB trước khi có chống trùng:
+// giữ bản id LỚN NHẤT (sửa gần nhất), xóa các bản cũ. Idempotent — chạy mọi lần khởi động.
+async function dedupeImports() {
+  for (const collection of Object.keys(IMPORT_ID_FIELD)) {
+    const { rows } = await pool.query<{ id: number; data: Row }>(
+      'SELECT id, data FROM entities WHERE collection = $1', [collection],
+    );
+    const keepByKey = new Map<string, number>();
+    for (const r of rows) {
+      const key = importNaturalKey(collection, r.data);
+      if (!key) continue;
+      const prev = keepByKey.get(key);
+      if (prev == null || r.id > prev) keepByKey.set(key, r.id);
+    }
+    const keep = new Set(keepByKey.values());
+    const stale = rows.filter((r) => importNaturalKey(collection, r.data) && !keep.has(r.id)).map((r) => r.id);
+    if (!stale.length) continue;
+    await pool.query('DELETE FROM entities WHERE collection = $1 AND id = ANY($2::int[])', [collection, stale]);
+    console.log(`[db] dedupe ${collection}: removed ${stale.length} duplicate row(s), kept latest per (date, id)`);
+  }
 }
 
 // Đồng bộ quyền của các role MẶC ĐỊNH về đúng bản seed (nguồn sự thật).
@@ -124,4 +160,33 @@ export async function upsertRows(collection: string, rows: Row[]) {
 
 export async function deleteRow(collection: string, id: number) {
   await pool.query('DELETE FROM entities WHERE collection = $1 AND id = $2', [collection, id]);
+}
+
+/**
+ * Chuyển một bản ghi giữa hai collection trong cùng transaction.
+ * Dùng cho cô lập/khôi phục để không thể xảy ra trạng thái đã xóa nguồn nhưng
+ * chưa tạo đích (hoặc ngược lại) khi một câu SQL thất bại giữa chừng.
+ */
+export async function moveRow(
+  fromCollection: string,
+  fromId: number,
+  toCollection: string,
+  row: Row,
+) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `INSERT INTO entities (collection, id, data) VALUES ($1, $2, $3)
+       ON CONFLICT (collection, id) DO UPDATE SET data = EXCLUDED.data`,
+      [toCollection, row.id, row],
+    );
+    await client.query('DELETE FROM entities WHERE collection = $1 AND id = $2', [fromCollection, fromId]);
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
 }
