@@ -46,6 +46,7 @@ export async function initDb() {
   await seedIfEmpty();
   await reconcileRoles();
   await dedupeImports();
+  await ensureImportNaturalKeyIndexes();
 }
 
 // Khóa tự nhiên của dữ liệu nhập liệu: mỗi (ngày × ID) chỉ có MỘT bản ghi.
@@ -57,29 +58,73 @@ export function importNaturalKey(collection: string, r: Record<string, unknown>)
   const idField = IMPORT_ID_FIELD[collection];
   if (!idField) return null;
   const entity = r[idField] ?? r.objectId;
-  if (entity == null || r.date == null) return null;
-  return `${String(r.date)}|${String(entity)}`;
+  const date = String(r.date ?? '').trim();
+  const entityKey = String(entity ?? '').trim();
+  if (!date || !entityKey) return null;
+  return `${date}|${entityKey}`;
 }
 
 // Dọn bản ghi trùng (cùng ngày × cùng ID) đã lọt vào DB trước khi có chống trùng:
 // giữ bản id LỚN NHẤT (sửa gần nhất), xóa các bản cũ. Idempotent — chạy mọi lần khởi động.
 async function dedupeImports() {
-  for (const collection of Object.keys(IMPORT_ID_FIELD)) {
+  for (const [collection, idField] of Object.entries(IMPORT_ID_FIELD)) {
+    const refCollection = collection === 'importMedia' ? 'mediaIds' : 'adIds';
+    const refs = await pool.query<{ id: number; name: string }>(
+      `SELECT id, data->>'name' AS name FROM entities WHERE collection = $1`, [refCollection],
+    );
+    const idByName = new Map(refs.rows.filter((r) => r.name).map((r) => [r.name, r.id] as const));
     const { rows } = await pool.query<{ id: number; data: Row }>(
       'SELECT id, data FROM entities WHERE collection = $1', [collection],
     );
+    // Chuẩn hóa cả dữ liệu legacy chỉ có objectId về cùng ID số, để một dòng dùng
+    // adIdId/mediaIdId và một dòng dùng tên hiển thị vẫn được nhận diện là trùng.
+    const canonicalKey = (data: Row): string | null => {
+      const entity = data[idField] ?? idByName.get(String(data.objectId ?? '')) ?? data.objectId;
+      if (entity == null || data.date == null) return null;
+      return `${String(data.date)}|${String(entity)}`;
+    };
     const keepByKey = new Map<string, number>();
     for (const r of rows) {
-      const key = importNaturalKey(collection, r.data);
+      const key = canonicalKey(r.data);
       if (!key) continue;
       const prev = keepByKey.get(key);
       if (prev == null || r.id > prev) keepByKey.set(key, r.id);
     }
     const keep = new Set(keepByKey.values());
-    const stale = rows.filter((r) => importNaturalKey(collection, r.data) && !keep.has(r.id)).map((r) => r.id);
-    if (!stale.length) continue;
-    await pool.query('DELETE FROM entities WHERE collection = $1 AND id = ANY($2::int[])', [collection, stale]);
-    console.log(`[db] dedupe ${collection}: removed ${stale.length} duplicate row(s), kept latest per (date, id)`);
+    const stale = rows.filter((r) => canonicalKey(r.data) && !keep.has(r.id)).map((r) => r.id);
+    if (stale.length) {
+      await pool.query('DELETE FROM entities WHERE collection = $1 AND id = ANY($2::int[])', [collection, stale]);
+      console.log(`[db] dedupe ${collection}: removed ${stale.length} duplicate row(s), kept latest per (date, id)`);
+    }
+    // Ghi ID số vào bản ghi legacy sau khi đã dọn trùng; các lần ghi sau sẽ luôn
+    // đi qua cùng biểu thức unique index, không phụ thuộc tên objectId.
+    await pool.query(`
+      UPDATE entities AS item
+         SET data = jsonb_set(item.data, '{${idField}}', to_jsonb(ref.id), true)
+        FROM entities AS ref
+       WHERE item.collection = $1
+         AND ref.collection = $2
+         AND item.data->>'${idField}' IS NULL
+         AND item.data->>'objectId' = ref.data->>'name'
+    `, [collection, refCollection]);
+  }
+}
+
+/**
+ * Khóa duy nhất ở cấp PostgreSQL: một collection nhập liệu chỉ được có một dòng
+ * cho mỗi (ngày × ID). Đây là lớp bảo vệ cuối cùng khi nhiều backend/process ghi
+ * đồng thời; khóa RAM trong một process không đủ để ngăn race condition đó.
+ *
+ * Tạo index sau dedupe để DB cũ có bản ghi trùng vẫn tự nâng cấp được khi khởi động.
+ */
+async function ensureImportNaturalKeyIndexes() {
+  for (const [collection, idField] of Object.entries(IMPORT_ID_FIELD)) {
+    const indexName = `entities_${collection.toLowerCase()}_date_entity_uq`;
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS ${indexName}
+      ON entities ((data->>'date'), (COALESCE(data->>'${idField}', data->>'objectId')))
+      WHERE collection = '${collection}'
+    `);
   }
 }
 
@@ -137,25 +182,55 @@ export async function loadAll(): Promise<DB> {
   return db;
 }
 
-export async function upsertRow(collection: string, row: Row) {
-  await pool.query(
+export async function upsertRow(collection: string, row: Row): Promise<Row> {
+  const idField = IMPORT_ID_FIELD[collection];
+  if (idField && importNaturalKey(collection, row)) {
+    const { rows } = await pool.query<{ data: Row }>(
+      `INSERT INTO entities (collection, id, data) VALUES ($1, $2, $3)
+       ON CONFLICT ((data->>'date'), (COALESCE(data->>'${idField}', data->>'objectId')))
+         WHERE collection = '${collection}'
+       DO UPDATE SET data = jsonb_set(EXCLUDED.data, '{id}', to_jsonb(entities.id), true)
+       RETURNING data`,
+      [collection, row.id, row],
+    );
+    return rows[0].data;
+  }
+  const { rows } = await pool.query<{ data: Row }>(
     `INSERT INTO entities (collection, id, data) VALUES ($1, $2, $3)
-     ON CONFLICT (collection, id) DO UPDATE SET data = EXCLUDED.data`,
+     ON CONFLICT (collection, id) DO UPDATE SET data = EXCLUDED.data
+     RETURNING data`,
     [collection, row.id, row],
   );
+  return rows[0].data;
 }
 
 /** Ghi nhiều dòng trong một câu SQL — tránh tạo hàng nghìn request/kết nối khi xác nhận tất cả. */
-export async function upsertRows(collection: string, rows: Row[]) {
-  if (rows.length === 0) return;
+export async function upsertRows(collection: string, rows: Row[]): Promise<Row[]> {
+  if (rows.length === 0) return [];
   const values = rows.map((row) => ({ id: row.id, data: row }));
-  await pool.query(
+  const idField = IMPORT_ID_FIELD[collection];
+  if (idField) {
+    const result = await pool.query<{ data: Row }>(
+      `INSERT INTO entities (collection, id, data)
+         SELECT $1, item.id, item.data
+         FROM jsonb_to_recordset($2::jsonb) AS item(id integer, data jsonb)
+       ON CONFLICT ((data->>'date'), (COALESCE(data->>'${idField}', data->>'objectId')))
+         WHERE collection = '${collection}'
+       DO UPDATE SET data = jsonb_set(EXCLUDED.data, '{id}', to_jsonb(entities.id), true)
+       RETURNING data`,
+      [collection, JSON.stringify(values)],
+    );
+    return result.rows.map((r) => r.data);
+  }
+  const result = await pool.query<{ data: Row }>(
     `INSERT INTO entities (collection, id, data)
        SELECT $1, item.id, item.data
        FROM jsonb_to_recordset($2::jsonb) AS item(id integer, data jsonb)
-     ON CONFLICT (collection, id) DO UPDATE SET data = EXCLUDED.data`,
+     ON CONFLICT (collection, id) DO UPDATE SET data = EXCLUDED.data
+     RETURNING data`,
     [collection, JSON.stringify(values)],
   );
+  return result.rows.map((r) => r.data);
 }
 
 export async function deleteRow(collection: string, id: number) {

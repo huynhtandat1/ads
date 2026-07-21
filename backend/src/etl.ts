@@ -134,23 +134,29 @@ async function main() {
   db.settleAdv = seed.settleAdv;
   db.settleMedia = seed.settleMedia;
 
-  // Write into target entities table.
+  // Gộp vào target theo hướng KHÔNG phá hủy: ETL có thể bị chạy lại khi deploy,
+  // nhưng không được xóa hoặc ghi đè dữ liệu người dùng đã nhập trong app.
+  // Bản ghi đã tồn tại (kể cả trùng khóa ngày × ID) được giữ nguyên.
   const client = await tgt.connect();
   try {
     await client.query('BEGIN');
     await client.query('CREATE TABLE IF NOT EXISTS entities (collection text NOT NULL, id integer NOT NULL, data jsonb NOT NULL, seq bigserial, PRIMARY KEY (collection,id))');
-    await client.query('TRUNCATE entities RESTART IDENTITY');
-    let total = 0;
+    let inserted = 0;
+    let kept = 0;
     for (const [collection, list] of Object.entries(db)) {
       for (const row of [...list].reverse()) {
-        await client.query('INSERT INTO entities (collection,id,data) VALUES ($1,$2,$3)', [collection, (row as Row).id, row]);
-        total++;
+        const result = await client.query(
+          'INSERT INTO entities (collection,id,data) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
+          [collection, (row as Row).id, row],
+        );
+        if (result.rowCount) inserted++;
+        else kept++;
       }
     }
     await client.query('COMMIT');
-    console.log('[etl] imported collections:');
+    console.log('[etl] source collections:');
     for (const [c, l] of Object.entries(db)) console.log(`   ${c} = ${l.length}`);
-    console.log(`[etl] total ${total} rows -> ${new URL(TARGET).pathname.slice(1)}`);
+    console.log(`[etl] added ${inserted}, kept existing ${kept} -> ${new URL(TARGET).pathname.slice(1)}`);
   } catch (e) {
     await client.query('ROLLBACK'); throw e;
   } finally {

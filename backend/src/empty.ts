@@ -7,6 +7,11 @@ import { seedData, type Row } from './seed.js';
 const TARGET = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/krakenocean';
 
 async function main() {
+  const targetName = decodeURIComponent(new URL(TARGET).pathname.replace(/^\//, ''));
+  const requiredConfirmation = `DELETE:${targetName}`;
+  if (process.env.EMPTY_DB_CONFIRM !== requiredConfirmation) {
+    throw new Error(`refused destructive reset; set EMPTY_DB_CONFIRM=${requiredConfirmation} explicitly`);
+  }
   const pool = new pg.Pool({ connectionString: TARGET });
   const seed = seedData();
   const keep: Record<string, Row[]> = { users: seed.users, roles: seed.roles };

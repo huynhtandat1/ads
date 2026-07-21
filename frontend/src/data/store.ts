@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { api, mutationState } from '../api';
+import { api, mutationState, waitForMutations } from '../api';
 
 export type Row = Record<string, any> & { id: number };
 export type DB = Record<string, Row[]>;
@@ -48,6 +48,26 @@ export async function refreshFromServer(): Promise<boolean> {
   const after = mutationState();
   if (after.pending > 0 || after.version !== before.version) return false;
   return hydrate(result.db);
+}
+
+/**
+ * Đồng bộ khi chuyển trang: chờ lần lưu đang chạy kết thúc rồi lấy snapshot mới ngay.
+ * Nếu một mutation khác chen vào lúc GET đang chờ, thử lại để không áp dữ liệu cũ.
+ */
+export async function refreshOnNavigation(
+  shouldApply: () => boolean = () => true,
+  maxAttempts = 3,
+): Promise<boolean> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    await waitForMutations();
+    if (!shouldApply()) return false;
+    const before = mutationState();
+    const result = await api.fetchDB();
+    if (!shouldApply()) return false;
+    const after = mutationState();
+    if (after.pending === 0 && after.version === before.version) return hydrate(result.db);
+  }
+  return false;
 }
 
 export function nextId(c: string): number {
@@ -170,34 +190,79 @@ export function hasRelatedData(c: string, id: number): boolean {
   return rels.some((r) => (db[r.collection] || []).some((row) => row[r.field] === id));
 }
 
-// Cô lập (xóa mềm): chuyển bản ghi sang collection 'quarantine' thay vì xóa hẳn.
-export function quarantine(c: string, id: number) {
+const isolationMutations = new Set<string>();
+
+// Cô lập (xóa mềm): chỉ đổi cache SAU KHI transaction trên server thành công.
+export async function quarantine(c: string, id: number): Promise<boolean> {
+  const mutationKey = `quarantine:${c}:${id}`;
+  if (isolationMutations.has(mutationKey)) return false;
   const row = (db[c] || []).find((r) => r.id === id);
-  if (!row) return;
+  if (!row) return false;
   const qrow: Row = {
     id: nextId('quarantine'), collection: c, originalId: row.id,
     label: row.name ?? row.username ?? row.code ?? `#${row.id}`,
     time: new Date().toISOString().slice(0, 19).replace('T', ' '), user: actor, data: row, status: true,
   };
-  db.quarantine = [qrow, ...(db.quarantine || [])];
-  db[c] = (db[c] || []).filter((r) => r.id !== id);
-  emit();
-  api.quarantine(c, id, qrow).then((r) => appendLog(r.log)).catch((e) => console.error('quarantine failed', e));
+  isolationMutations.add(mutationKey);
+  try {
+    const result = await api.quarantine(c, id, qrow);
+    db.quarantine = [qrow, ...(db.quarantine || [])];
+    db[c] = (db[c] || []).filter((r) => r.id !== id);
+    emit();
+    appendLog(result.log);
+    return true;
+  } catch (e) {
+    notifySaveError(kindOf(e));
+    console.error('quarantine failed', e);
+    return false;
+  } finally {
+    isolationMutations.delete(mutationKey);
+  }
 }
 
-export function restoreQuarantine(qid: number) {
+export async function restoreQuarantine(qid: number): Promise<boolean> {
+  const mutationKey = `restore:${qid}`;
+  if (isolationMutations.has(mutationKey)) return false;
   const q = (db.quarantine || []).find((r) => r.id === qid);
-  if (!q) return;
-  db[q.collection] = [q.data, ...(db[q.collection] || [])];
-  db.quarantine = (db.quarantine || []).filter((r) => r.id !== qid);
-  emit();
-  api.restore(qid).then((r) => appendLog(r.log)).catch((e) => console.error('restore failed', e));
+  if (!q) return false;
+  isolationMutations.add(mutationKey);
+  try {
+    const result = await api.restore(qid);
+    const exists = (db[q.collection] || []).some((r) => r.id === q.data.id);
+    db[q.collection] = exists
+      ? (db[q.collection] || []).map((r) => (r.id === q.data.id ? q.data : r))
+      : [q.data, ...(db[q.collection] || [])];
+    db.quarantine = (db.quarantine || []).filter((r) => r.id !== qid);
+    emit();
+    appendLog(result.log);
+    return true;
+  } catch (e) {
+    notifySaveError(kindOf(e));
+    console.error('restore failed', e);
+    return false;
+  } finally {
+    isolationMutations.delete(mutationKey);
+  }
 }
 
-export function purgeQuarantine(qid: number) {
-  db.quarantine = (db.quarantine || []).filter((r) => r.id !== qid);
-  emit();
-  api.remove('quarantine', qid).then((r) => appendLog(r.log)).catch((e) => console.error('purge failed', e));
+export async function purgeQuarantine(qid: number): Promise<boolean> {
+  const mutationKey = `purge:${qid}`;
+  if (isolationMutations.has(mutationKey)) return false;
+  if (!(db.quarantine || []).some((r) => r.id === qid)) return false;
+  isolationMutations.add(mutationKey);
+  try {
+    const result = await api.remove('quarantine', qid);
+    db.quarantine = (db.quarantine || []).filter((r) => r.id !== qid);
+    emit();
+    appendLog(result.log);
+    return true;
+  } catch (e) {
+    notifySaveError(kindOf(e));
+    console.error('purge failed', e);
+    return false;
+  } finally {
+    isolationMutations.delete(mutationKey);
+  }
 }
 
 // ----- Hiệu lực theo thời gian (versioning) -----

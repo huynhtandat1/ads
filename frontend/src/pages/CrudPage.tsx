@@ -111,11 +111,14 @@ export function CrudPage({ screen }: { screen: string }) {
     fields = [...baseFields, statusField];
   }
 
-  const onDelete = (r: Row) => {
+  const onDelete = async (r: Row) => {
     // Spec: có dữ liệu liên quan → cô lập (ẩn); không có → xóa vĩnh viễn.
     const related = hasRelatedData(cfg.collection, r.id);
     if (!confirm(related ? t('iso.confirmQuarantine') : t('common.confirmDelete'))) return;
-    if (related) { quarantine(cfg.collection, r.id); toast(t('iso.quarantined')); }
+    if (related) {
+      if (!await quarantine(cfg.collection, r.id)) return;
+      toast(t('iso.quarantined'));
+    }
     else { remove(cfg.collection, r.id); toast(t('common.deleted')); }
     setEditing(undefined);
   };

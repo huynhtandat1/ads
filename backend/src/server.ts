@@ -223,9 +223,9 @@ async function writeLog(user: SessionUser, action: string, object: string): Prom
   };
   try {
     // Audit chỉ xuất hiện trong cache sau khi PostgreSQL đã nhận bản ghi.
-    await upsertRow('logs', row);
-    db.logs = [row, ...(db.logs || [])];
-    return row;
+    const saved = await upsertRow('logs', row);
+    db.logs = [saved, ...(db.logs || [])];
+    return saved;
   } catch (e) {
     // Không biến một nghiệp vụ đã lưu thành "thất bại" chỉ vì audit log lỗi.
     // Lỗi vẫn được ghi ra stderr để hệ thống giám sát phát hiện.
@@ -338,6 +338,19 @@ app.get('/api/settlement/preview', auth, (req, res) => {
 const WRITABLE = new Set(Object.keys(COLLECTION_SCREEN).concat(['settleAdv', 'settleMedia']));
 const BULK_IMPORTS = new Set(['importAI', 'importAdv', 'importMedia']);
 
+/** Chuẩn hóa dữ liệu legacy/chưa đủ field về ID số trước khi tính khóa ngày × ID. */
+function normalizeImportIdentity(
+  collection: string,
+  raw: Record<string, unknown> | null | undefined,
+): Record<string, unknown> | null | undefined {
+  if (!raw || typeof raw !== 'object') return raw;
+  const idField = collection === 'importMedia' ? 'mediaIdId' : BULK_IMPORTS.has(collection) ? 'adIdId' : undefined;
+  if (!idField || raw[idField] != null || raw.objectId == null) return raw;
+  const refCollection = collection === 'importMedia' ? 'mediaIds' : 'adIds';
+  const ref = (db[refCollection] || []).find((r) => String(r.name) === String(raw.objectId));
+  return ref ? { ...raw, [idField]: ref.id } : raw;
+}
+
 function checkRbac(req: Request, res: Response): boolean {
   const user = (req as any).user as SessionUser;
   const c = req.params.collection;
@@ -441,8 +454,10 @@ app.post('/api/:collection/bulk', auth, asyncHandler(async (req, res) => {
   let nextId = currentRows.reduce((max, row) => Math.max(max, Number(row.id) || 0), 0);
   const preparedById = new Map<number, Row>();
 
-  for (const raw of input) {
-    if (!raw || typeof raw !== 'object') return res.status(400).json({ error: 'invalid bulk row' });
+  for (const inputRow of input) {
+    if (!inputRow || typeof inputRow !== 'object') return res.status(400).json({ error: 'invalid bulk row' });
+    const raw = normalizeImportIdentity(c, inputRow)!;
+    if (!importNaturalKey(c, raw)) return res.status(400).json({ error: 'date/id required' });
     const requestedId = raw.id == null ? undefined : Number(raw.id);
     let current = requestedId == null ? undefined : currentById.get(requestedId);
     if (!current) {
@@ -465,19 +480,20 @@ app.post('/api/:collection/bulk', auth, asyncHandler(async (req, res) => {
   const prepared = [...preparedById.values()];
   const createdCount = prepared.filter((row) => !currentById.has(row.id)).length;
   const updatedCount = prepared.length - createdCount;
-  await upsertRows(c, prepared);
-  const savedById = new Map(prepared.map((row) => [row.id, row] as const));
-  const created = prepared.filter((row) => !currentById.has(row.id));
+  const saved = await upsertRows(c, prepared);
+  const savedById = new Map(saved.map((row) => [row.id, row] as const));
+  const created = saved.filter((row) => !currentById.has(row.id));
   db[c] = [...created, ...currentRows.map((row) => savedById.get(row.id) ?? row)];
   const log = await writeLog(user, 'confirm', `${c}: ${createdCount} create, ${updatedCount} edit`);
-  res.json({ ok: true, rows: prepared, log });
+  res.json({ ok: true, rows: saved, log });
 }));
 
 app.post('/api/:collection', auth, asyncHandler(async (req, res) => {
   if (!checkRbac(req, res)) return;
   const c = req.params.collection;
-  const row = req.body as Row;
+  const row = normalizeImportIdentity(c, req.body as Row) as Row;
   if (row == null || row.id == null || !Number.isFinite(Number(row.id))) return res.status(400).json({ error: 'invalid id' });
+  if (BULK_IMPORTS.has(c) && !importNaturalKey(c, row)) return res.status(400).json({ error: 'date/id required' });
   if (outOfScope((req as any).user, c, row)) return res.status(403).json({ error: 'forbidden' });
   if (hasInvalidNumber(c, row)) return res.status(400).json({ error: 'invalid number' });
   // Dữ liệu nhập liệu: cùng (ngày × ID) đã có bản ghi → cache client cũ không thấy nên
@@ -487,10 +503,10 @@ app.post('/api/:collection', auth, asyncHandler(async (req, res) => {
     const existing = (db[c] || []).find((r) => r.id !== Number(row.id) && importNaturalKey(c, r) === naturalKey);
     if (existing) {
       const merged = { ...existing, ...row, id: existing.id } as Row;
-      await upsertRow(c, merged);
-      db[c] = (db[c] || []).map((r) => (r.id === existing.id ? merged : r));
+      const saved = await upsertRow(c, merged);
+      db[c] = (db[c] || []).map((r) => (r.id === existing.id ? saved : r));
       const log = await writeLog((req as any).user, 'edit', `${c} #${existing.id}`);
-      return res.json({ ok: true, row: merged, log });
+      return res.json({ ok: true, row: saved, log });
     }
   }
   // Client tự cấp id từ dữ liệu ĐÃ lọc theo scope nên có thể đụng bản ghi họ không thấy
@@ -503,10 +519,13 @@ app.post('/api/:collection', auth, asyncHandler(async (req, res) => {
   if (c === 'users' && typeof row.password === 'string' && !row.password.includes(':')) {
     row.password = hashPassword(row.password);
   }
-  await upsertRow(c, row);
-  db[c] = [row, ...(db[c] || [])];
-  const log = await writeLog((req as any).user, 'create', `${c} #${row.id}`);
-  res.json({ ok: true, row, log });
+  const saved = await upsertRow(c, row);
+  const hasSaved = (db[c] || []).some((r) => r.id === saved.id);
+  db[c] = hasSaved
+    ? (db[c] || []).map((r) => (r.id === saved.id ? saved : r))
+    : [saved, ...(db[c] || [])];
+  const log = await writeLog((req as any).user, saved.id === row.id ? 'create' : 'edit', `${c} #${saved.id}`);
+  res.json({ ok: true, row: saved, log });
 }));
 
 app.put('/api/:collection/:id', auth, asyncHandler(async (req, res) => {

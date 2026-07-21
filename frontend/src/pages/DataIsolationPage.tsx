@@ -20,6 +20,7 @@ export function DataIsolationPage() {
   const toast = useToast();
   const { can } = useAuth();
   const [tab, setTab] = useState<'scope' | 'bin'>('bin');
+  const [pendingQid, setPendingQid] = useState<number | null>(null);
   const users = useCollection('users');
   const quarantined = useCollection('quarantine');
   useCollection('advertisers');
@@ -29,6 +30,18 @@ export function DataIsolationPage() {
   const advOptions = sortByGroupedLabel(getAll('advertisers'), (r) => r.name);
 
   const setScope = (u: Row, scope: string) => { update('users', u.id, { scope }); toast(t('common.saved')); };
+  const restore = async (qid: number) => {
+    if (pendingQid != null) return;
+    setPendingQid(qid);
+    try { if (await restoreQuarantine(qid)) toast(t('iso.restored')); }
+    finally { setPendingQid(null); }
+  };
+  const purge = async (qid: number) => {
+    if (pendingQid != null || !confirm(t('iso.confirmPurge'))) return;
+    setPendingQid(qid);
+    try { if (await purgeQuarantine(qid)) toast(t('iso.purged')); }
+    finally { setPendingQid(null); }
+  };
 
   const scopeCols: Column[] = [
     { key: '_stt', label: t('col.stt'), type: 'index' },
@@ -63,14 +76,14 @@ export function DataIsolationPage() {
       render: (q) => (
         <div className="flex items-center justify-center gap-1.5">
           {canEdit && (
-            <button onClick={() => { restoreQuarantine(q.id); toast(t('iso.restored')); }}
-              className="h-7 px-2 inline-flex items-center gap-1 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-medium hover:bg-emerald-100">
+            <button onClick={() => { void restore(q.id); }} disabled={pendingQid != null}
+              className="h-7 px-2 inline-flex items-center gap-1 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-medium hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed">
               <IconRefresh width={14} height={14} /> {t('iso.restore')}
             </button>
           )}
           {canPurge && (
-            <button onClick={() => { if (confirm(t('iso.confirmPurge'))) { purgeQuarantine(q.id); toast(t('iso.purged')); } }}
-              className="h-7 px-2 inline-flex items-center gap-1 rounded-lg bg-rose-50 text-rose-600 text-xs font-medium hover:bg-rose-100">
+            <button onClick={() => { void purge(q.id); }} disabled={pendingQid != null}
+              className="h-7 px-2 inline-flex items-center gap-1 rounded-lg bg-rose-50 text-rose-600 text-xs font-medium hover:bg-rose-100 disabled:opacity-50 disabled:cursor-not-allowed">
               <IconTrash width={14} height={14} /> {t('iso.purge')}
             </button>
           )}

@@ -1,15 +1,22 @@
 import type { DB, Row } from './data/store';
 
-const BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:8787/api';
+const BASE = (import.meta.env?.VITE_API_URL as string) || 'http://localhost:8787/api';
 
 let token = localStorage.getItem('ko_token') || '';
 let pendingMutations = 0;
 let mutationVersion = 0;
+const mutationWaiters = new Set<() => void>();
 
 export function setToken(t: string) { token = t; localStorage.setItem('ko_token', t); }
 export function clearToken() { token = ''; localStorage.removeItem('ko_token'); }
 export function hasToken() { return !!token; }
 export function mutationState() { return { pending: pendingMutations, version: mutationVersion }; }
+
+/** Chờ toàn bộ thao tác ghi hiện tại hoàn tất trước khi tải snapshot mới. */
+export function waitForMutations(): Promise<void> {
+  if (pendingMutations === 0) return Promise.resolve();
+  return new Promise((resolve) => mutationWaiters.add(resolve));
+}
 
 async function req<T = any>(method: string, path: string, body?: unknown): Promise<T> {
   // Dùng để ngăn một lần đồng bộ nền ghi đè cache trong lúc mutation đang chạy.
@@ -36,7 +43,14 @@ async function req<T = any>(method: string, path: string, body?: unknown): Promi
     }
     return res.json();
   } finally {
-    if (isMutation) pendingMutations--;
+    if (isMutation) {
+      pendingMutations--;
+      if (pendingMutations === 0) {
+        const waiters = [...mutationWaiters];
+        mutationWaiters.clear();
+        waiters.forEach((resolve) => resolve());
+      }
+    }
   }
 }
 
