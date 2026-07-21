@@ -310,9 +310,15 @@ describe('CPS: cột media hiển thị số SAU 分成 của NQC (calcMediaCell
   test('CPM không bị ảnh hưởng (giữ lượt gốc đã áp hệ số)', () => {
     assert.deepEqual(displayCells('CPM', 20, 10000, null), { traffic: 10000, settlement: '' });
   });
-  test('payable CPS vẫn tính từ GIÁ TRỊ GỐC: 10000 × 80% media = 8000 (không nhân đôi 分成)', () => {
-    // receivableOf đọc giá trị gốc đã áp hệ số — không dùng số hiển thị sau 分成.
-    assert.equal(receivableOf('CPS', { unitPrice: 80, traffic: 10000, settlement: '' }), 8000);
+  test('payable CPS tính trên số SAU 分成: 28.24 × 70% NQC × 100% media = 19.768', () => {
+    const afterAdvShare = displayCells('CPS', 70, 28.24, null).traffic;
+    assert.equal(afterAdvShare, 19.768);
+    assert.equal(receivableOf('CPS', { unitPrice: 100, traffic: afterAdvShare, settlement: '' }), 19.768);
+  });
+  test('tỷ lệ tài khoản 80%: thực trả = 19.768 × 80% = 15.814', () => {
+    const afterAdvShare = displayCells('CPS', 70, 28.24, null).traffic;
+    const payable = receivableOf('CPS', { unitPrice: 100, traffic: afterAdvShare, settlement: '' })!;
+    assert.equal(round3(payable * 0.8), 15.814);
   });
 });
 

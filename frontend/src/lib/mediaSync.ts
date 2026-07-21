@@ -29,17 +29,11 @@ export function calcMediaCell(m: Row, cellDate: string) {
   //   - Lưu lượng CPS = TIỀN (giá trị đơn hàng) → giữ 3 số lẻ (round3) để cộng dồn
   //     chính xác; hiển thị money() rút về 2 số lẻ.
   // Quyết toán là tiền nên cũng giữ 3 số lẻ.
-  const scaledTraffic = rawTraffic == null ? '' : (type === 'CPS' ? round3(rawTraffic * coef) : Math.floor(rawTraffic * coef));
-  const scaledSettlement = rawSettlement == null ? '' : round3(rawSettlement * coef);
-  // Phải trả tính từ base ĐÃ áp hệ số (không nhân hệ số lần nữa). Tính giữ 3 số lẻ,
-  // hiển thị money() lo phần rút về 2 số lẻ.
-  const receivable = receivableOf(type, { unitPrice, traffic: scaledTraffic, settlement: scaledSettlement });
-  const payable = round3OrNull(receivable);          // Số tiền phải trả
-  const netPay = payable == null ? null : round3(payable * (accountShare / 100)); // Số tiền thực trả
-  // CPS: hai cột Lưu lượng/Số tiền & Quyết toán/Số tiền phía media hiển thị SỐ SAU 分成
-  // của NQC (giá trị đơn hàng × tỷ lệ chia NQC %) — media không được đọc giá trị đơn hàng
-  // gốc (yêu cầu 07-2026: 广告主数据录入之后，媒体数据应读取分成后金额).
-  // Công thức phải trả GIỮ NGUYÊN trên giá trị gốc đã áp hệ số (tính ở trên).
+  const scaledTraffic: number | '' = rawTraffic == null ? '' : (type === 'CPS' ? round3(rawTraffic * coef) : Math.floor(rawTraffic * coef));
+  const scaledSettlement: number | '' = rawSettlement == null ? '' : round3(rawSettlement * coef);
+  // CPS: media phải ĐỌC và TÍNH trên SỐ SAU 分成 của NQC
+  // (giá trị đơn hàng × tỷ lệ chia NQC %), không dùng giá trị đơn hàng gốc.
+  // Ví dụ: 28.24 × 70% = 19.768 → media đọc 19.768 và lấy số này làm cơ sở phải trả.
   let traffic = scaledTraffic;
   let settlement = scaledSettlement;
   if (type === 'CPS') {
@@ -48,6 +42,11 @@ export function calcMediaCell(m: Row, cellDate: string) {
     if (traffic !== '') traffic = round3(Number(traffic) * (advRate / 100));
     if (settlement !== '') settlement = round3(Number(settlement) * (advRate / 100));
   }
+  // Phải trả tính từ dữ liệu media thực sự đọc (đã áp hệ số và, với CPS, đã qua
+  // 分成 NQC). Không nhân hệ số lần nữa. Tính giữ 3 số lẻ; UI hiển thị 2 số lẻ.
+  const receivable = receivableOf(type, { unitPrice, traffic, settlement });
+  const payable = round3OrNull(receivable);          // Số tiền phải trả
+  const netPay = payable == null ? null : round3(payable * (accountShare / 100)); // Số tiền thực trả
   return { type, traffic, settlement, unitPrice, coef, accountShare, payable, netPay };
 }
 
