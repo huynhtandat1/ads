@@ -33,11 +33,13 @@ interface GroupRow {
   afterTax: number;
   // §1: lợi nhuận mỗi ngày của nghiệp vụ, sort ngày tăng dần.
   daily: { date: string; profit: number }[];
-  // §3a: Σ phải thu của từng nhà QC trong nghiệp vụ, sort A→Z theo tên.
+  // §3a: Σ doanh thu của từng nhà QC trong nghiệp vụ, sort A→Z theo tên.
   advertisers: { id: number; name: string; total: number }[];
   // §3b: Σ thực trả của từng media trong nghiệp vụ, sort A→Z theo tên.
   media: { id: number; name: string; total: number }[];
-  // Phần cost đã tính vào tổng nhưng chưa hiện trong bảng breakdown §3b.
+  // Phần doanh thu/chi phí đã tính vào tổng nhưng chưa gán được cho NQC/media cụ thể
+  // (dòng thiếu id) → hiện thành 1 dòng "chưa phân loại" để breakdown Σ = cột tổng.
+  hiddenAdvRevenue: number;
   hiddenMediaCost: number;
 }
 
@@ -59,6 +61,8 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
   const [queried, setQueried] = useState(true); // tự truy vấn khung thời gian mặc định khi vào trang
   const [params, setParams] = useState({ from: defaultFrom, to: defaultTo, allDates: false, fAdv: '', q: '' });
   const [expanded, setExpanded] = useState<string | null>(null); // dim đang mở panel §1+§3
+  // Sort bấm tiêu đề: null = giữ mặc định lợi nhuận giảm dần; click cột để đổi (tên A→Z, số giảm dần trước).
+  const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null);
 
   const groups = useMemo<GroupRow[]>(() => {
     if (!queried) return [];
@@ -93,7 +97,10 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
       g.revenue += rev;
       g.cost += cost;
       acc(g.daily, r.date, rev - cost);
-      if (r.__src === 'importAdv' && r.advertiserId != null) acc(g.adv, Number(r.advertiserId), Number(r.receivable ?? rev));
+      // Doanh thu NQC = MỌI nguồn không phải media (importAdv + importAI), khớp với perfOf
+      // dùng cho cột 收入. Trước đây chỉ cộng importAdv nên bỏ sót doanh thu nhập qua AI
+      // → breakdown 广告主收入 thấp hơn cột 收入. Dùng `rev` (= revenue) để Σ khớp tuyệt đối.
+      if (r.__src !== 'importMedia' && r.advertiserId != null) acc(g.adv, Number(r.advertiserId), rev);
       if (r.__src === 'importMedia' && r.mediaId != null) acc(g.med, Number(r.mediaId), Number(r.actual ?? cost));
       map.set(dim, g);
     }
@@ -110,22 +117,40 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
         Array.from(m.entries())
           .map(([id, total]) => ({ id, name: refName(collection, id) || `#${id}`, total }))
           .sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' }));
+      const advertisers = idName(g.adv, 'advertisers');
       const media = idName(g.med, 'media');
-      // Tổng cost đã hiển thị ở cột "Chi phí". Breakdown §3b trước đây chỉ liệt kê media
-      // map được theo mediaId, nên phần còn lại (cost chưa phân loại/thiếu mediaId)
-      // bị ẩn. Hiển thị phần chênh lệch này thành 1 dòng riêng.
+      // Phần còn lại chưa gán được cho NQC/media cụ thể (dòng thiếu id) → hiện thành 1 dòng
+      // "chưa phân loại" để Σ breakdown LUÔN = cột tổng (收入 / 成本), không bao giờ lệch.
+      const hiddenAdvRevenue = round3(g.revenue - advertisers.reduce((s, a) => s + a.total, 0));
       const hiddenMediaCost = round3(g.cost - media.reduce((s, m) => s + m.total, 0));
+      const afterTax = profit - tax;
+      // Tỷ suất = LỢI NHUẬN SAU THUẾ / doanh thu (spec khách chốt 07-2026). Trang nào không
+      // có thuế (withTax=false) thì afterTax = profit nên rớt về lợi nhuận/doanh thu như cũ.
+      const marginBase = spec.withTax ? afterTax : profit;
       return {
         dim, revenue: g.revenue, cost: g.cost, profit,
-        margin: g.revenue ? +((profit / g.revenue) * 100).toFixed(1) : 0,
-        tax, afterTax: profit - tax,
+        margin: g.revenue ? +((marginBase / g.revenue) * 100).toFixed(1) : 0,
+        tax, afterTax,
         daily: Array.from(g.daily.entries()).map(([date, p]) => ({ date, profit: p })).sort((a, b) => a.date.localeCompare(b.date)),
-        advertisers: idName(g.adv, 'advertisers'),
+        advertisers,
         media,
+        hiddenAdvRevenue,
         hiddenMediaCost,
       };
     }).sort((a, b) => b.profit - a.profit);
   }, [queried, params, spec, todayStr, dbAll]);
+
+  // Áp sort do người dùng chọn (nếu có) lên kết quả đã tính; mặc định giữ nguyên thứ tự
+  // lợi nhuận giảm dần từ `groups`. Tổng/đếm không phụ thuộc thứ tự nên vẫn dùng `groups`.
+  const displayGroups = useMemo(() => {
+    if (!sort) return groups;
+    const arr = [...groups];
+    const num = (g: GroupRow) => Number((g as unknown as Record<string, unknown>)[sort.key]) || 0;
+    arr.sort((a, b) => sort.key === 'dim'
+      ? String(a.dim).localeCompare(String(b.dim), undefined, { sensitivity: 'base' }) * sort.dir
+      : (num(a) - num(b)) * sort.dir);
+    return arr;
+  }, [groups, sort]);
 
   const totals = groups.reduce((s, g) => ({
     revenue: s.revenue + g.revenue, cost: s.cost + g.cost, profit: s.profit + g.profit, tax: s.tax + g.tax, afterTax: s.afterTax + g.afterTax,
@@ -136,9 +161,14 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
 
   const HEADERS = [t('col.stt'), t(spec.dimLabelKey), t('col.revenue'), t('col.cost'), t('col.profit'),
     ...(spec.withTax ? [t('col.tax'), t('col.afterTax')] : []), t('col.margin')];
+  // Khóa sort song song với HEADERS ('' = cột STT không sort). Cột tên mặc định A→Z, cột số giảm dần.
+  const SORT_KEYS = ['', 'dim', 'revenue', 'cost', 'profit',
+    ...(spec.withTax ? ['tax', 'afterTax'] : []), 'margin'];
+  const clickSort = (key: string) => setSort((s) =>
+    s?.key === key ? { key, dir: (s.dir === 1 ? -1 : 1) as 1 | -1 } : { key, dir: key === 'dim' ? 1 : -1 });
 
   const doExport = () => {
-    const rows = groups.map((g, i) => [i + 1, g.dim, g.revenue, g.cost, g.profit, ...(spec.withTax ? [g.tax, g.afterTax] : []), `${g.margin}%`]);
+    const rows = displayGroups.map((g, i) => [i + 1, g.dim, g.revenue, g.cost, g.profit, ...(spec.withTax ? [g.tax, g.afterTax] : []), `${g.margin}%`]);
     exportCSV(spec.screen, HEADERS, rows);
   };
 
@@ -198,9 +228,25 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
           <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
-                {HEADERS.map((h, i) => (
-                  <th key={i} className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i > 1 ? 'text-right' : ''}`}>{h}</th>
-                ))}
+                {HEADERS.map((h, i) => {
+                  const key = SORT_KEYS[i];
+                  const sortable = !!key;
+                  const active = sort?.key === key;
+                  return (
+                    <th key={i} onClick={sortable ? () => clickSort(key) : undefined}
+                      className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i > 1 ? 'text-right' : ''} ${sortable ? 'cursor-pointer select-none hover:text-gray-700' : ''}`}>
+                      <span className={`inline-flex items-center gap-1 ${i > 1 ? 'flex-row-reverse' : ''}`}>
+                        {h}
+                        {sortable && (
+                          <span className="inline-flex flex-col text-[8px] leading-none">
+                            <span className={active && sort!.dir === 1 ? 'text-cyan-500' : 'text-gray-300'}>▲</span>
+                            <span className={active && sort!.dir === -1 ? 'text-cyan-500' : 'text-gray-300'}>▼</span>
+                          </span>
+                        )}
+                      </span>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
@@ -220,7 +266,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                     {spec.withTax && <td className="px-3 py-2 text-right text-cyan-300">{money(totals.afterTax)}</td>}
                     <td className="px-3 py-2 text-right">—</td>
                   </tr>
-                  {groups.map((g, i) => (
+                  {displayGroups.map((g, i) => (
                     <Fragment key={i}>
                       <tr
                         onClick={() => setExpanded(expanded === g.dim ? null : g.dim)}
@@ -277,7 +323,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                                 </div>
                                 <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
                                   <tbody>
-                                    {g.advertisers.length === 0 ? (
+                                    {g.advertisers.length === 0 && !g.hiddenAdvRevenue ? (
                                       <tr><td colSpan={2} className="px-3 py-6 text-center text-gray-400">—</td></tr>
                                     ) : (
                                       <>
@@ -287,9 +333,15 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                                             <td className="px-3 py-1.5 text-right font-medium text-emerald-600">{money(a.total)}</td>
                                           </tr>
                                         ))}
+                                        {!!g.hiddenAdvRevenue && (
+                                          <tr className="border-b border-gray-50 bg-amber-50/60">
+                                            <td className="px-3 py-1.5 whitespace-nowrap text-amber-700">{t('report.hiddenAdvRevenue')}</td>
+                                            <td className="px-3 py-1.5 text-right font-medium text-emerald-600">{money(g.hiddenAdvRevenue)}</td>
+                                          </tr>
+                                        )}
                                         <tr className="bg-brand-dark2 text-white font-semibold">
                                           <td className="px-3 py-1.5">Σ {t('report.grandTotal')}</td>
-                                          <td className="px-3 py-1.5 text-right text-cyan-300">{money(g.advertisers.reduce((s, a) => s + a.total, 0))}</td>
+                                          <td className="px-3 py-1.5 text-right text-cyan-300">{money(g.advertisers.reduce((s, a) => s + a.total, 0) + g.hiddenAdvRevenue)}</td>
                                         </tr>
                                       </>
                                     )}

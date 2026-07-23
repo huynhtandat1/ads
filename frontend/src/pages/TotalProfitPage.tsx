@@ -38,6 +38,8 @@ export function TotalProfitPage() {
 
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
+  // Sort bấm tiêu đề bảng 业务: null = giữ mặc định 本月利润 giảm dần; click cột để đổi (tên A→Z, số giảm dần trước).
+  const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null);
 
 
   const todayStr = ymd(new Date());
@@ -151,9 +153,22 @@ export function TotalProfitPage() {
     t('col.tax'),
     t('report.profitMonth'),
   ];
+  // Khóa sort song song HEADERS ('' = cột STT không sort). Cột 业务 mặc định A→Z, cột số giảm dần.
+  const SORT_KEYS = ['', 'biz', 'today', 'monthTax', 'month'];
+  const clickSort = (key: string) => setSort((s) =>
+    s?.key === key ? { key, dir: (s.dir === 1 ? -1 : 1) as 1 | -1 } : { key, dir: key === 'biz' ? 1 : -1 });
+  // Áp sort người dùng chọn; mặc định giữ thứ tự 本月利润 giảm dần từ `rows`.
+  const displayRows = useMemo(() => {
+    if (!sort) return rows;
+    const arr = [...rows];
+    arr.sort((a, b) => sort.key === 'biz'
+      ? String(a.biz).localeCompare(String(b.biz), undefined, { sensitivity: 'base' }) * sort.dir
+      : ((Number((a as unknown as Record<string, unknown>)[sort.key]) || 0) - (Number((b as unknown as Record<string, unknown>)[sort.key]) || 0)) * sort.dir);
+    return arr;
+  }, [rows, sort]);
 
   const doExport = () => {
-    const data = rows.map((r, i) => [i + 1, r.biz, r.today, r.monthTax, r.month]);
+    const data = displayRows.map((r, i) => [i + 1, r.biz, r.today, r.monthTax, r.month]);
     exportCSV('total_profit', HEADERS, data);
   };
 
@@ -192,9 +207,25 @@ export function TotalProfitPage() {
           <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
-                {HEADERS.map((h, i) => (
-                  <th key={i} className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i > 1 ? 'text-right' : ''}`}>{h}</th>
-                ))}
+                {HEADERS.map((h, i) => {
+                  const key = SORT_KEYS[i];
+                  const sortable = !!key;
+                  const active = sort?.key === key;
+                  return (
+                    <th key={i} onClick={sortable ? () => clickSort(key) : undefined}
+                      className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i > 1 ? 'text-right' : ''} ${sortable ? 'cursor-pointer select-none hover:text-gray-700' : ''}`}>
+                      <span className={`inline-flex items-center gap-1 ${i > 1 ? 'flex-row-reverse' : ''}`}>
+                        {h}
+                        {sortable && (
+                          <span className="inline-flex flex-col text-[8px] leading-none">
+                            <span className={active && sort!.dir === 1 ? 'text-cyan-500' : 'text-gray-300'}>▲</span>
+                            <span className={active && sort!.dir === -1 ? 'text-cyan-500' : 'text-gray-300'}>▼</span>
+                          </span>
+                        )}
+                      </span>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
@@ -208,7 +239,7 @@ export function TotalProfitPage() {
                     <td className="px-3 py-2 text-right text-rose-300">{money(totals.monthTax)}</td>
                     <td className={`px-3 py-2 text-right ${totals.month >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>{money(totals.month)}</td>
                   </tr>
-                  {rows.map((r, i) => (
+                  {displayRows.map((r, i) => (
                     <tr key={r.biz} className="border-b border-gray-50 hover:bg-cyan-50/30">
                       <td className="px-3 py-2 whitespace-nowrap text-gray-400">{i + 1}</td>
                       <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-700">{r.biz}</td>
