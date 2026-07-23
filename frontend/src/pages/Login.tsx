@@ -8,8 +8,8 @@ export function Login() {
   const { t } = useTranslation();
   const { login } = useAuth();
   const nav = useNavigate();
-  const [u, setU] = useState('admin');
-  const [p, setP] = useState('admin');
+  const [u, setU] = useState('');
+  const [p, setP] = useState('');
   const [err, setErr] = useState(false);
   const [loading, setLoading] = useState(false);
 
