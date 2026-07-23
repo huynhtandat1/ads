@@ -24,6 +24,9 @@ export function RolesPage() {
   const { can } = useAuth();
   const rows = useCollection('roles');
   const [editing, setEditing] = useState<Row | null>(null);
+  // Tên vai trò MỚI đang chờ cấu hình quyền (chưa tạo cho tới khi Lưu bảng quyền) —
+  // tránh tạo role rỗng toàn quyền false không dùng được (spec 07-2026).
+  const [pending, setPending] = useState<string | null>(null);
   const [matrix, setMatrix] = useState<PermMap>(emptyPerms());
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
@@ -65,15 +68,17 @@ export function RolesPage() {
     setMatrix((m) => ({ ...m, [screen]: { ...m[screen], [action]: !m[screen][action] } }));
   };
 
+  const closeMatrix = () => { setEditing(null); setPending(null); setMatrix(emptyPerms()); };
+
   const save = () => {
-    if (!editing) return;
-    // Chặn vô tình xóa hết quyền — nếu không còn screen nào có view=true thì vai trò
-    // bị "khóa" khỏi mọi trang, user bị block ngay lập tức.
+    // Áp cùng luật cho cả TẠO MỚI lẫn SỬA: phải có ít nhất 1 quyền Xem, nếu không vai
+    // trò bị "khóa" khỏi mọi trang, user dùng nó bị block ngay.
     const hasAnyView = Object.values(matrix).some((p) => p?.view);
     if (!hasAnyView) { toast(t('perm.noView'), 'error'); return; }
-    update('roles', editing.id, { permissions: JSON.stringify(matrix) });
+    if (editing) update('roles', editing.id, { permissions: JSON.stringify(matrix) });
+    else if (pending) create('roles', { name: pending, permissions: JSON.stringify(matrix), status: true } as Omit<Row, 'id'>);
     toast(t('common.saved'));
-    setEditing(null);
+    closeMatrix();
   };
 
   const saveNew = () => {
@@ -84,8 +89,8 @@ export function RolesPage() {
     if (rows.some((r) => String(r.name).toUpperCase() === name)) {
       toast(t('common.duplicate'), 'error'); return;
     }
-    create('roles', { name, permissions: JSON.stringify(emptyPerms()), status: true } as Omit<Row, 'id'>);
-    toast(t('common.saved')); setCreating(false); setNewName('');
+    // Chưa tạo vội — mở bảng quyền để admin cấu hình rồi mới tạo (luật ≥1 quyền Xem).
+    setPending(name); setMatrix(emptyPerms()); setCreating(false); setNewName('');
   };
 
   return (
@@ -114,12 +119,12 @@ export function RolesPage() {
         </div>
       )}
 
-      {editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setEditing(null)}>
+      {(editing || pending) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={closeMatrix}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white">
-              <h3 className="text-lg font-bold">{editing.name} — {t('perm.screen')}</h3>
-              <button onClick={() => setEditing(null)} className="text-gray-400 text-xl">×</button>
+              <h3 className="text-lg font-bold">{editing?.name ?? pending} — {t('perm.screen')}</h3>
+              <button onClick={closeMatrix} className="text-gray-400 text-xl">×</button>
             </div>
             <table className="w-full text-sm">
               <thead>
@@ -143,7 +148,7 @@ export function RolesPage() {
               </tbody>
             </table>
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 sticky bottom-0 bg-white">
-              <button onClick={() => setEditing(null)} className="h-9 px-4 rounded-lg border border-gray-200 text-sm">{t('common.cancel')}</button>
+              <button onClick={closeMatrix} className="h-9 px-4 rounded-lg border border-gray-200 text-sm">{t('common.cancel')}</button>
               <button onClick={save} className="h-9 px-4 rounded-lg bg-cyan-500 text-white text-sm font-medium">{t('common.save')}</button>
             </div>
           </div>

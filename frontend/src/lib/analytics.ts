@@ -34,10 +34,12 @@ export function sumPerf(rows: Row[]): Totals {
       : 0),
     0,
   ) * 1000) / 1000;
+  const afterTax = Math.round((profit - tax) * 1000) / 1000;
   return {
-    revenue, cost, profit, tax,
-    afterTax: Math.round((profit - tax) * 1000) / 1000,
-    margin: revenue ? +((profit / revenue) * 100).toFixed(1) : 0,
+    revenue, cost, profit, tax, afterTax,
+    // Tỷ suất = LỢI NHUẬN SAU THUẾ / doanh thu (đồng bộ g4b, spec 07-2026) — trước đây
+    // dùng lợi nhuận TRƯỚC thuế nên Dashboard lệch với g4b (70% vs 65.8%).
+    margin: revenue ? +((afterTax / revenue) * 100).toFixed(1) : 0,
     records: rows.length,
   };
 }

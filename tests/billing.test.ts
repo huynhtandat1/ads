@@ -415,13 +415,14 @@ describe('Aggregate report (g4a/g4b) — profit / margin / tax', () => {
     const profit = revenue - cost;
     const tax = Math.round((profit * taxPct) / 100);
     const afterTax = profit - tax;
-    const margin = revenue ? +((profit / revenue) * 100).toFixed(1) : 0;
+    // Tỷ suất = LỢI NHUẬN SAU THUẾ / doanh thu (khớp g4b + Dashboard, spec 07-2026).
+    const margin = revenue ? +((afterTax / revenue) * 100).toFixed(1) : 0;
     return { revenue, cost, profit, tax, afterTax, margin };
   }
 
-  test('only importAdv: revenue=1000 cost=0 → profit=1000 tax=60 afterTax=940 margin=100', () => {
+  test('only importAdv: revenue=1000 cost=0 → profit=1000 tax=60 afterTax=940 margin=94', () => {
     assert.deepEqual(agg([{ c: 'importAdv', r: { revenue: 1000, cost: 0 } }]),
-      { revenue: 1000, cost: 0, profit: 1000, tax: 60, afterTax: 940, margin: 100 });
+      { revenue: 1000, cost: 0, profit: 1000, tax: 60, afterTax: 940, margin: 94 });
   });
   test('only importMedia: revenue forced 0, cost=500 → profit=-500 tax=-30 afterTax=-470', () => {
     assert.deepEqual(agg([{ c: 'importMedia', r: { revenue: 999, cost: 500 } }]),
@@ -432,7 +433,7 @@ describe('Aggregate report (g4a/g4b) — profit / margin / tax', () => {
       { c: 'importAdv', r: { revenue: 1000, cost: 0 } },
       { c: 'importMedia', r: { revenue: 1000, cost: 300 } },
     ]);
-    assert.deepEqual(r, { revenue: 1000, cost: 300, profit: 700, tax: 42, afterTax: 658, margin: 70 });
+    assert.deepEqual(r, { revenue: 1000, cost: 300, profit: 700, tax: 42, afterTax: 658, margin: 65.8 });
   });
   test('zero revenue → margin=0 (no division)', () => {
     assert.equal(agg([{ c: 'importMedia', r: { revenue: 0, cost: 0 } }]).margin, 0);

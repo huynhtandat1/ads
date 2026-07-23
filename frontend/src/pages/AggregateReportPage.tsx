@@ -30,6 +30,9 @@ interface GroupRow {
   profit: number;
   margin: number;
   tax: number;
+  // Thuế THÔ (chưa làm tròn) của nghiệp vụ — để dòng Σ总计 cộng thô rồi làm tròn 1 lần,
+  // đồng bộ với Dashboard/g4a (tránh Σround ≠ round(Σ), lệch 1 xu khi nhiều nghiệp vụ).
+  rawTax: number;
   afterTax: number;
   // §1: lợi nhuận mỗi ngày của nghiệp vụ, sort ngày tăng dần.
   daily: { date: string; profit: number }[];
@@ -109,10 +112,11 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
       // Thuế = Σ (lợi nhuận ngày × suất hiệu lực ngày đó) để THÔ, làm tròn 3 số lẻ MỘT lần
       // (hiển thị money() còn 2) — cùng phép tính với g4a nên hai màn khớp, đúng khi suất
       // đổi giữa kỳ, không lệch kiểu Σround(ngày) ≠ round(Σ).
-      const tax = round3(Array.from(g.daily.entries()).reduce(
+      const rawTax = Array.from(g.daily.entries()).reduce(
         (s, [date, p]) => s + (p * effectiveValue('tax', 0, 'point', isDate(date) ? date : todayStr, TAX_PCT)) / 100,
         0,
-      ));
+      );
+      const tax = round3(rawTax);
       const idName = (m: Map<number, number>, collection: string) =>
         Array.from(m.entries())
           .map(([id, total]) => ({ id, name: refName(collection, id) || `#${id}`, total }))
@@ -130,7 +134,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
       return {
         dim, revenue: g.revenue, cost: g.cost, profit,
         margin: g.revenue ? +((marginBase / g.revenue) * 100).toFixed(1) : 0,
-        tax, afterTax,
+        tax, rawTax, afterTax,
         daily: Array.from(g.daily.entries()).map(([date, p]) => ({ date, profit: p })).sort((a, b) => a.date.localeCompare(b.date)),
         advertisers,
         media,
@@ -152,9 +156,16 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
     return arr;
   }, [groups, sort]);
 
-  const totals = groups.reduce((s, g) => ({
-    revenue: s.revenue + g.revenue, cost: s.cost + g.cost, profit: s.profit + g.profit, tax: s.tax + g.tax, afterTax: s.afterTax + g.afterTax,
-  }), { revenue: 0, cost: 0, profit: 0, tax: 0, afterTax: 0 });
+  // Thuế/sau thuế của dòng Σ总计: cộng THÔ tất cả nghiệp vụ rồi làm tròn 1 lần (đồng bộ
+  // Dashboard/g4a), không cộng số đã làm tròn của từng nghiệp vụ.
+  const rawTotals = groups.reduce((s, g) => ({
+    revenue: s.revenue + g.revenue, cost: s.cost + g.cost, profit: s.profit + g.profit, rawTax: s.rawTax + g.rawTax,
+  }), { revenue: 0, cost: 0, profit: 0, rawTax: 0 });
+  const totals = {
+    ...rawTotals,
+    tax: round3(rawTotals.rawTax),
+    afterTax: round3(rawTotals.profit - rawTotals.rawTax),
+  };
 
   const runQuery = () => { setParams({ from, to, allDates, fAdv, q }); setQueried(true); };
   useEffect(runQuery, [from, to, allDates, fAdv, q]);
