@@ -64,6 +64,18 @@ export const api = {
   update: (c: string, id: number, patch: Partial<Row>) => req<{ log?: Row }>('PUT', `/${c}/${id}`, patch),
   remove: (c: string, id: number) => req<{ log?: Row }>('DELETE', `/${c}/${id}`),
   toggle: (c: string, id: number) => req<{ log?: Row }>('POST', `/${c}/${id}/toggle`),
+  setRate: (
+    entityType: string,
+    entityId: number | string,
+    field: string,
+    value: number,
+    effectiveFrom: string,
+    screen: string,
+  ) => req<{ rate: Row; base?: { collection: string; row: Row }; log?: Row }>(
+    'POST',
+    '/rates/set',
+    { entityType, entityId, field, value, effectiveFrom, screen },
+  ),
   quarantine: (c: string, id: number, qrow: Row) => req<{ log?: Row }>('POST', '/_quarantine', { collection: c, id, qrow }),
   restore: (qid: number) => req<{ log?: Row }>('POST', '/_restore', { qid }),
   settlementPreview: (type: 'adv' | 'media', target: string, from: string, to: string) =>

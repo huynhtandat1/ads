@@ -2,8 +2,9 @@ import 'dotenv/config';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
-import { initDb, loadAll, upsertRow, upsertRows, deleteRow, moveRow, importNaturalKey } from './db.js';
+import { initDb, loadAll, upsertRow, upsertRows, deleteRow, moveRow, importNaturalKey, setRateVersion, type RateBaseRef } from './db.js';
 import type { DB, Row } from './seed.js';
+import { isAllowedRateScreen } from './ratePermissions.js';
 
 const PORT = Number(process.env.PORT) || 8787;
 const IS_PROD = process.env.NODE_ENV === 'production';
@@ -67,10 +68,9 @@ const COLLECTION_SCREEN: Record<string, string> = {
   importAI: 'g3a', importAdv: 'g3b', importMedia: 'g3c',
   settleAdv: 'g5a', settleMedia: 'g5b',
   users: 'g7a', roles: 'g7b', logs: 'g6', quarantine: 'g7c',
-  // Versioning đơn giá/hệ số/tỷ lệ chia/điểm thuế (RateEditor). Thiếu dòng này thì
-  // mọi chỉnh sửa "hiệu lực ngay/về sau" bị server 404 và UI lặng lẽ rollback.
-  // Gắn quyền theo g4b (nơi spec đặt nút sửa điểm thuế): OPERATOR sửa được, VIEWER không.
-  rates: 'g4b',
+  // Versioning đơn giá/hệ số/tỷ lệ chia/điểm thuế (RateEditor) được xử lý qua
+  // endpoint chuyên dụng /api/rates/set vì quyền phụ thuộc entity,
+  // field và màn hình nguồn; không thể ánh xạ cả collection vào duy nhất g4b.
 };
 const ACTION: Record<string, string> = { POST: 'create', PUT: 'edit', DELETE: 'delete' };
 
@@ -83,14 +83,28 @@ const UNIQUE_FIELDS: Record<string, string[]> = {
   media: ['name'],
   mediaOrders: ['mediaId', 'name'],
   mediaIds: ['name'],
+  users: ['username'],
+  settleAdv: ['code'],
+  settleMedia: ['code'],
 };
 const normKey = (fields: string[], r: Record<string, unknown>) =>
-  fields.map((f) => String(r[f] ?? '').trim().toLowerCase()).join(' ');
+  fields.map((f) => String(r[f] ?? '').trim().toLowerCase()).join('\u0000');
 function isDuplicate(collection: string, row: Record<string, unknown>, exceptId?: number): boolean {
   const fields = UNIQUE_FIELDS[collection];
   if (!fields) return false;
   const key = normKey(fields, row);
-  return (db[collection] || []).some((r) => r.id !== exceptId && normKey(fields, r) === key);
+  const collections = collection === 'settleAdv' || collection === 'settleMedia'
+    ? ['settleAdv', 'settleMedia']
+    : [collection];
+  return collections.some((candidateCollection) =>
+    (db[candidateCollection] || []).some((r) =>
+      !(candidateCollection === collection && r.id === exceptId) && normKey(fields, r) === key),
+  );
+}
+
+function hasMissingUniqueField(collection: string, row: Record<string, unknown>): boolean {
+  const fields = UNIQUE_FIELDS[collection];
+  return Boolean(fields?.some((field) => String(row[field] ?? '').trim() === ''));
 }
 
 function hasInvalidNumber(collection: string, row: Record<string, unknown>): boolean {
@@ -158,11 +172,22 @@ function isolate(user: SessionUser): DB {
   const scope = user.scope;
   if (user.role === 'SUPER_ADMIN' || !scope || scope === 'all') return stripSecrets(db);
   const advId = Number(scope);
+  const scopedAdIds = new Set((db.adIds || []).filter((row) => row.advertiserId === advId).map((row) => String(row.id)));
+  const scopedMediaIds = new Set((db.mediaIds || []).filter((row) => row.advertiserId === advId).map((row) => String(row.id)));
   const out: DB = {};
   for (const [c, rows] of Object.entries(db)) {
     if (ADMIN_ONLY.has(c)) { out[c] = []; continue; }
     if (USER_SELF.has(c)) { out[c] = rows.filter((r) => r.id === user.id); continue; }
     if (USER_OWN.has(c)) { out[c] = rows.filter((r) => r.user === user.username); continue; }
+    if (c === 'rates') {
+      out[c] = rows.filter((row) => {
+        const [entityType, entityId] = String(row.key || '').split(':');
+        return entityType === 'tax'
+          || (entityType === 'adId' && scopedAdIds.has(entityId))
+          || (entityType === 'mediaId' && scopedMediaIds.has(entityId));
+      });
+      continue;
+    }
     if (!ADV_SCOPED.has(c)) { out[c] = rows; continue; }
     out[c] = rows.filter((r) => (c === 'advertisers' ? r.id === advId : r.advertiserId === advId));
   }
@@ -431,6 +456,84 @@ app.post('/api/_restore', auth, asyncHandler(async (req, res) => {
   res.json({ ok: true, log });
 }));
 
+const validIsoDate = (value: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+};
+const localToday = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+/**
+ * Lưu rate theo đúng quyền của màn hình nguồn. Không cho ghi collection `rates`
+ * qua CRUD generic, vì ad price, media coefficient/share và tax thuộc các quyền
+ * khác nhau và còn phải kiểm tra scope của entity tương ứng.
+ */
+app.post('/api/rates/set', auth, asyncHandler(async (req, res) => {
+  const user = (req as any).user as SessionUser;
+  const body = (req.body || {}) as Record<string, unknown>;
+  const entityType = String(body.entityType || '');
+  const field = String(body.field || '');
+  const screen = String(body.screen || '');
+  const entityId = Number(body.entityId);
+  const value = Number(body.value);
+  const effectiveFrom = String(body.effectiveFrom || '');
+
+  if (!isAllowedRateScreen(entityType, field, screen)) {
+    return res.status(400).json({ error: 'invalid rate operation' });
+  }
+  if (!can(user, screen, 'edit')) return res.status(403).json({ error: 'forbidden' });
+  if (!Number.isInteger(entityId) || !Number.isFinite(value) || value < 0 || !validIsoDate(effectiveFrom)) {
+    return res.status(400).json({ error: 'invalid rate value' });
+  }
+
+  let entity: Row | undefined;
+  let base: RateBaseRef | undefined;
+  if (entityType === 'adId') {
+    entity = (db.adIds || []).find((row) => row.id === entityId);
+    if (!entity) return res.status(404).json({ error: 'not found' });
+    if (outOfScope(user, 'adIds', entity)) return res.status(403).json({ error: 'forbidden' });
+    base = { collection: 'adIds', id: entity.id, field: 'unitPrice' };
+  } else if (entityType === 'mediaId') {
+    entity = (db.mediaIds || []).find((row) => row.id === entityId);
+    if (!entity) return res.status(404).json({ error: 'not found' });
+    if (outOfScope(user, 'mediaIds', entity)) return res.status(403).json({ error: 'forbidden' });
+    if (field === 'unitPrice' || field === 'profitShare') {
+      base = { collection: 'mediaIds', id: entity.id, field };
+    }
+  } else if (entityType !== 'tax' || entityId !== 0) {
+    return res.status(400).json({ error: 'invalid rate entity' });
+  }
+
+  // Các field mang nghĩa phần trăm không được vượt 100%.
+  const entityTypeName = entityType === 'mediaId' && !entity?.type
+    ? (db.adIds || []).find((row) => row.id === entity?.adIdId)?.type
+    : entity?.type;
+  if (field === 'profitShare' || field === 'point' || (field === 'unitPrice' && entityTypeName === 'CPS')) {
+    if (value > 100) return res.status(400).json({ error: 'invalid percentage' });
+  }
+
+  const key = rateKey(entityType, entityId, field);
+  const saved = await setRateVersion(key, value, effectiveFrom, localToday(), base);
+  db.rates = [
+    saved.rate,
+    ...(db.rates || []).filter((row) => !(row.key === key && row.effectiveFrom === effectiveFrom)),
+  ];
+  if (base && saved.base) {
+    db[base.collection] = (db[base.collection] || [])
+      .map((row) => (row.id === base!.id ? saved.base! : row));
+  }
+  const log = await writeLog(user, 'edit', `rate ${key} @ ${effectiveFrom} via ${screen}`);
+  res.json({
+    ok: true,
+    rate: saved.rate,
+    ...(base && saved.base ? { base: { collection: base.collection, row: saved.base } } : {}),
+    log,
+  });
+}));
+
 // Xác nhận hàng loạt dữ liệu nhập: một request + một câu SQL + một log.
 // Không dùng create/update phía client theo vòng lặp vì hàng nghìn request đồng thời
 // sẽ làm quá tải server và khiến UI báo thành công trước khi dữ liệu thực sự được lưu.
@@ -496,6 +599,7 @@ app.post('/api/:collection', auth, asyncHandler(async (req, res) => {
   if (BULK_IMPORTS.has(c) && !importNaturalKey(c, row)) return res.status(400).json({ error: 'date/id required' });
   if (outOfScope((req as any).user, c, row)) return res.status(403).json({ error: 'forbidden' });
   if (hasInvalidNumber(c, row)) return res.status(400).json({ error: 'invalid number' });
+  if (hasMissingUniqueField(c, row)) return res.status(400).json({ error: 'required field missing' });
   // Dữ liệu nhập liệu: cùng (ngày × ID) đã có bản ghi → cache client cũ không thấy nên
   // gửi create; server quy về GHI ĐÈ bản ghi hiện có, không tạo bản trùng thứ hai.
   const naturalKey = importNaturalKey(c, row);
@@ -540,6 +644,7 @@ app.put('/api/:collection/:id', auth, asyncHandler(async (req, res) => {
     return res.status(403).json({ error: 'forbidden' });
   }
   if (hasInvalidNumber(c, next)) return res.status(400).json({ error: 'invalid number' });
+  if (hasMissingUniqueField(c, next)) return res.status(400).json({ error: 'required field missing' });
   if (UNIQUE_FIELDS[c] && current && isDuplicate(c, next, id)) {
     return res.status(409).json({ error: 'duplicate' });
   }
@@ -589,6 +694,8 @@ app.post('/api/:collection/:id/toggle', auth, asyncHandler(async (req, res) => {
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   console.error('[err]', err?.stack || err?.message || err);
   if (res.headersSent) return;
+  // Unique index là lớp chặn cuối cho race giữa nhiều process/request.
+  if (err?.code === '23505') return res.status(409).json({ error: 'duplicate' });
   const status = Number.isInteger(err?.status) ? err.status : 500;
   res.status(status).json({ error: err?.message || 'internal error' });
 });

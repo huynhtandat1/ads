@@ -9,6 +9,7 @@ import { defaultDateRange, ymd } from '../lib/date';
 import { perfOf } from '../lib/analytics';
 import { round3 } from '../lib/format';
 import { sortByGroupedLabel } from '../lib/optionSort';
+import { useAuth } from '../auth/AuthContext';
 
 export interface AggregateSpec {
   screen: string;
@@ -48,6 +49,7 @@ interface GroupRow {
 
 export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
   const { t } = useTranslation();
+  const { can } = useAuth();
   // Số hook phải CỐ ĐỊNH giữa các lần render (spec.collections dài ngắn khác nhau
   // giữa g4a/g4b) → subscribe cả DB bằng 1 hook thay vì useCollection trong vòng lặp.
   // Giữ giá trị trả về làm dep của memo: trước đây memo chỉ phụ thuộc bộ lọc nên
@@ -203,7 +205,8 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
             <div className="flex items-end gap-1.5">
               <label className="block text-xs text-gray-500 mb-1">{t('col.tax')}:</label>
               <RateEditor value={effectiveValue('tax', 0, 'point', todayStr, TAX_PCT)} workingDate={todayStr} suffix="%"
-                onSet={(v, eff) => setRate('tax', 0, 'point', v, eff)} />
+                disabled={!can(spec.screen, 'edit')}
+                onSet={(v, eff) => { void setRate('tax', 0, 'point', v, eff, spec.screen); }} />
             </div>
           )}
         </div>

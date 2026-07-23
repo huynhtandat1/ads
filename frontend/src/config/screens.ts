@@ -207,7 +207,7 @@ export const SCREENS: Record<string, ScreenConfig> = {
     ],
   },
   g7a: {
-    screen: 'g7a', collection: 'users', titleKey: 'menu.g7a',
+    screen: 'g7a', collection: 'users', titleKey: 'menu.g7a', uniqueKeys: ['username'],
     columns: [
       { key: 'username', labelKey: 'col.username', sortable: true },
       { key: 'fullName', labelKey: 'col.fullName' },

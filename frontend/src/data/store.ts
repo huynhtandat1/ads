@@ -283,31 +283,37 @@ export function effectiveValue(entityType: string, entityId: number | string, fi
   return best ? Number(best.value) : fallback;
 }
 
-// Bản ghi gốc (danh mục) của từng entityType — giữ GIÁ TRỊ HIỆN HÀNH đồng bộ với rates
-// để các màn danh mục (g1c/g2c), bộ lọc và dropdown đọc raw value không bị lệch lịch sử.
-const RATE_BASE: Record<string, string> = { adId: 'adIds', mediaId: 'mediaIds' };
-const todayStr = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-/** Đặt giá trị có hiệu lực từ 'effectiveFrom'. Trùng (key, effectiveFrom) thì CẬP NHẬT
- *  bản cũ thay vì tạo mới — tránh sinh rate trùng khiến sửa lần 2 không ăn. */
-export function setRate(entityType: string, entityId: number | string, field: string, value: number, effectiveFrom: string) {
+/**
+ * Đặt rate qua endpoint chuyên dụng để backend kiểm tra đúng quyền màn hình +
+ * scope entity và ghi rate/base trong một transaction.
+ */
+export async function setRate(
+  entityType: string,
+  entityId: number | string,
+  field: string,
+  value: number,
+  effectiveFrom: string,
+  screen: string,
+): Promise<boolean> {
   const key = rateKey(entityType, entityId, field);
-  const existing = (db.rates || []).find((r) => r.key === key && r.effectiveFrom === effectiveFrom);
-  if (existing) update('rates', existing.id, { value });
-  else create('rates', { key, value, effectiveFrom });
-
-  // Đồng bộ ngược về bản ghi gốc: sửa "hiệu lực ngay" ở màn nhập liệu (g3b/g3c) mà không
-  // cập nhật danh mục thì g1c/g2c vẫn hiện giá cũ. Lấy effectiveValue TẠI HÔM NAY (không
-  // lấy thẳng `value` — có thể tồn tại phiên bản mới hơn giữa effectiveFrom và hôm nay).
-  const baseCol = RATE_BASE[entityType];
-  if (!baseCol || effectiveFrom > todayStr()) return; // hiệu lực về sau: giá hiện hành chưa đổi
-  const row = (db[baseCol] || []).find((r) => String(r.id) === String(entityId));
-  if (!row || !(field in row)) return;
-  const cur = effectiveValue(entityType, entityId, field, todayStr(), Number(row[field]) || 0);
-  if (Number(row[field]) !== cur) update(baseCol, row.id, { [field]: cur });
+  try {
+    const result = await api.setRate(entityType, entityId, field, value, effectiveFrom, screen);
+    db.rates = [
+      result.rate,
+      ...(db.rates || []).filter((row) => !(row.key === key && row.effectiveFrom === effectiveFrom)),
+    ];
+    if (result.base) {
+      db[result.base.collection] = (db[result.base.collection] || [])
+        .map((row) => (row.id === result.base!.row.id ? result.base!.row : row));
+    }
+    emit();
+    appendLog(result.log);
+    return true;
+  } catch (e) {
+    notifySaveError(kindOf(e));
+    console.error('set rate failed', e);
+    return false;
+  }
 }
 
 /** Reactive hook: rows of a collection, re-renders on change. */

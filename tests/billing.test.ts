@@ -1,6 +1,8 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { nullableNumber, receivableOf, round3OrNull } from '../frontend/src/lib/billing.ts';
+import { nextSettlementCode } from '../frontend/src/lib/settlement.ts';
+import { isAllowedRateScreen } from '../backend/src/ratePermissions.ts';
 
 const TOL = 1e-9;
 
@@ -447,24 +449,37 @@ describe('Aggregate report (g4a/g4b) — profit / margin / tax', () => {
 });
 
 describe('SettlementPage code generation', () => {
-  function makeCode(prefix: string, from: string) {
-    return `${prefix}-${from.slice(2, 7).replace('-', '')}-${String(Math.floor(Math.random() * 90) + 10)}`;
-  }
   test('adv prefix + 2-digit random [10..99]', () => {
     for (let i = 0; i < 100; i++) {
-      const c = makeCode('ST-ADV', '2026-06-01');
+      const c = nextSettlementCode([], 'adv', '2026-06-01');
       assert.match(c, /^ST-ADV-2606-(?:[1-9]\d)$/);
     }
   });
   test('media prefix', () => {
     for (let i = 0; i < 100; i++) {
-      const c = makeCode('ST-MED', '2026-06-15');
+      const c = nextSettlementCode([], 'media', '2026-06-15');
       assert.match(c, /^ST-MED-2606-(?:[1-9]\d)$/);
     }
   });
   test('YYMM from from.slice(2,7).replace("-","")', () => {
     assert.equal('2026-06-01'.slice(2, 7).replace('-', ''), '2606');
     assert.equal('2026-12-31'.slice(2, 7).replace('-', ''), '2612');
+  });
+  test('skips an existing code even when random selects it first', () => {
+    assert.equal(
+      nextSettlementCode(['ST-ADV-2606-10'], 'adv', '2026-06-01', () => 0),
+      'ST-ADV-2606-11',
+    );
+  });
+  test('comparison is case-insensitive and trims existing codes', () => {
+    assert.equal(
+      nextSettlementCode(['  st-med-2606-10  '], 'media', '2026-06-15', () => 0),
+      'ST-MED-2606-11',
+    );
+  });
+  test('extends the suffix after all 2-digit codes are used', () => {
+    const used = Array.from({ length: 90 }, (_, i) => `ST-ADV-2606-${i + 10}`);
+    assert.equal(nextSettlementCode(used, 'adv', '2026-06-01', () => 0), 'ST-ADV-2606-100');
   });
 });
 
@@ -556,5 +571,30 @@ describe('effectiveValue() — versioning (frontend + backend parity)', () => {
   });
   test('unknown key → fallback', () => {
     assert.equal(effectiveValue(source, 'mediaId', 999, 'profitShare', '2026-06-15', 50), 50);
+  });
+});
+
+describe('Rate RBAC matrix', () => {
+  test('ad price can only be edited from ad management/data-entry screens', () => {
+    assert.equal(isAllowedRateScreen('adId', 'unitPrice', 'g1c'), true);
+    assert.equal(isAllowedRateScreen('adId', 'unitPrice', 'g3a'), true);
+    assert.equal(isAllowedRateScreen('adId', 'unitPrice', 'g3b'), true);
+    assert.equal(isAllowedRateScreen('adId', 'unitPrice', 'g4b'), false);
+  });
+  test('media coefficient is restricted to media data entry', () => {
+    assert.equal(isAllowedRateScreen('mediaId', 'coefficient', 'g3c'), true);
+    assert.equal(isAllowedRateScreen('mediaId', 'coefficient', 'g2c'), false);
+  });
+  test('media price/share and tax use their own screens', () => {
+    assert.equal(isAllowedRateScreen('mediaId', 'unitPrice', 'g2c'), true);
+    assert.equal(isAllowedRateScreen('mediaId', 'unitPrice', 'g3c'), true);
+    assert.equal(isAllowedRateScreen('mediaId', 'profitShare', 'g2c'), true);
+    assert.equal(isAllowedRateScreen('tax', 'point', 'g4b'), true);
+    assert.equal(isAllowedRateScreen('tax', 'point', 'g3c'), false);
+  });
+  test('unknown entity/field/screen combinations are rejected', () => {
+    assert.equal(isAllowedRateScreen('adId', 'coefficient', 'g3b'), false);
+    assert.equal(isAllowedRateScreen('tax', 'unitPrice', 'g4b'), false);
+    assert.equal(isAllowedRateScreen('mediaId', 'profitShare', 'g7a'), false);
   });
 });

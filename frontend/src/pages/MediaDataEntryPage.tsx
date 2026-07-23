@@ -281,7 +281,10 @@ export function MediaDataEntryPage() {
                         <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-700">{m.name}</td>
                         <td className="px-3 py-2">
                           <RateEditor value={c.unitPrice} workingDate={cellDate} suffix={c.type === 'CPS' ? '%' : ''} integer={c.type === 'CPS'} disabled={!canEdit}
-                            onSet={(v, eff) => { setRate('mediaId', m.id, 'unitPrice', v, eff); toast(t('entry.effSaved')); }} />
+                            onSet={(v, eff) => {
+                              void setRate('mediaId', m.id, 'unitPrice', v, eff, screen)
+                                .then((saved) => { if (saved) toast(t('entry.effSaved')); });
+                            }} />
                         </td>
                         <td className="px-3 py-2 text-right">
                           {c.traffic === '' || c.traffic == null
@@ -291,14 +294,20 @@ export function MediaDataEntryPage() {
                         <td className="px-3 py-2 text-right">{readVal(c.settlement)}</td>
                         <td className="px-3 py-2">
                           <RateEditor value={Number((c.coef * 100).toFixed(2))} workingDate={cellDate} suffix="%" disabled={!canEdit}
-                            onSet={(v, eff) => { setRate('mediaId', m.id, 'coefficient', v / 100, eff); toast(t('entry.effSaved')); }} />
+                            onSet={(v, eff) => {
+                              void setRate('mediaId', m.id, 'coefficient', v / 100, eff, screen)
+                                .then((saved) => { if (saved) toast(t('entry.effSaved')); });
+                            }} />
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-right font-medium">
                           {c.payable == null ? <span className="text-gray-300">—</span> : <span className="text-gray-700">{money(c.payable)}</span>}
                         </td>
                         <td className="px-3 py-2 text-center">
                           <RateEditor value={c.accountShare} workingDate={cellDate} suffix="%" disabled={!canEdit}
-                            onSet={(v, eff) => { setRate('mediaId', m.id, 'profitShare', v, eff); toast(t('entry.effSaved')); }} />
+                            onSet={(v, eff) => {
+                              void setRate('mediaId', m.id, 'profitShare', v, eff, screen)
+                                .then((saved) => { if (saved) toast(t('entry.effSaved')); });
+                            }} />
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-right font-semibold">
                           {c.netPay == null ? <span className="text-gray-300">0</span> : <span className="text-emerald-600">{money(c.netPay)}</span>}

@@ -149,7 +149,7 @@ export function CrudPage({ screen }: { screen: string }) {
         // So với giá trị HIỆU LỰC (không phải raw cũ) — raw có thể lệch lịch sử,
         // so raw sẽ bỏ sót trường hợp đổi ngược về đúng giá trị gốc.
         const cur = effectiveValue(cfg.rates.entityType, editing.id, f, effFrom, Number(editing[f]) || 0);
-        if (nv !== cur) setRate(cfg.rates.entityType, editing.id, f, nv, effFrom);
+        if (nv !== cur) void setRate(cfg.rates.entityType, editing.id, f, nv, effFrom, screen);
       }
     }
     setEditing(undefined);

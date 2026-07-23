@@ -46,7 +46,9 @@ export async function initDb() {
   await seedIfEmpty();
   await reconcileRoles();
   await dedupeImports();
+  await dedupeRates();
   await ensureImportNaturalKeyIndexes();
+  await ensureBusinessUniqueIndexes();
 }
 
 // Khóa tự nhiên của dữ liệu nhập liệu: mỗi (ngày × ID) chỉ có MỘT bản ghi.
@@ -126,6 +128,60 @@ async function ensureImportNaturalKeyIndexes() {
       WHERE collection = '${collection}'
     `);
   }
+}
+
+/** Giữ phiên bản rate có id lớn nhất nếu DB cũ từng tạo trùng (key × ngày hiệu lực). */
+async function dedupeRates() {
+  const { rows } = await pool.query<{ id: number; data: Row }>(
+    `SELECT id, data
+       FROM entities
+      WHERE collection = 'rates'
+        AND NULLIF(btrim(data->>'key'), '') IS NOT NULL
+        AND NULLIF(btrim(data->>'effectiveFrom'), '') IS NOT NULL`,
+  );
+  const keepByKey = new Map<string, number>();
+  for (const row of rows) {
+    const key = `${String(row.data.key)}|${String(row.data.effectiveFrom)}`;
+    const previous = keepByKey.get(key);
+    if (previous == null || row.id > previous) keepByKey.set(key, row.id);
+  }
+  const keep = new Set(keepByKey.values());
+  const stale = rows.filter((row) => !keep.has(row.id)).map((row) => row.id);
+  if (stale.length) {
+    await pool.query(
+      `DELETE FROM entities WHERE collection = 'rates' AND id = ANY($1::int[])`,
+      [stale],
+    );
+    console.log(`[db] dedupe rates: removed ${stale.length} duplicate version(s)`);
+  }
+}
+
+/**
+ * Các khóa nghiệp vụ phải được PostgreSQL bảo vệ, không chỉ kiểm tra trong cache
+ * của một process. Chuẩn hóa trim + lowercase để khớp quy tắc kiểm tra ở API/UI.
+ */
+async function ensureBusinessUniqueIndexes() {
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS entities_users_username_uq
+    ON entities ((lower(btrim(data->>'username'))))
+    WHERE collection = 'users'
+      AND NULLIF(btrim(data->>'username'), '') IS NOT NULL
+  `);
+  // Dùng một index chung cho cả hai loại phiếu để mã thủ công cũng không thể
+  // bị trùng giữa phiếu nhà quảng cáo và phiếu media.
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS entities_settlement_code_uq
+    ON entities ((lower(btrim(data->>'code'))))
+    WHERE collection IN ('settleAdv', 'settleMedia')
+      AND NULLIF(btrim(data->>'code'), '') IS NOT NULL
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS entities_rates_key_effective_uq
+    ON entities ((data->>'key'), (data->>'effectiveFrom'))
+    WHERE collection = 'rates'
+      AND NULLIF(btrim(data->>'key'), '') IS NOT NULL
+      AND NULLIF(btrim(data->>'effectiveFrom'), '') IS NOT NULL
+  `);
 }
 
 // Đồng bộ quyền của các role MẶC ĐỊNH về đúng bản seed (nguồn sự thật).
@@ -231,6 +287,101 @@ export async function upsertRows(collection: string, rows: Row[]): Promise<Row[]
     [collection, JSON.stringify(values)],
   );
   return result.rows.map((r) => r.data);
+}
+
+export interface RateBaseRef {
+  collection: 'adIds' | 'mediaIds';
+  id: number;
+  field: 'unitPrice' | 'profitShare';
+}
+
+/**
+ * Ghi một phiên bản rate và đồng bộ giá trị hiện hành của bản ghi gốc trong cùng
+ * transaction. Advisory lock bảo vệ việc cấp id rate khi nhiều process cùng ghi.
+ */
+export async function setRateVersion(
+  key: string,
+  value: number,
+  effectiveFrom: string,
+  today: string,
+  base?: RateBaseRef,
+): Promise<{ rate: Row; base?: Row }> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext('krakenocean:rates'))`);
+
+    const existing = await client.query<{ id: number; data: Row }>(
+      `SELECT id, data
+         FROM entities
+        WHERE collection = 'rates'
+          AND data->>'key' = $1
+          AND data->>'effectiveFrom' = $2
+        LIMIT 1`,
+      [key, effectiveFrom],
+    );
+    let id: number;
+    let previous: Row | undefined;
+    if (existing.rowCount) {
+      id = existing.rows[0].id;
+      previous = existing.rows[0].data;
+    } else {
+      const next = await client.query<{ id: number }>(
+        `SELECT COALESCE(max(id), 0)::int + 1 AS id
+           FROM entities
+          WHERE collection = 'rates'`,
+      );
+      id = next.rows[0].id;
+    }
+
+    const rate: Row = {
+      ...(previous || {}),
+      id,
+      key,
+      value,
+      effectiveFrom,
+      status: previous?.status ?? true,
+    };
+    const savedRate = await client.query<{ data: Row }>(
+      `INSERT INTO entities (collection, id, data) VALUES ('rates', $1, $2)
+       ON CONFLICT (collection, id) DO UPDATE SET data = EXCLUDED.data
+       RETURNING data`,
+      [id, rate],
+    );
+
+    let savedBase: Row | undefined;
+    if (base) {
+      const active = await client.query<{ value: string }>(
+        `SELECT data->>'value' AS value
+           FROM entities
+          WHERE collection = 'rates'
+            AND data->>'key' = $1
+            AND data->>'effectiveFrom' <= $2
+          ORDER BY data->>'effectiveFrom' DESC, id DESC
+          LIMIT 1`,
+        [key, today],
+      );
+      const activeValue = active.rows[0]?.value;
+      if (activeValue != null && Number.isFinite(Number(activeValue))) {
+        const updatedBase = await client.query<{ data: Row }>(
+          `UPDATE entities
+              SET data = jsonb_set(data, ARRAY[$3]::text[], to_jsonb($4::numeric), true)
+            WHERE collection = $1 AND id = $2
+            RETURNING data`,
+          [base.collection, base.id, base.field, Number(activeValue)],
+        );
+        savedBase = updatedBase.rows[0]?.data;
+      }
+    }
+
+    await client.query('COMMIT');
+    return { rate: savedRate.rows[0].data, ...(savedBase ? { base: savedBase } : {}) };
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
 }
 
 export async function deleteRow(collection: string, id: number) {

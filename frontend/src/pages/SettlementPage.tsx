@@ -11,6 +11,7 @@ import { IconPlus, IconPencil, IconEye } from '../components/icons';
 import { previousMonthRange, yesterdayStr } from '../lib/date';
 import { money } from '../lib/format';
 import { sortByGroupedLabel } from '../lib/optionSort';
+import { nextSettlementCode } from '../lib/settlement';
 
 interface Props { screen: string; collection: string; titleKey: string; targetFrom: string; previewType: 'adv' | 'media' }
 
@@ -79,7 +80,16 @@ export function SettlementPage({ screen, collection, titleKey, targetFrom, previ
   ];
 
   const onEditSubmit = (vals: Record<string, unknown>) => {
-    if (editing) update(collection, editing.id, vals);
+    if (editing) {
+      const code = String(vals.code ?? '').trim().toLowerCase();
+      const duplicate = ['settleAdv', 'settleMedia'].some((candidateCollection) =>
+        getAll(candidateCollection).some((row) =>
+          !(candidateCollection === collection && row.id === editing.id)
+          && String(row.code ?? '').trim().toLowerCase() === code),
+      );
+      if (duplicate) { toast(t('common.duplicate'), 'error'); return; }
+      update(collection, editing.id, vals);
+    }
     setEditing(undefined);
     toast(t('common.saved'));
   };
@@ -122,25 +132,39 @@ function GenerateModal({ collection, targetFrom, previewType, onClose, onDone }:
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
   const [payStatus, setPayStatus] = useState('unpaid');
-  const [total, setTotal] = useState<number | null>(null);
+  const previewKey = `${previewType}|${target}|${from}|${to}`;
+  const [preview, setPreview] = useState<{ key: string; total: number } | null>(null);
+  // Chỉ dùng kết quả nếu nó thuộc đúng đối tượng + kỳ đang hiển thị. Điều này chặn
+  // cả khoảng thời gian rất ngắn giữa lúc người dùng đổi lựa chọn và useEffect chạy.
+  const total = preview?.key === previewKey ? preview.total : null;
   const [loading, setLoading] = useState(false);
 
   // Auto-compute total from the backend whenever target/period change.
   useEffect(() => {
-    if (!target) { setTotal(null); return; }
+    if (!target) {
+      setPreview(null);
+      setLoading(false);
+      return;
+    }
     let active = true;
+    setPreview(null);
     setLoading(true);
     api.settlementPreview(previewType, target, from, to)
-      .then((r) => { if (active) setTotal(r.total); })
-      .catch(() => { if (active) setTotal(0); })
+      .then((r) => { if (active) setPreview({ key: previewKey, total: r.total }); })
+      // Không biến lỗi tải thành phiếu 0 đồng; giữ trạng thái chưa có kết quả để
+      // người dùng không thể lưu một phiếu sai.
+      .catch(() => { if (active) setPreview(null); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [target, from, to, previewType]);
+  }, [target, from, to, previewType, previewKey]);
 
   const save = () => {
-    if (!target || total == null) { toast(t('settle.pickTarget'), 'error'); return; }
-    const prefix = previewType === 'media' ? 'ST-MED' : 'ST-ADV';
-    const code = `${prefix}-${from.slice(2, 7).replace('-', '')}-${String(Math.floor(Math.random() * 90) + 10)}`;
+    if (loading || !target || total == null) { toast(t('settle.pickTarget'), 'error'); return; }
+    const code = nextSettlementCode(
+      [...getAll('settleAdv'), ...getAll('settleMedia')].map((row) => row.code),
+      previewType,
+      from,
+    );
     create(collection, {
       code, target, period: `${from} ~ ${to}`, totalAmount: total, payStatus,
       createdAt: yesterdayStr(), status: true,
@@ -185,7 +209,7 @@ function GenerateModal({ collection, targetFrom, previewType, onClose, onDone }:
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
           <button onClick={onClose} className="h-9 px-4 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('common.cancel')}</button>
-          <button onClick={save} disabled={!target || total == null}
+          <button onClick={save} disabled={loading || !target || total == null}
             className="h-9 px-4 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600 disabled:opacity-50">{t('common.save')}</button>
         </div>
       </div>
