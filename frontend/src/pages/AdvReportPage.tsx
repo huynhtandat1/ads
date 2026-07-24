@@ -263,7 +263,7 @@ export function AdvReportPage() {
                       <td className="px-3 py-2 text-right">{r.unitPrice}</td>
                       <td className="px-3 py-2 text-right">{r.traffic == null ? <span className="text-gray-300">—</span> : Number(r.traffic).toLocaleString()}</td>
                       <td className="px-3 py-2 text-right">{r.settlement == null ? <span className="text-gray-300">—</span> : money(r.settlement)}</td>
-                      <td className="px-3 py-2 text-right font-semibold text-emerald-600">
+                      <td className="px-3 py-2 text-right font-semibold text-red-600">
                         {r.receivable == null ? <span className="text-gray-300">—</span> : money(r.receivable)}
                       </td>
                       <td className="px-3 py-2">

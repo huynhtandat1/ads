@@ -6,7 +6,7 @@ import { round3 } from '../lib/format';
 import { exportCSV } from '../lib/export';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconDownload } from '../components/icons';
-import { defaultDateRange, yesterdayStr, ymd } from '../lib/date';
+import { monthRangeUntilYesterday, yesterdayStr, ymd } from '../lib/date';
 
 // "Lợi nhuận tổng" (spec g4a): 2 bảng theo đặc tả PDF §Bảng tổng lợi nhuận
 //   1. Lợi nhuận mỗi NGÀY theo từng nghiệp vụ
@@ -34,7 +34,7 @@ export function TotalProfitPage() {
   const { t } = useTranslation();
   // Đưa db vào deps memo để bảng tự tính lại khi dữ liệu/thuế đổi (kể cả từ trang khác).
   const db = useDB();
-  const [defaultFrom, defaultTo] = defaultDateRange();
+  const [defaultFrom, defaultTo] = monthRangeUntilYesterday(0);
 
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
@@ -243,9 +243,9 @@ export function TotalProfitPage() {
                     <tr key={r.biz} className="border-b border-gray-50 hover:bg-cyan-50/30">
                       <td className="px-3 py-2 whitespace-nowrap text-gray-400">{i + 1}</td>
                       <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-700">{r.biz}</td>
-                      <td className={`px-3 py-2 text-right font-medium ${r.today >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>{money(r.today)}</td>
-                      <td className="px-3 py-2 text-right text-rose-500">{money(r.monthTax)}</td>
-                      <td className={`px-3 py-2 text-right font-semibold ${r.month >= 0 ? 'text-emerald-700' : 'text-rose-500'}`}>{money(r.month)}</td>
+                      <td className="px-3 py-2 text-right font-medium text-red-600">{money(r.today)}</td>
+                      <td className="px-3 py-2 text-right text-emerald-600">{money(r.monthTax)}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-red-600">{money(r.month)}</td>
                     </tr>
                   ))}
                 </>
@@ -303,13 +303,13 @@ export function TotalProfitPage() {
                           const v = cellPivot.get(`${date}|${b}`)?.profit ?? 0;
                           if (!v) return <td key={b} className="px-3 py-2 text-right text-gray-300">—</td>;
                           return (
-                            <td key={b} className={`px-3 py-2 text-right font-medium ${v >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                            <td key={b} className="px-3 py-2 text-right font-medium text-black">
                               {money(v)}
                             </td>
                           );
                         })}
-                        <td className="px-3 py-2 text-right text-rose-500">{money(rowTax)}</td>
-                        <td className={`px-3 py-2 text-right font-semibold ${rowProfit - rowTax >= 0 ? 'text-emerald-700' : 'text-rose-500'}`}>
+                        <td className="px-3 py-2 text-right text-emerald-600">{money(rowTax)}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-red-600">
                           {money(rowProfit - rowTax)}
                         </td>
                       </tr>

@@ -5,7 +5,7 @@ import { exportCSV } from '../lib/export';
 import { RateEditor } from '../components/RateEditor';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload } from '../components/icons';
-import { defaultDateRange, ymd } from '../lib/date';
+import { monthRangeUntilYesterday, ymd } from '../lib/date';
 import { perfOf } from '../lib/analytics';
 import { round3 } from '../lib/format';
 import { sortByGroupedLabel } from '../lib/optionSort';
@@ -56,7 +56,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
   // sửa điểm thuế/nhập liệu mới không cập nhật bảng cho tới khi bấm truy vấn lại.
   const dbAll = useDB(); // gồm cả spec.collections lẫn 'rates' (điểm thuế theo hiệu lực ngày)
   const todayStr = ymd(new Date());
-  const [defaultFrom, defaultTo] = defaultDateRange();
+  const [defaultFrom, defaultTo] = monthRangeUntilYesterday(0);
 
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
@@ -291,12 +291,12 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                           {i + 1}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-700">{g.dim}</td>
-                        <td className="px-3 py-2 text-right">{money(g.revenue)}</td>
-                        <td className="px-3 py-2 text-right">{money(g.cost)}</td>
-                        <td className={`px-3 py-2 text-right font-medium ${g.profit >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>{money(g.profit)}</td>
-                        {spec.withTax && <td className="px-3 py-2 text-right text-rose-500">{money(g.tax)}</td>}
-                        {spec.withTax && <td className="px-3 py-2 text-right font-semibold text-emerald-700">{money(g.afterTax)}</td>}
-                        <td className="px-3 py-2 text-right text-gray-600">{g.margin}%</td>
+                        <td className="px-3 py-2 text-right text-red-600">{money(g.revenue)}</td>
+                        <td className="px-3 py-2 text-right text-emerald-600">{money(g.cost)}</td>
+                        <td className="px-3 py-2 text-right font-medium text-black">{money(g.profit)}</td>
+                        {spec.withTax && <td className="px-3 py-2 text-right text-emerald-600">{money(g.tax)}</td>}
+                        {spec.withTax && <td className="px-3 py-2 text-right font-semibold text-red-600">{money(g.afterTax)}</td>}
+                        <td className="px-3 py-2 text-right text-black">{g.margin}%</td>
                       </tr>
                       {expanded === g.dim && (
                         <tr className="bg-slate-50/70">
@@ -317,7 +317,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                                         {g.daily.map((d) => (
                                           <tr key={d.date} className="border-b border-gray-50">
                                             <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{d.date}</td>
-                                            <td className={`px-3 py-1.5 text-right font-medium ${d.profit >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>{money(d.profit)}</td>
+                                            <td className="px-3 py-1.5 text-right font-medium text-black">{money(d.profit)}</td>
                                           </tr>
                                         ))}
                                         <tr className="bg-brand-dark2 text-white font-semibold">
@@ -344,13 +344,13 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                                         {g.advertisers.map((a) => (
                                           <tr key={a.id} className="border-b border-gray-50">
                                             <td className="px-3 py-1.5 whitespace-nowrap text-gray-700">{a.name}</td>
-                                            <td className="px-3 py-1.5 text-right font-medium text-emerald-600">{money(a.total)}</td>
+                                            <td className="px-3 py-1.5 text-right font-medium text-red-600">{money(a.total)}</td>
                                           </tr>
                                         ))}
                                         {!!g.hiddenAdvRevenue && (
                                           <tr className="border-b border-gray-50 bg-amber-50/60">
                                             <td className="px-3 py-1.5 whitespace-nowrap text-amber-700">{t('report.hiddenAdvRevenue')}</td>
-                                            <td className="px-3 py-1.5 text-right font-medium text-emerald-600">{money(g.hiddenAdvRevenue)}</td>
+                                            <td className="px-3 py-1.5 text-right font-medium text-red-600">{money(g.hiddenAdvRevenue)}</td>
                                           </tr>
                                         )}
                                         <tr className="bg-brand-dark2 text-white font-semibold">
@@ -377,13 +377,13 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                                         {g.media.map((m) => (
                                           <tr key={m.id} className="border-b border-gray-50">
                                             <td className="px-3 py-1.5 whitespace-nowrap text-gray-700">{m.name}</td>
-                                            <td className="px-3 py-1.5 text-right font-medium text-rose-500">{money(m.total)}</td>
+                                            <td className="px-3 py-1.5 text-right font-medium text-emerald-600">{money(m.total)}</td>
                                           </tr>
                                         ))}
                                         {!!g.hiddenMediaCost && (
                                           <tr className="border-b border-gray-50 bg-amber-50/60">
                                             <td className="px-3 py-1.5 whitespace-nowrap text-amber-700">{t('report.hiddenMediaCost')}</td>
-                                            <td className="px-3 py-1.5 text-right font-medium text-rose-500">{money(g.hiddenMediaCost)}</td>
+                                            <td className="px-3 py-1.5 text-right font-medium text-emerald-600">{money(g.hiddenMediaCost)}</td>
                                           </tr>
                                         )}
                                         <tr className="bg-brand-dark2 text-white font-semibold">

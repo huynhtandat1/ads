@@ -300,7 +300,7 @@ export function MediaDataEntryPage() {
                             }} />
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-right font-medium">
-                          {c.payable == null ? <span className="text-gray-300">—</span> : <span className="text-gray-700">{money(c.payable)}</span>}
+                          {c.payable == null ? <span className="text-gray-300">—</span> : <span className="text-emerald-600">{money(c.payable)}</span>}
                         </td>
                         <td className="px-3 py-2 text-center">
                           <RateEditor value={c.accountShare} workingDate={cellDate} suffix="%" disabled={!canEdit}

@@ -42,7 +42,15 @@ export function SettlementPage({ screen, collection, titleKey, targetFrom, previ
     { key: 'code', label: t('col.code'), sortable: true },
     { key: 'target', label: t('col.target'), sortable: true },
     { key: 'period', label: t('col.period'), sortable: true },
-    { key: 'totalAmount', label: t('col.totalAmount'), type: 'currency', align: 'right', sortable: true },
+    {
+      key: 'totalAmount', label: t('col.totalAmount'), align: 'right', sortable: true,
+      render: (r) => (
+        <span className={previewType === 'adv' ? 'text-red-600' : 'text-emerald-600'}>
+          {money(Number(r.totalAmount))}
+        </span>
+      ),
+      exportValue: (r) => r.totalAmount,
+    },
     {
       key: 'payStatus', label: t('col.payStatus'), align: 'center',
       render: (r) => (
@@ -195,7 +203,7 @@ function GenerateModal({ collection, targetFrom, previewType, onClose, onDone }:
           </div>
           <div className="rounded-lg bg-cyan-50 border border-cyan-100 p-4">
             <div className="text-xs text-gray-500">{t('col.totalAmount')} · {t('settle.auto')}</div>
-            <div className="text-2xl font-bold text-cyan-700 mt-1">
+            <div className={`text-2xl font-bold mt-1 ${previewType === 'adv' ? 'text-red-600' : 'text-emerald-600'}`}>
               {loading ? '…' : total == null ? '—' : money(total)}
             </div>
           </div>

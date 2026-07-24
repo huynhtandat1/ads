@@ -402,7 +402,7 @@ export function AdvDataEntryPage({
                     <td className="px-3 py-2">{valueCell(key, 'traffic')}</td>
                     <td className="px-3 py-2">{valueCell(key, 'settlement')}</td>
                     <td className="px-3 py-2 whitespace-nowrap font-semibold text-right">
-                      {receivable == null ? <span className="text-gray-300">—</span> : <span className="text-emerald-600">{money(receivable)}</span>}
+                      {receivable == null ? <span className="text-gray-300">—</span> : <span className="text-red-600">{money(receivable)}</span>}
                     </td>
                     <td className="px-3 py-2">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
