@@ -235,9 +235,9 @@ export function TotalProfitPage() {
                 <>
                   <tr className="bg-brand-dark2 text-white font-semibold">
                     <td colSpan={2} className="px-3 py-2">Σ {t('report.grandTotal')} · {rows.length}</td>
-                    <td className={`px-3 py-2 text-right ${totals.today >= 0 ? 'text-cyan-300' : 'text-rose-300'}`}>{money(totals.today)}</td>
-                    <td className="px-3 py-2 text-right text-rose-300">{money(totals.monthTax)}</td>
-                    <td className={`px-3 py-2 text-right ${totals.month >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>{money(totals.month)}</td>
+                    <td className="px-3 py-2 text-right text-red-300">{money(totals.today)}</td>
+                    <td className="px-3 py-2 text-right text-emerald-300">{money(totals.monthTax)}</td>
+                    <td className="px-3 py-2 text-right text-red-300">{money(totals.month)}</td>
                   </tr>
                   {displayRows.map((r, i) => (
                     <tr key={r.biz} className="border-b border-gray-50 hover:bg-cyan-50/30">
@@ -288,8 +288,8 @@ export function TotalProfitPage() {
                         </td>
                       );
                     })}
-                    <td className="px-3 py-2 text-right text-rose-300">{money(dailyTotal.tax)}</td>
-                    <td className={`px-3 py-2 text-right ${dailyTotal.profit - dailyTotal.tax >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                    <td className="px-3 py-2 text-right text-emerald-300">{money(dailyTotal.tax)}</td>
+                    <td className="px-3 py-2 text-right text-red-300">
                       {money(dailyTotal.profit - dailyTotal.tax)}
                     </td>
                   </tr>

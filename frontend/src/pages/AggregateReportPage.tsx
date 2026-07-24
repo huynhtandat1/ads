@@ -212,10 +212,16 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
         </div>
         <div className="flex-1" />
         <div className="flex flex-wrap items-end gap-2 justify-end">
-          <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden h-9">
-            <button onClick={() => setAllDates(false)} className={`px-3 text-sm ${!allDates ? 'bg-cyan-500 text-white' : 'bg-white text-gray-600'}`}>{t('report.business')}</button>
-            <button onClick={() => setAllDates(true)} className={`px-3 text-sm ${allDates ? 'bg-cyan-500 text-white' : 'bg-white text-gray-600'}`}>{t('report.allDates')}</button>
-          </div>
+          <button
+            type="button"
+            aria-pressed={allDates}
+            onClick={() => setAllDates((value) => !value)}
+            className={`h-9 px-3 rounded-lg border text-sm ${
+              allDates ? 'border-cyan-500 bg-cyan-500 text-white' : 'border-gray-200 bg-white text-gray-600'
+            }`}
+          >
+            {t('report.allDates')}
+          </button>
           {spec.screen === 'g4b' && (
             <select value={fAdv} onChange={(e) => setFAdv(e.target.value)} className={sel}>
               <option value="">{t('col.advertiser')}</option>
@@ -273,11 +279,11 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                   <tr className="bg-brand-dark2 text-white font-semibold">
                     <td className="px-3 py-2" />
                     <td className="px-3 py-2">Σ {t('report.grandTotal')} · {groups.length}</td>
-                    <td className="px-3 py-2 text-right">{money(totals.revenue)}</td>
-                    <td className="px-3 py-2 text-right">{money(totals.cost)}</td>
+                    <td className="px-3 py-2 text-right text-red-300">{money(totals.revenue)}</td>
+                    <td className="px-3 py-2 text-right text-emerald-300">{money(totals.cost)}</td>
                     <td className="px-3 py-2 text-right">{money(totals.profit)}</td>
-                    {spec.withTax && <td className="px-3 py-2 text-right">{money(totals.tax)}</td>}
-                    {spec.withTax && <td className="px-3 py-2 text-right text-cyan-300">{money(totals.afterTax)}</td>}
+                    {spec.withTax && <td className="px-3 py-2 text-right text-emerald-300">{money(totals.tax)}</td>}
+                    {spec.withTax && <td className="px-3 py-2 text-right text-red-300">{money(totals.afterTax)}</td>}
                     <td className="px-3 py-2 text-right">—</td>
                   </tr>
                   {displayGroups.map((g, i) => (
@@ -355,7 +361,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                                         )}
                                         <tr className="bg-brand-dark2 text-white font-semibold">
                                           <td className="px-3 py-1.5">Σ {t('report.grandTotal')}</td>
-                                          <td className="px-3 py-1.5 text-right text-cyan-300">{money(g.advertisers.reduce((s, a) => s + a.total, 0) + g.hiddenAdvRevenue)}</td>
+                                          <td className="px-3 py-1.5 text-right text-red-300">{money(g.advertisers.reduce((s, a) => s + a.total, 0) + g.hiddenAdvRevenue)}</td>
                                         </tr>
                                       </>
                                     )}
@@ -388,7 +394,7 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                                         )}
                                         <tr className="bg-brand-dark2 text-white font-semibold">
                                           <td className="px-3 py-1.5">Σ {t('report.grandTotal')}</td>
-                                          <td className="px-3 py-1.5 text-right text-rose-300">{money(g.media.reduce((s, m) => s + m.total, 0) + g.hiddenMediaCost)}</td>
+                                          <td className="px-3 py-1.5 text-right text-emerald-300">{money(g.media.reduce((s, m) => s + m.total, 0) + g.hiddenMediaCost)}</td>
                                         </tr>
                                       </>
                                     )}

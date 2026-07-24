@@ -181,10 +181,16 @@ export function MediaReportPage() {
         <div className="flex-1" />
 
         <div className="flex flex-wrap items-end gap-2 justify-end">
-          <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden h-9">
-            <button onClick={() => setAllDates(false)} className={`px-3 text-sm ${!allDates ? 'bg-cyan-500 text-white' : 'bg-white text-gray-600'}`}>{t('report.business')}</button>
-            <button onClick={() => setAllDates(true)} className={`px-3 text-sm ${allDates ? 'bg-cyan-500 text-white' : 'bg-white text-gray-600'}`}>{t('report.allDates')}</button>
-          </div>
+          <button
+            type="button"
+            aria-pressed={allDates}
+            onClick={() => setAllDates((value) => !value)}
+            className={`h-9 px-3 rounded-lg border text-sm ${
+              allDates ? 'border-cyan-500 bg-cyan-500 text-white' : 'border-gray-200 bg-white text-gray-600'
+            }`}
+          >
+            {t('report.allDates')}
+          </button>
           <select value={fMedia} onChange={(e) => setFMedia(e.target.value)} className={sel}>
             <option value="">{t('col.media')}</option>
             {mediaOptions.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
@@ -258,9 +264,9 @@ export function MediaReportPage() {
                     <td className="px-3 py-2" colSpan={5}>Σ {t('report.grandTotal')} · {rows.length} {t('report.records')}</td>
                     <td className="px-3 py-2">{totals.traffic.toLocaleString()}</td>
                     <td className="px-3 py-2">{money(totals.settlement)}</td>
-                    <td className="px-3 py-2">{money(totals.receivable)}</td>
+                    <td className="px-3 py-2 text-emerald-300">{money(totals.receivable)}</td>
                     <td className="px-3 py-2">—</td>
-                    <td className="px-3 py-2 text-cyan-300">{money(totals.actual)}</td>
+                    <td className="px-3 py-2 text-emerald-300">{money(totals.actual)}</td>
                     <td className="px-3 py-2" />
                   </tr>
                   {pageRows.map((r, i) => {
