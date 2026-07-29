@@ -64,7 +64,7 @@ export default {
     stale: 'Số liệu nguồn đã thay đổi — hãy lưu lại ở trang nhập liệu',
     queryHint: 'Chọn khoảng ngày rồi bấm Truy vấn để xem dữ liệu.',
     traffic: 'Lưu lượng', unitPriceShort: 'Đơn giá',
-    profitToday: 'Lợi nhuận ngày {{to}}', profitMonth: 'Lợi nhuận tháng này',
+    profitToday: 'Lợi nhuận ngày {{to}}', profitMonth: 'Lợi nhuận tháng {{month}}',
     year: 'Năm', month: 'Tháng',
     dailyProfit: 'Lợi nhuận theo ngày', detailRevenue: 'Thu từ nhà quảng cáo', detailCost: 'Chi cho media', hiddenMediaCost: 'Chi phí chưa phân loại', hiddenAdvRevenue: 'Doanh thu chưa phân loại',
     monthlyByBiz: 'Tổng lợi nhuận tháng theo nghiệp vụ', dailyByBiz: 'Lợi nhuận mỗi ngày theo nghiệp vụ',

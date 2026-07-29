@@ -15,12 +15,14 @@ test('Dashboard defaults to yesterday without changing the shared long-range def
   assert.doesNotMatch(source, /defaultDateRange\(\)/);
 });
 
-test('Total profit monthly columns use the current month independently of the detail date picker', async () => {
+test('Total profit day and month columns follow the selected range end date', async () => {
   const source = await readFile(new URL('../frontend/src/pages/TotalProfitPage.tsx', import.meta.url), 'utf8');
-  assert.match(source, /const \[monthFrom, monthTo\] = monthRangeUntilYesterday\(0\);/);
+  assert.match(source, /const dayCol = to \|\| yesterdayStr\(\);/);
+  assert.match(source, /const monthFrom = `\$\{dayCol\.slice\(0, 7\)\}-01`;/);
+  assert.match(source, /const monthTo = dayCol;/);
   assert.match(source, /if \(inRange\(date, monthFrom, monthTo\)\) \{/);
   assert.match(source, /if \(date === dayCol\) g\.today \+= p - tax;/);
-  assert.match(source, /return \{ rows: out, todayDate: dayCol \};\s*\}, \[db\]\);/);
+  assert.match(source, /return \{ rows: out, todayDate: dayCol \};\s*\}, \[to, db\]\);/);
 });
 
 test('quarantine changes the UI only after the server confirms success', async () => {

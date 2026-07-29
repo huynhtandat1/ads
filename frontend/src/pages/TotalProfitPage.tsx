@@ -6,7 +6,7 @@ import { profitTextClass, round3 } from '../lib/format';
 import { exportCSV } from '../lib/export';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconDownload } from '../components/icons';
-import { inRange, monthRangeUntilYesterday, yesterdayRange, yesterdayStr, ymd } from '../lib/date';
+import { inRange, yesterdayRange, yesterdayStr, ymd } from '../lib/date';
 
 // "Lợi nhuận tổng" (spec g4a): 2 bảng theo đặc tả PDF §Bảng tổng lợi nhuận
 //   1. Lợi nhuận mỗi NGÀY theo từng nghiệp vụ
@@ -70,12 +70,13 @@ export function TotalProfitPage() {
       .sort((a, b) => a.date.localeCompare(b.date) || a.biz.localeCompare(b.biz));
   }, [from, to, db]);
 
-  // Bảng 2 luôn so sánh HÔM QUA với THÁNG HIỆN TẠI (đầu tháng → hôm qua),
-  // độc lập với khoảng ngày người dùng chọn cho bảng chi tiết phía dưới.
+  // Bảng 2 bám theo NGÀY CUỐI của bộ lọc: cột ngày = `to`, cột tháng =
+  // ngày đầu tháng chứa `to` → `to`. Bảng chi tiết phía dưới vẫn dùng toàn bộ from → to.
   const { rows, todayDate } = useMemo(() => {
     const src = COLLECTIONS.flatMap((c) => getAll(c).map((r) => ({ c, r })));
-    const dayCol = yesterdayStr();
-    const [monthFrom, monthTo] = monthRangeUntilYesterday(0);
+    const dayCol = to || yesterdayStr();
+    const monthFrom = `${dayCol.slice(0, 7)}-01`;
+    const monthTo = dayCol;
     // Gộp lợi nhuận theo (nghiệp vụ, ngày) trước — thuế tính một lần trên tổng ngày
     // (vẫn tôn trọng suất đổi giữa kỳ), khớp tuyệt đối với bảng chi tiết và g4b.
     const dayMap = new Map<string, number>();
@@ -88,9 +89,8 @@ export function TotalProfitPage() {
       const key = `${biz}|${date}`;
       dayMap.set(key, (dayMap.get(key) || 0) + (perf.revenue - perf.cost));
     }
-    // Cột "lợi nhuận ngày X" LUÔN là NGÀY HÔM QUA theo lịch (hôm nay 07 → cột 06,
-    // hôm nay 08 → cột 07) — chưa nhập liệu ngày đó thì hiện 0, không trượt về
-    // ngày gần nhất có dữ liệu.
+    // Cột "lợi nhuận ngày X" luôn là ngày cuối bộ lọc; chưa nhập liệu ngày đó
+    // thì hiện 0, không trượt về ngày gần nhất có dữ liệu.
     const map = new Map<string, { today: number; month: number; monthTax: number }>();
     for (const [k, p] of dayMap) {
       const cut = k.lastIndexOf('|');
@@ -117,7 +117,7 @@ export function TotalProfitPage() {
       }))
       .sort((a, b) => b.month - a.month);
     return { rows: out, todayDate: dayCol };
-  }, [db]);
+  }, [to, db]);
 
   // Σ cộng raw (chưa round) rồi round 1 lần — khớp với export CSV và không lệch kiểu Σround ≠ round(Σ).
   const totals = rows.reduce((s, r) => ({
@@ -153,7 +153,7 @@ export function TotalProfitPage() {
     t('report.business'),
     t('report.profitToday', { to: todayDate }),
     t('col.tax'),
-    t('report.profitMonth'),
+    t('report.profitMonth', { month: todayDate.slice(0, 7) }),
   ];
   // Khóa sort song song HEADERS ('' = cột STT không sort). Cột 业务 mặc định A→Z, cột số giảm dần.
   const SORT_KEYS = ['', 'biz', 'today', 'monthTax', 'month'];

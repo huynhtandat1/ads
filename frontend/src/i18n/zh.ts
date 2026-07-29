@@ -64,7 +64,7 @@ export default {
     stale: '上游数据已变更 — 请在录入页面重新保存',
     queryHint: '请选择日期范围并点击查询以查看数据。',
     traffic: '流量', unitPriceShort: '单价',
-    profitToday: '{{to}} 的利润', profitMonth: '本月利润',
+    profitToday: '{{to}} 的利润', profitMonth: '{{month}}月利润',
     year: '年', month: '月',
     dailyProfit: '每日利润', detailRevenue: '广告主收入', detailCost: '媒体支出', hiddenMediaCost: '未分类成本', hiddenAdvRevenue: '未分类收入',
     monthlyByBiz: '按业务统计当月利润', dailyByBiz: '按业务统计每日利润',

@@ -64,7 +64,7 @@ export default {
     stale: 'Source data changed — re-save on the entry page',
     queryHint: 'Select a date range and click Query to view data.',
     traffic: 'Traffic', unitPriceShort: 'Unit Price',
-    profitToday: 'Profit on {{to}}', profitMonth: 'Profit This Month',
+    profitToday: 'Profit on {{to}}', profitMonth: 'Profit in {{month}}',
     year: 'Year', month: 'Month',
     dailyProfit: 'Daily profit', detailRevenue: 'Revenue from advertisers', detailCost: 'Cost to media', hiddenMediaCost: 'Unclassified cost', hiddenAdvRevenue: 'Unclassified revenue',
     monthlyByBiz: 'Monthly profit by business', dailyByBiz: 'Daily profit by business',
