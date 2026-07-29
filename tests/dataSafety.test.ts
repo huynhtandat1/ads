@@ -8,6 +8,13 @@ test('ETL is additive and cannot truncate or overwrite existing app data', async
   assert.match(source, /ON\s+CONFLICT\s+DO\s+NOTHING/i);
 });
 
+test('Dashboard defaults to yesterday without changing the shared long-range default', async () => {
+  const source = await readFile(new URL('../frontend/src/pages/Dashboard.tsx', import.meta.url), 'utf8');
+  assert.match(source, /import \{ yesterdayRange \} from '\.\.\/lib\/date';/);
+  assert.match(source, /const \[defaultFrom, defaultTo\] = yesterdayRange\(\);/);
+  assert.doesNotMatch(source, /defaultDateRange\(\)/);
+});
+
 test('quarantine changes the UI only after the server confirms success', async () => {
   const storage = new Map<string, string>();
   Object.defineProperty(globalThis, 'localStorage', {

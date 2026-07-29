@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { effectiveValue, getAll, useDB, type Row } from '../data/store';
 import { perfOf } from '../lib/analytics';
-import { round3 } from '../lib/format';
+import { profitTextClass, round3 } from '../lib/format';
 import { exportCSV } from '../lib/export';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { IconDownload } from '../components/icons';
-import { monthRangeUntilYesterday, yesterdayStr, ymd } from '../lib/date';
+import { yesterdayRange, yesterdayStr, ymd } from '../lib/date';
 
 // "Lợi nhuận tổng" (spec g4a): 2 bảng theo đặc tả PDF §Bảng tổng lợi nhuận
 //   1. Lợi nhuận mỗi NGÀY theo từng nghiệp vụ
@@ -34,7 +34,7 @@ export function TotalProfitPage() {
   const { t } = useTranslation();
   // Đưa db vào deps memo để bảng tự tính lại khi dữ liệu/thuế đổi (kể cả từ trang khác).
   const db = useDB();
-  const [defaultFrom, defaultTo] = monthRangeUntilYesterday(0);
+  const [defaultFrom, defaultTo] = yesterdayRange();
 
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
@@ -237,15 +237,15 @@ export function TotalProfitPage() {
                     <td colSpan={2} className="px-3 py-2">Σ {t('report.grandTotal')} · {rows.length}</td>
                     <td className="px-3 py-2 text-right text-red-300">{money(totals.today)}</td>
                     <td className="px-3 py-2 text-right text-emerald-300">{money(totals.monthTax)}</td>
-                    <td className="px-3 py-2 text-right text-red-300">{money(totals.month)}</td>
+                    <td className={`px-3 py-2 text-right ${profitTextClass(totals.month, true)}`}>{money(totals.month)}</td>
                   </tr>
                   {displayRows.map((r, i) => (
                     <tr key={r.biz} className="border-b border-gray-50 hover:bg-cyan-50/30">
                       <td className="px-3 py-2 whitespace-nowrap text-gray-400">{i + 1}</td>
                       <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-700">{r.biz}</td>
-                      <td className="px-3 py-2 text-right font-medium text-red-600">{money(r.today)}</td>
+                      <td className={`px-3 py-2 text-right font-medium ${profitTextClass(r.today)}`}>{money(r.today)}</td>
                       <td className="px-3 py-2 text-right text-emerald-600">{money(r.monthTax)}</td>
-                      <td className="px-3 py-2 text-right font-semibold text-red-600">{money(r.month)}</td>
+                      <td className={`px-3 py-2 text-right font-semibold ${profitTextClass(r.month)}`}>{money(r.month)}</td>
                     </tr>
                   ))}
                 </>
@@ -283,13 +283,13 @@ export function TotalProfitPage() {
                     {dailyBizs.map((b) => {
                       const v = daily.filter((d) => d.biz === b).reduce((s, d) => s + d.profit, 0);
                       return (
-                        <td key={b} className={`px-3 py-2 text-right ${v >= 0 ? 'text-cyan-300' : 'text-rose-300'}`}>
+                        <td key={b} className={`px-3 py-2 text-right ${profitTextClass(v, true)}`}>
                           {money(v)}
                         </td>
                       );
                     })}
                     <td className="px-3 py-2 text-right text-emerald-300">{money(dailyTotal.tax)}</td>
-                    <td className="px-3 py-2 text-right text-red-300">
+                    <td className={`px-3 py-2 text-right ${profitTextClass(dailyTotal.profit - dailyTotal.tax, true)}`}>
                       {money(dailyTotal.profit - dailyTotal.tax)}
                     </td>
                   </tr>
@@ -300,16 +300,16 @@ export function TotalProfitPage() {
                       <tr key={date} className="border-b border-gray-50 hover:bg-cyan-50/30">
                         <td className="px-3 py-2 whitespace-nowrap text-gray-600">{date}</td>
                         {dailyBizs.map((b) => {
-                          const v = cellPivot.get(`${date}|${b}`)?.profit ?? 0;
-                          if (!v) return <td key={b} className="px-3 py-2 text-right text-gray-300">—</td>;
+                          const cell = cellPivot.get(`${date}|${b}`);
+                          if (!cell) return <td key={b} className="px-3 py-2 text-right text-gray-300">—</td>;
                           return (
-                            <td key={b} className="px-3 py-2 text-right font-medium text-black">
-                              {money(v)}
+                            <td key={b} className={`px-3 py-2 text-right font-medium ${profitTextClass(cell.profit)}`}>
+                              {money(cell.profit)}
                             </td>
                           );
                         })}
                         <td className="px-3 py-2 text-right text-emerald-600">{money(rowTax)}</td>
-                        <td className="px-3 py-2 text-right font-semibold text-red-600">
+                        <td className={`px-3 py-2 text-right font-semibold ${profitTextClass(rowProfit - rowTax)}`}>
                           {money(rowProfit - rowTax)}
                         </td>
                       </tr>

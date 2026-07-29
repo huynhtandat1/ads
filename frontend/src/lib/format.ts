@@ -21,5 +21,11 @@ export function money(v: number): string {
   return '¥' + Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// Màu số tiền lợi nhuận: dương/0 đỏ, âm xanh lá. Dòng nền tối dùng sắc độ nhạt hơn.
+export function profitTextClass(value: number, onDark = false): string {
+  if (value < 0) return onDark ? 'text-emerald-300' : 'text-emerald-600';
+  return onDark ? 'text-red-300' : 'text-red-600';
+}
+
 // Làm tròn dùng trong TÍNH TOÁN: giữ 3 chữ số thập phân. Hiển thị vẫn 2 chữ số (money()).
 export const round3 = (v: number) => Math.round(v * 1000) / 1000;

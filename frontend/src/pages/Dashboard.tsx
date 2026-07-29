@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCollection } from '../data/store';
 import { sumPerf, allPerf, filterByDate } from '../lib/analytics';
-import { money } from '../lib/format';
+import { money, profitTextClass } from '../lib/format';
 import { DateRangePicker } from '../components/DateRangePicker';
 import { useAuth } from '../auth/AuthContext';
-import { defaultDateRange } from '../lib/date';
+import { yesterdayRange } from '../lib/date';
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
@@ -19,7 +19,7 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 export function Dashboard() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [defaultFrom, defaultTo] = defaultDateRange();
+  const [defaultFrom, defaultTo] = yesterdayRange();
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
   useCollection('importAI');
@@ -46,7 +46,7 @@ export function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         <Stat label={t('report.totalRevenue')} value={money(tot.revenue)} accent="text-red-600" />
         <Stat label={t('report.totalCost')} value={money(tot.cost)} accent="text-emerald-600" />
-        <Stat label={t('report.totalProfit')} value={money(tot.afterTax)} accent="text-emerald-600" />
+        <Stat label={t('report.totalProfit')} value={money(tot.afterTax)} accent={profitTextClass(tot.afterTax)} />
         <Stat label={t('report.margin')} value={tot.margin + '%'} />
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -7,7 +7,7 @@ import { DateRangePicker } from '../components/DateRangePicker';
 import { IconSearch, IconDownload } from '../components/icons';
 import { monthRangeUntilYesterday, ymd } from '../lib/date';
 import { perfOf } from '../lib/analytics';
-import { round3 } from '../lib/format';
+import { profitTextClass, round3 } from '../lib/format';
 import { sortByGroupedLabel } from '../lib/optionSort';
 import { useAuth } from '../auth/AuthContext';
 
@@ -281,9 +281,9 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                     <td className="px-3 py-2">Σ {t('report.grandTotal')} · {groups.length}</td>
                     <td className="px-3 py-2 text-right text-red-300">{money(totals.revenue)}</td>
                     <td className="px-3 py-2 text-right text-emerald-300">{money(totals.cost)}</td>
-                    <td className="px-3 py-2 text-right">{money(totals.profit)}</td>
+                    <td className={`px-3 py-2 text-right ${profitTextClass(totals.profit, true)}`}>{money(totals.profit)}</td>
                     {spec.withTax && <td className="px-3 py-2 text-right text-emerald-300">{money(totals.tax)}</td>}
-                    {spec.withTax && <td className="px-3 py-2 text-right text-red-300">{money(totals.afterTax)}</td>}
+                    {spec.withTax && <td className={`px-3 py-2 text-right ${profitTextClass(totals.afterTax, true)}`}>{money(totals.afterTax)}</td>}
                     <td className="px-3 py-2 text-right">—</td>
                   </tr>
                   {displayGroups.map((g, i) => (
@@ -299,9 +299,9 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                         <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-700">{g.dim}</td>
                         <td className="px-3 py-2 text-right text-red-600">{money(g.revenue)}</td>
                         <td className="px-3 py-2 text-right text-emerald-600">{money(g.cost)}</td>
-                        <td className="px-3 py-2 text-right font-medium text-black">{money(g.profit)}</td>
+                        <td className={`px-3 py-2 text-right font-medium ${profitTextClass(g.profit)}`}>{money(g.profit)}</td>
                         {spec.withTax && <td className="px-3 py-2 text-right text-emerald-600">{money(g.tax)}</td>}
-                        {spec.withTax && <td className="px-3 py-2 text-right font-semibold text-red-600">{money(g.afterTax)}</td>}
+                        {spec.withTax && <td className={`px-3 py-2 text-right font-semibold ${profitTextClass(g.afterTax)}`}>{money(g.afterTax)}</td>}
                         <td className="px-3 py-2 text-right text-black">{g.margin}%</td>
                       </tr>
                       {expanded === g.dim && (
@@ -323,12 +323,12 @@ export function AggregateReportPage({ spec }: { spec: AggregateSpec }) {
                                         {g.daily.map((d) => (
                                           <tr key={d.date} className="border-b border-gray-50">
                                             <td className="px-3 py-1.5 whitespace-nowrap text-gray-600">{d.date}</td>
-                                            <td className="px-3 py-1.5 text-right font-medium text-black">{money(d.profit)}</td>
+                                            <td className={`px-3 py-1.5 text-right font-medium ${profitTextClass(d.profit)}`}>{money(d.profit)}</td>
                                           </tr>
                                         ))}
                                         <tr className="bg-brand-dark2 text-white font-semibold">
                                           <td className="px-3 py-1.5">Σ {t('report.grandTotal')}</td>
-                                          <td className={`px-3 py-1.5 text-right ${g.profit >= 0 ? 'text-cyan-300' : 'text-rose-300'}`}>{money(g.daily.reduce((s, d) => s + d.profit, 0))}</td>
+                                          <td className={`px-3 py-1.5 text-right ${profitTextClass(g.daily.reduce((s, d) => s + d.profit, 0), true)}`}>{money(g.daily.reduce((s, d) => s + d.profit, 0))}</td>
                                         </tr>
                                       </>
                                     )}

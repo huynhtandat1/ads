@@ -3,8 +3,23 @@ import assert from 'node:assert/strict';
 import { nullableNumber, receivableOf, round3OrNull } from '../frontend/src/lib/billing.ts';
 import { nextSettlementCode } from '../frontend/src/lib/settlement.ts';
 import { isAllowedRateScreen } from '../backend/src/ratePermissions.ts';
+import { profitTextClass } from '../frontend/src/lib/format.ts';
 
 const TOL = 1e-9;
+
+describe('profitTextClass() — profit color convention', () => {
+  test('normal rows: positive and zero are red, negative is green', () => {
+    assert.equal(profitTextClass(100), 'text-red-600');
+    assert.equal(profitTextClass(0), 'text-red-600');
+    assert.equal(profitTextClass(-0.001), 'text-emerald-600');
+  });
+
+  test('dark total rows use lighter red/green shades', () => {
+    assert.equal(profitTextClass(100, true), 'text-red-300');
+    assert.equal(profitTextClass(0, true), 'text-red-300');
+    assert.equal(profitTextClass(-0.001, true), 'text-emerald-300');
+  });
+});
 
 function receivable(type: string, price: number, base: number): number {
   if (type === 'CPS') return (base * price) / 100;
