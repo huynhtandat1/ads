@@ -15,14 +15,16 @@ test('Dashboard defaults to yesterday without changing the shared long-range def
   assert.doesNotMatch(source, /defaultDateRange\(\)/);
 });
 
-test('Total profit day and month columns follow the selected range end date', async () => {
+test('Total profit month column uses the selected range end date and the daily column is hidden', async () => {
   const source = await readFile(new URL('../frontend/src/pages/TotalProfitPage.tsx', import.meta.url), 'utf8');
-  assert.match(source, /const dayCol = to \|\| yesterdayStr\(\);/);
-  assert.match(source, /const monthFrom = `\$\{dayCol\.slice\(0, 7\)\}-01`;/);
-  assert.match(source, /const monthTo = dayCol;/);
-  assert.match(source, /if \(inRange\(date, monthFrom, monthTo\)\) \{/);
-  assert.match(source, /if \(date === dayCol\) g\.today \+= p - tax;/);
-  assert.match(source, /return \{ rows: out, todayDate: dayCol \};\s*\}, \[to, db\]\);/);
+  assert.match(source, /const endCol = to \|\| yesterdayStr\(\);/);
+  assert.match(source, /const monthFrom = `\$\{endCol\.slice\(0, 7\)\}-01`;/);
+  assert.match(source, /const monthTo = endCol;/);
+  assert.match(source, /if \(!date \|\| !inRange\(date, monthFrom, monthTo\)\) continue;/);
+  assert.match(source, /t\('report\.profitMonth', \{ month: monthLabel \}\),/);
+  assert.doesNotMatch(source, /g\.today \+= p - tax;/);
+  assert.doesNotMatch(source, /t\('report\.profitToday'/);
+  assert.match(source, /return \{ rows: out, monthLabel: endCol\.slice\(0, 7\) \};\s*\}, \[to, db\]\);/);
 });
 
 test('quarantine changes the UI only after the server confirms success', async () => {

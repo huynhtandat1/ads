@@ -18,6 +18,7 @@ const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimu
 
 interface DailyCell { biz: string; date: string; profit: number; tax: number }
 // raw giữ giá trị thô trước khi làm tròn để cộng Σ chính xác (spec không lệch vài xu).
+// today/rawToday giữ để giữ hình dạng dữ liệu, bảng tổng không còn dùng tới.
 interface BizRow { biz: string; today: number; month: number; monthTax: number; rawToday: number; rawMonth: number; rawMonthTax: number }
 
 const bizNameOf = (r: Row): string => {
@@ -70,13 +71,14 @@ export function TotalProfitPage() {
       .sort((a, b) => a.date.localeCompare(b.date) || a.biz.localeCompare(b.biz));
   }, [from, to, db]);
 
-  // Bảng 2 bám theo NGÀY CUỐI của bộ lọc: cột ngày = `to`, cột tháng =
-  // ngày đầu tháng chứa `to` → `to`. Bảng chi tiết phía dưới vẫn dùng toàn bộ from → to.
-  const { rows, todayDate } = useMemo(() => {
+  // Bảng tổng chỉ còn cột THUẾ và LỢI NHUẬN THÁNG. Phạm vi tháng lấy theo
+  // ngày cuối của bộ lọc: ngày đầu tháng chứa `to` → `to`. Bảng chi tiết phía dưới
+  // vẫn dùng toàn bộ `from ~ to`.
+  const { rows, monthLabel } = useMemo(() => {
     const src = COLLECTIONS.flatMap((c) => getAll(c).map((r) => ({ c, r })));
-    const dayCol = to || yesterdayStr();
-    const monthFrom = `${dayCol.slice(0, 7)}-01`;
-    const monthTo = dayCol;
+    const endCol = to || yesterdayStr();
+    const monthFrom = `${endCol.slice(0, 7)}-01`;
+    const monthTo = endCol;
     // Gộp lợi nhuận theo (nghiệp vụ, ngày) trước — thuế tính một lần trên tổng ngày
     // (vẫn tôn trọng suất đổi giữa kỳ), khớp tuyệt đối với bảng chi tiết và g4b.
     const dayMap = new Map<string, number>();
@@ -84,50 +86,43 @@ export function TotalProfitPage() {
       const biz = bizNameOf(r);
       if (!biz) continue;
       const date = String(r.date || '');
-      if (!date || (date !== dayCol && !inRange(date, monthFrom, monthTo))) continue;
+      if (!date || !inRange(date, monthFrom, monthTo)) continue;
       const perf = perfOf(c, r);
       const key = `${biz}|${date}`;
       dayMap.set(key, (dayMap.get(key) || 0) + (perf.revenue - perf.cost));
     }
-    // Cột "lợi nhuận ngày X" luôn là ngày cuối bộ lọc; chưa nhập liệu ngày đó
-    // thì hiện 0, không trượt về ngày gần nhất có dữ liệu.
-    const map = new Map<string, { today: number; month: number; monthTax: number }>();
+    const map = new Map<string, { month: number; monthTax: number }>();
     for (const [k, p] of dayMap) {
       const cut = k.lastIndexOf('|');
-      const biz = k.slice(0, cut), date = k.slice(cut + 1);
-      const taxPct = effectiveValue('tax', 0, 'point', date, TAX_PCT);
+      const biz = k.slice(0, cut);
+      const taxPct = effectiveValue('tax', 0, 'point', k.slice(cut + 1), TAX_PCT);
       // Cộng thuế thô từng ngày; làm tròn 3 số lẻ khi ra kết quả (hiển thị money() còn 2).
       const tax = (p * taxPct) / 100;
-      const g = map.get(biz) || { today: 0, month: 0, monthTax: 0 };
-      if (inRange(date, monthFrom, monthTo)) {
-        g.month += p;
-        g.monthTax += tax;
-      }
-      if (date === dayCol) g.today += p - tax;
+      const g = map.get(biz) || { month: 0, monthTax: 0 };
+      g.month += p;
+      g.monthTax += tax;
       map.set(biz, g);
     }
     const out: BizRow[] = Array.from(map.entries())
       .map(([biz, g]) => ({
         biz,
-        today: round3(g.today),
+        today: 0,
         month: round3(g.month - g.monthTax),
         monthTax: round3(g.monthTax),
         // giữ raw để Σ cộng xong rồi round 1 lần, tránh Σround ≠ round(Σ).
-        rawToday: g.today, rawMonth: g.month, rawMonthTax: g.monthTax,
+        rawToday: 0, rawMonth: g.month, rawMonthTax: g.monthTax,
       }))
       .sort((a, b) => b.month - a.month);
-    return { rows: out, todayDate: dayCol };
+    return { rows: out, monthLabel: endCol.slice(0, 7) };
   }, [to, db]);
 
   // Σ cộng raw (chưa round) rồi round 1 lần — khớp với export CSV và không lệch kiểu Σround ≠ round(Σ).
   const totals = rows.reduce((s, r) => ({
-    today: round3(s.todayRaw + r.rawToday),
     month: round3(s.monthRaw + r.rawMonth - r.rawMonthTax),
     monthTax: round3(s.monthTaxRaw + r.rawMonthTax),
-    todayRaw: s.todayRaw + r.rawToday,
     monthRaw: s.monthRaw + r.rawMonth,
     monthTaxRaw: s.monthTaxRaw + r.rawMonthTax,
-  }), { today: 0, month: 0, monthTax: 0, todayRaw: 0, monthRaw: 0, monthTaxRaw: 0 });
+  }), { month: 0, monthTax: 0, monthRaw: 0, monthTaxRaw: 0 });
 
   const dailyTotal = daily.reduce((s, d) => ({
     profit: s.profit + d.profit,
@@ -151,12 +146,11 @@ export function TotalProfitPage() {
   const HEADERS = [
     t('col.stt'),
     t('report.business'),
-    t('report.profitToday', { to: todayDate }),
     t('col.tax'),
-    t('report.profitMonth', { month: todayDate.slice(0, 7) }),
+    t('report.profitMonth', { month: monthLabel }),
   ];
   // Khóa sort song song HEADERS ('' = cột STT không sort). Cột 业务 mặc định A→Z, cột số giảm dần.
-  const SORT_KEYS = ['', 'biz', 'today', 'monthTax', 'month'];
+  const SORT_KEYS = ['', 'biz', 'monthTax', 'month'];
   const clickSort = (key: string) => setSort((s) =>
     s?.key === key ? { key, dir: (s.dir === 1 ? -1 : 1) as 1 | -1 } : { key, dir: key === 'biz' ? 1 : -1 });
   // Áp sort người dùng chọn; mặc định giữ thứ tự 本月利润 giảm dần từ `rows`.
@@ -170,7 +164,7 @@ export function TotalProfitPage() {
   }, [rows, sort]);
 
   const doExport = () => {
-    const data = displayRows.map((r, i) => [i + 1, r.biz, r.today, r.monthTax, r.month]);
+    const data = displayRows.map((r, i) => [i + 1, r.biz, r.monthTax, r.month]);
     exportCSV('total_profit', HEADERS, data);
   };
 
@@ -237,7 +231,6 @@ export function TotalProfitPage() {
                 <>
                   <tr className="bg-brand-dark2 text-white font-semibold">
                     <td colSpan={2} className="px-3 py-2">Σ {t('report.grandTotal')} · {rows.length}</td>
-                    <td className="px-3 py-2 text-right text-red-300">{money(totals.today)}</td>
                     <td className="px-3 py-2 text-right text-emerald-300">{money(totals.monthTax)}</td>
                     <td className={`px-3 py-2 text-right ${profitTextClass(totals.month, true)}`}>{money(totals.month)}</td>
                   </tr>
@@ -245,7 +238,6 @@ export function TotalProfitPage() {
                     <tr key={r.biz} className="border-b border-gray-50 hover:bg-cyan-50/30">
                       <td className="px-3 py-2 whitespace-nowrap text-gray-400">{i + 1}</td>
                       <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-700">{r.biz}</td>
-                      <td className={`px-3 py-2 text-right font-medium ${profitTextClass(r.today)}`}>{money(r.today)}</td>
                       <td className="px-3 py-2 text-right text-emerald-600">{money(r.monthTax)}</td>
                       <td className={`px-3 py-2 text-right font-semibold ${profitTextClass(r.month)}`}>{money(r.month)}</td>
                     </tr>
