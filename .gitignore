@@ -12,3 +12,6 @@ backend/.env
 
 # backend runtime data (seeded on first run)
 backend/data/
+
+# Claude Code agent runtime (worktrees, skills, local config) — không commit
+.claude/
