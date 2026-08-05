@@ -8,13 +8,14 @@ import { DateRangePicker } from '../components/DateRangePicker';
 import { DEFAULT_PAGE_SIZE, Pager } from '../components/Pager';
 import { IconSearch, IconDownload } from '../components/icons';
 import { dayMonth, yesterdayRange } from '../lib/date';
-import { sortByGroupedLabel } from '../lib/optionSort';
+import { compareGroupedLabels, sortByGroupedLabel } from '../lib/optionSort';
 import { bidirectionalFacetOptions, hierarchyKey } from '../lib/hierarchyFilters';
 
 const COLLECTION = 'importAdv';
 const money = (v: number) => '¥' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 const TYPES = ['CPM', 'CPC', 'CPA', 'CPS'];
+type SortKey = 'date' | 'adId';
 
 // Spec §9: cột Trạng thái đọc "từ trạng thái ID hiện tại" (Bật/Tắt trong danh mục),
 // không phải trạng thái xác nhận của dòng dữ liệu. ID đã bị xóa → rớt về status dòng.
@@ -54,12 +55,18 @@ export function AdvReportPage() {
   const [fPrice, setFPrice] = useState('');
   const [fStatus, setFStatus] = useState<'all' | 'on' | 'off'>('all');
   const [q, setQ] = useState('');
-  // Sort cột ngày: mặc định TĂNG dần (spec docx 07-2026), click header để đảo chiều.
-  const [dateDir, setDateDir] = useState<1 | -1>(1);
+  // Mặc định theo ngày tăng dần; có thể chuyển sang sort ID quảng cáo.
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'date', dir: 1 });
   const [result, setResult] = useState<Row[] | null>(null); // null = chưa truy vấn
   // Phân trang thống nhất toàn site: mặc định 30, chọn 30/50/100.
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const clickSort = (key: SortKey) => {
+    setSort((current) => current.key === key
+      ? { key, dir: current.dir === 1 ? -1 : 1 }
+      : { key, dir: 1 });
+    setPage(1);
+  };
 
   const facets = useMemo(() => {
     const lc = q.trim().toLowerCase();
@@ -102,17 +109,22 @@ export function AdvReportPage() {
     { value: 'off', label: t('entry.offline') },
   ].filter((option) => facets.options.status.has(option.value));
 
-  const filteredRows = useMemo(() => [...facets.rows].sort((a, b) =>
-      // Ngày theo dateDir (mặc định tăng dần); cùng ngày thì theo chữ cái đầu NQC → đơn QC → ID QC (spec).
-      String(a.date).localeCompare(String(b.date)) * dateDir ||
-      norm(refName('advertisers', a.advertiserId)).localeCompare(norm(refName('advertisers', b.advertiserId))) ||
-      norm(refName('adOrders', a.adOrderId)).localeCompare(norm(refName('adOrders', b.adOrderId))) ||
-      norm(a.objectId).localeCompare(norm(b.objectId))), [facets.rows, dateDir]);
+  const filteredRows = useMemo(() => [...facets.rows].sort((a, b) => {
+    const byDate = String(a.date).localeCompare(String(b.date));
+    const byAdvertiser = norm(refName('advertisers', a.advertiserId)).localeCompare(norm(refName('advertisers', b.advertiserId)));
+    const byOrder = norm(refName('adOrders', a.adOrderId)).localeCompare(norm(refName('adOrders', b.adOrderId)));
+    const byAdId = norm(a.objectId).localeCompare(norm(b.objectId));
+    const byAdIdNatural = compareGroupedLabels(String(a.objectId ?? ''), String(b.objectId ?? ''));
+    // Khi sort ID, dùng so sánh natural (t9 < t10); các khóa còn lại giữ thứ tự ổn định.
+    return sort.key === 'adId'
+      ? byAdIdNatural * sort.dir || byDate || byAdvertiser || byOrder
+      : byDate * sort.dir || byAdvertiser || byOrder || byAdId;
+  }), [facets.rows, sort]);
 
   const runQuery = () => setResult(filteredRows);
 
   useEffect(() => { setResult(filteredRows); }, [filteredRows]); // lọc ngay khi đổi điều kiện
-  useEffect(() => { setPage(1); }, [from, to, allDates, fAdv, fOrder, fAdId, fType, fPrice, fStatus, q]);
+  useEffect(() => { setPage(1); }, [from, to, allDates, fAdv, fOrder, fAdId, fType, fPrice, fStatus, q, sort]);
 
   const rows = result ?? [];
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
@@ -223,18 +235,23 @@ export function AdvReportPage() {
           <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
-                {HEADERS.map((h, i) => (
-                  <th key={i} onClick={i === 1 ? () => setDateDir((d) => (d === 1 ? -1 : 1)) : undefined}
-                    className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i >= 6 && i <= 9 ? 'text-right' : ''} ${i === 1 ? 'cursor-pointer select-none hover:text-gray-700' : ''}`}>
-                    {h}
-                    {i === 1 && (
-                      <span className="inline-flex flex-col ml-1 text-[8px] leading-none align-middle">
-                        <span className={dateDir === 1 ? 'text-cyan-500' : 'text-gray-300'}>▲</span>
-                        <span className={dateDir === -1 ? 'text-cyan-500' : 'text-gray-300'}>▼</span>
-                      </span>
-                    )}
-                  </th>
-                ))}
+                {HEADERS.map((h, i) => {
+                  const key: SortKey | null = i === 1 ? 'date' : i === 5 ? 'adId' : null;
+                  const active = key !== null && sort.key === key;
+                  return (
+                    <th key={i} onClick={key ? () => clickSort(key) : undefined}
+                      aria-sort={key ? (active ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none') : undefined}
+                      className={`px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap ${i >= 6 && i <= 9 ? 'text-right' : ''} ${key ? 'cursor-pointer select-none hover:text-gray-700' : ''}`}>
+                      {h}
+                      {key && (
+                        <span className="inline-flex flex-col ml-1 text-[8px] leading-none align-middle">
+                          <span className={active && sort.dir === 1 ? 'text-cyan-500' : 'text-gray-300'}>▲</span>
+                          <span className={active && sort.dir === -1 ? 'text-cyan-500' : 'text-gray-300'}>▼</span>
+                        </span>
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
