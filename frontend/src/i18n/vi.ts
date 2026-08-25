@@ -4,7 +4,7 @@ export default {
     create: 'Tạo', search: 'Tìm kiếm', searchPh: 'Tìm kiếm...', export: 'Xuất dữ liệu',
     filter: 'Lọc', all: 'Tất cả', status: 'Trạng thái', actions: 'Thao tác', edit: 'Sửa',
     delete: 'Xóa', view: 'Xem', save: 'Lưu', cancel: 'Hủy', close: 'Đóng', confirm: 'Xác nhận',
-    on: 'Bật', off: 'Tắt', yes: 'Có', no: 'Không', login: 'Đăng nhập', logout: 'Đăng xuất',
+    on: 'Bật', off: 'Tắt', yes: 'Có', no: 'Không', login: 'Đăng nhập', loggingIn: 'Đang đăng nhập…', logout: 'Đăng xuất',
     username: 'Tên đăng nhập', password: 'Mật khẩu', passwordPlaceholder: 'Để trống nếu không đổi', loginTitle: 'Đăng nhập hệ thống',
     loginSub: 'Hệ thống quản lý quảng cáo', required: 'Bắt buộc', saved: 'Đã lưu thành công',
     deleted: 'Đã xóa', toggled: 'Đã cập nhật trạng thái', confirmDelete: 'Bạn chắc chắn muốn xóa?',

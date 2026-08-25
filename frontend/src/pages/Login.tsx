@@ -15,6 +15,7 @@ export function Login() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setErr(false);
     const ok = await login(u, p);
@@ -35,18 +36,23 @@ export function Login() {
         <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1.5">{t('common.username')}</label>
-            <input value={u} onChange={(e) => setU(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-cyan-300" />
+            <input value={u} onChange={(e) => setU(e.target.value)} disabled={loading}
+              className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-cyan-300 disabled:bg-gray-50 disabled:cursor-wait" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1.5">{t('common.password')}</label>
-            <input type="password" value={p} onChange={(e) => setP(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-cyan-300" />
+            <input type="password" value={p} onChange={(e) => setP(e.target.value)} disabled={loading}
+              className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-cyan-300 disabled:bg-gray-50 disabled:cursor-wait" />
           </div>
           {err && <p className="text-sm text-rose-500">{t('common.loginError')}</p>}
-          <button type="submit" disabled={loading}
-            className="w-full py-2.5 rounded-lg bg-cyan-500 text-white font-semibold hover:bg-cyan-600 transition-colors disabled:opacity-60">
-            {loading ? '…' : t('common.login')}
+          <button type="submit" disabled={loading} aria-busy={loading}
+            className="w-full py-2.5 rounded-lg bg-cyan-500 text-white font-semibold hover:bg-cyan-600 transition-colors disabled:opacity-75 disabled:cursor-wait">
+            {loading ? (
+              <span className="flex items-center justify-center gap-2" aria-live="polite">
+                <span aria-hidden="true" className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                <span>{t('common.loggingIn')}</span>
+              </span>
+            ) : t('common.login')}
           </button>
         </form>
       </div>
