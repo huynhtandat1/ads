@@ -2,7 +2,19 @@ import 'dotenv/config';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
-import { initDb, loadAll, upsertRow, upsertRows, deleteRow, moveRow, importNaturalKey, setRateVersion, type RateBaseRef } from './db.js';
+import {
+  initDb,
+  loadAllWithRevision,
+  getDataRevision,
+  findUserByUsername,
+  upsertRow,
+  upsertRows,
+  deleteRow,
+  moveRow,
+  importNaturalKey,
+  setRateVersion,
+  type RateBaseRef,
+} from './db.js';
 import type { DB, Row } from './seed.js';
 import { isAllowedRateScreen } from './ratePermissions.js';
 
@@ -37,6 +49,7 @@ function verifyToken(token: string): number | null {
 
 // In-memory cache (source of truth = PostgreSQL); mutations write through to the DB.
 let db: DB = {};
+let dbRevision: number | null = null;
 
 // ----- Password hashing (scrypt) -----
 // Format lưu: "<saltHex>:<hashHex>". Cho phép login vẫn nhận diện được nếu DB
@@ -148,10 +161,16 @@ function auth(req: Request, res: Response, next: NextFunction) {
   // Verify chữ ký + hạn dùng, rồi nạp lại user từ DB (role/scope luôn cập nhật).
   const id = verifyToken(token);
   if (!id) return res.status(401).json({ error: 'unauthorized' });
-  const u = (db.users || []).find((x) => x.id === id && x.status);
-  if (!u) return res.status(401).json({ error: 'unauthorized' });
-  (req as any).user = { id: u.id, username: u.username, fullName: u.fullName, role: u.role, scope: u.scope ?? 'all' };
+  const user = sessionUserFromCache(id);
+  if (!user) return res.status(401).json({ error: 'unauthorized' });
+  (req as any).user = user;
   next();
+}
+
+function sessionUserFromCache(id: number): SessionUser | null {
+  const u = (db.users || []).find((x) => x.id === id && x.status);
+  if (!u) return null;
+  return { id: u.id, username: u.username, fullName: u.fullName, role: u.role, scope: u.scope ?? 'all' };
 }
 
 // ----- Data isolation -----
@@ -222,10 +241,20 @@ function mediaActualOf(source: DB, r: Row): number {
 // Bộ đếm id log tăng đơn điệu (tránh Math.max(...spread) tràn stack và tránh trùng id).
 let logSeq = 5000;
 
-/** Nạp lại nguồn sự thật và giữ bộ đếm log luôn lớn hơn mọi id đã có trong DB. */
-async function reloadDbFromStorage() {
-  db = await loadAll();
+/** Nạp dữ liệu + revision từ cùng một PostgreSQL MVCC snapshot. */
+async function reloadDbFromStorage(): Promise<number> {
+  const snapshot = await loadAllWithRevision();
+  db = snapshot.db;
+  dbRevision = snapshot.revision;
   logSeq = (db.logs || []).reduce((mx, r) => Math.max(mx, Number(r.id) || 0), logSeq);
+  return snapshot.revision;
+}
+
+/** Chỉ đọc lại toàn bộ PostgreSQL khi revision khác snapshot cache hiện tại. */
+async function ensureDbCacheCurrent(): Promise<number> {
+  const current = await getDataRevision();
+  if (dbRevision === current) return current;
+  return reloadDbFromStorage();
 }
 
 // Cache RAM và PostgreSQL phải đổi như một khối. Xếp tuần tự mutation cùng GET /api/db
@@ -272,7 +301,13 @@ const allowOrigin = (origin: string | undefined, cb: (err: Error | null, allow?:
 app.use(cors({ origin: allowOrigin }));
 app.use(express.json({ limit: '5mb' }));
 app.use(async (req, res, next) => {
-  const needsLock = req.method !== 'GET' || req.path === '/api/db';
+  // Login và /api/db tự giữ lock đúng đoạn đọc/cập nhật cache rồi nhả trước khi
+  // serialize response. Các mutation khác vẫn dùng hàng đợi tuần tự hiện có.
+  // Express mặc định vẫn match route có dấu "/" cuối; chuẩn hóa để /api/login/
+  // không vừa giữ middleware lock vừa tự acquire lần nữa (self-deadlock).
+  const normalizedPath = req.path.replace(/\/+$/, '') || '/';
+  const selfManagedLock = normalizedPath === '/api/login' || normalizedPath === '/api/db';
+  const needsLock = req.method !== 'GET' && !selfManagedLock;
   if (!needsLock) return next();
   // Nếu client ngắt kết nối trong lúc đang chờ lock, không được giữ lock vĩnh viễn.
   let closedWhileWaiting = false;
@@ -289,6 +324,13 @@ app.use(async (req, res, next) => {
     if (released) return;
     released = true;
     release();
+  };
+  // Nhả lock ngay khi handler bắt đầu gửi headers. Lúc này JSON đã được tạo và
+  // cache đã cập nhật xong; không giữ hàng đợi chỉ vì mạng/client nhận body chậm.
+  const originalWriteHead = res.writeHead.bind(res);
+  (res as any).writeHead = (...args: unknown[]) => {
+    done();
+    return (originalWriteHead as (...values: unknown[]) => Response)(...args);
   };
   res.once('finish', done);
   res.once('close', done);
@@ -307,33 +349,98 @@ const asyncHandler =
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 app.post('/api/login', asyncHandler(async (req, res) => {
-  // Đăng nhập mới cũng phải nhận dữ liệu vừa được ETL/cập nhật trực tiếp trong PostgreSQL.
-  await reloadDbFromStorage();
+  res.set('Cache-Control', 'no-store');
   const { username, password } = (req.body || {}) as { username?: unknown; password?: unknown };
   if (typeof username !== 'string' || typeof password !== 'string') {
     return res.status(400).json({ error: 'username/password required' });
   }
-  const u = (db.users || []).find((x) => x.username === username && x.status);
-  if (!u) return res.status(401).json({ error: 'invalid credentials' });
-  const v = verifyPassword(String(u.password || ''), password);
+
+  // Chỉ đọc đúng một user; không tải và không trả toàn bộ dataset trong login.
+  const candidate = await findUserByUsername(username);
+  if (!candidate?.status) return res.status(401).json({ error: 'invalid credentials' });
+  const v = verifyPassword(String(candidate.password || ''), password);
   if (!v.ok) return res.status(401).json({ error: 'invalid credentials' });
-  // Bản ghi plaintext cũ → nâng cấp sang hash ngay (migrate dần).
-  if (v.needUpgrade) {
-    const upgraded = { ...u, password: hashPassword(password) } as Row;
-    await upsertRow('users', upgraded);
-    Object.assign(u, upgraded);
+
+  // Re-check sau khi vào lock để không đăng nhập bằng bản ghi vừa bị tắt/đổi mật
+  // khẩu trong lúc request chờ. Lock chỉ bao quanh cache/audit, không ôm response.
+  const release = await acquireDbLock();
+  let user: SessionUser | undefined;
+  let token = '';
+  let rejected = false;
+  try {
+    const current = await findUserByUsername(username);
+    const sameCredentialRow = current?.id === candidate.id
+      && String(current.password || '') === String(candidate.password || '');
+    const currentVerification = current
+      ? (sameCredentialRow ? v : verifyPassword(String(current.password || ''), password))
+      : { ok: false, needUpgrade: false };
+    if (
+      !current?.status
+      || current.id !== candidate.id
+      || !currentVerification.ok
+    ) {
+      rejected = true;
+    } else {
+      let authenticated = current;
+      // Bản ghi plaintext cũ → nâng cấp sang hash ngay (migrate dần).
+      if (currentVerification.needUpgrade) {
+        authenticated = await upsertRow('users', { ...current, password: hashPassword(password) } as Row);
+      }
+      const cachedUsers = db.users || [];
+      db.users = cachedUsers.some((row) => row.id === authenticated.id)
+        ? cachedUsers.map((row) => (row.id === authenticated.id ? authenticated : row))
+        : [authenticated, ...cachedUsers];
+      user = {
+        id: authenticated.id,
+        username: authenticated.username,
+        fullName: authenticated.fullName,
+        role: authenticated.role,
+        scope: authenticated.scope ?? 'all',
+      };
+      token = signToken(authenticated.id);
+    }
+  } finally {
+    release();
   }
-  const user: SessionUser = { id: u.id, username: u.username, fullName: u.fullName, role: u.role, scope: u.scope ?? 'all' };
-  const token = signToken(u.id);
+  if (rejected || !user) return res.status(401).json({ error: 'invalid credentials' });
+  // Audit có thể chờ PostgreSQL/ETL nhưng không được giữ hàng đợi cache toàn app.
+  // Vẫn await trước response để snapshot đầu tiên luôn bao gồm log + revision này.
   await writeLog(user, 'login', `user ${user.username}`);
-  res.json({ token, user, db: isolate(user) });
+  res.json({ token, user });
 }));
 
-app.get('/api/db', auth, asyncHandler(async (req, res) => {
-  // PostgreSQL là nguồn sự thật. ETL hoặc tiến trình quản trị có thể cập nhật DB
-  // ngoài API đang chạy, vì vậy phải nạp lại trước khi frontend đồng bộ dữ liệu.
-  await reloadDbFromStorage();
-  res.json({ db: isolate((req as any).user) });
+app.get('/api/db', asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  res.vary('Authorization');
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/, '');
+  const userId = verifyToken(token);
+  if (!userId) return res.status(401).json({ error: 'unauthorized' });
+
+  const query = req.query as { revision?: unknown };
+  const rawRevision = Array.isArray(query.revision) ? query.revision[0] : query.revision;
+  const parsedRevision = typeof rawRevision === 'string' ? Number(rawRevision) : Number.NaN;
+  const requestedRevision = Number.isSafeInteger(parsedRevision) && parsedRevision >= 0
+    ? parsedRevision
+    : null;
+
+  const release = await acquireDbLock();
+  let user: SessionUser | null = null;
+  let response: { revision: number; unchanged: true } | { revision: number; db: DB } | undefined;
+  try {
+    // PostgreSQL là nguồn sự thật. Chỉ reload khi trigger báo dataset đã đổi.
+    const revision = await ensureDbCacheCurrent();
+    user = sessionUserFromCache(userId);
+    if (user) {
+      response = requestedRevision === revision
+        ? { revision, unchanged: true }
+        : { revision, db: isolate(user) };
+    }
+  } finally {
+    release();
+  }
+
+  if (!user || !response) return res.status(401).json({ error: 'unauthorized' });
+  res.json(response);
 }));
 
 // Settlement preview (#2): tổng hợp số tiền theo đối tượng + kỳ.

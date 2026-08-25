@@ -17,6 +17,32 @@ const SCHEMA = `
     PRIMARY KEY (collection, id)
   );
   CREATE INDEX IF NOT EXISTS entities_collection_seq ON entities (collection, seq DESC);
+
+  CREATE TABLE IF NOT EXISTS app_meta (
+    key   text   PRIMARY KEY,
+    value bigint NOT NULL
+  );
+  INSERT INTO app_meta (key, value)
+  VALUES ('data_revision', 0)
+  ON CONFLICT (key) DO NOTHING;
+
+  CREATE OR REPLACE FUNCTION bump_entities_data_revision()
+  RETURNS trigger
+  LANGUAGE plpgsql
+  AS $$
+  BEGIN
+    INSERT INTO app_meta (key, value)
+    VALUES ('data_revision', 1)
+    ON CONFLICT (key) DO UPDATE
+      SET value = app_meta.value + 1;
+    RETURN NULL;
+  END;
+  $$;
+
+  CREATE OR REPLACE TRIGGER entities_data_revision_trigger
+  AFTER INSERT OR UPDATE OR DELETE ON entities
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION bump_entities_data_revision();
 `;
 
 let pool: pg.Pool;
@@ -233,9 +259,62 @@ export async function loadAll(): Promise<DB> {
   const { rows } = await pool.query<{ collection: string; data: Row }>(
     'SELECT collection, data FROM entities ORDER BY seq DESC',
   );
+  return groupRows(rows);
+}
+
+function groupRows(rows: { collection: string; data: Row }[]): DB {
   const db: DB = {};
   for (const r of rows) (db[r.collection] ||= []).push(r.data);
   return db;
+}
+
+/**
+ * Read data and its revision from one MVCC snapshot. This avoids retry loops
+ * (and starvation under a busy ETL) while guaranteeing that the revision
+ * describes exactly the rows returned by the query.
+ */
+export async function loadAllWithRevision(): Promise<{ db: DB; revision: number }> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    const revisionResult = await client.query<{ value: string }>(
+      `SELECT value::text AS value FROM app_meta WHERE key = 'data_revision'`,
+    );
+    const dataResult = await client.query<{ collection: string; data: Row }>(
+      'SELECT collection, data FROM entities ORDER BY seq DESC',
+    );
+    await client.query('COMMIT');
+    return {
+      db: groupRows(dataResult.rows),
+      revision: Number(revisionResult.rows[0]?.value || 0),
+    };
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/** Monotonic dataset version, bumped once for every entities write statement. */
+export async function getDataRevision(): Promise<number> {
+  const { rows } = await pool.query<{ value: string }>(
+    `SELECT value::text AS value FROM app_meta WHERE key = 'data_revision'`,
+  );
+  return Number(rows[0]?.value || 0);
+}
+
+/** Read the credential row directly instead of loading the complete dataset. */
+export async function findUserByUsername(username: string): Promise<Row | undefined> {
+  const { rows } = await pool.query<{ data: Row }>(
+    `SELECT data
+       FROM entities
+      WHERE collection = 'users'
+        AND data->>'username' = $1
+      LIMIT 1`,
+    [username],
+  );
+  return rows[0]?.data;
 }
 
 export async function upsertRow(collection: string, row: Row): Promise<Row> {

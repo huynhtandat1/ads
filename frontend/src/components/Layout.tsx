@@ -4,18 +4,21 @@ import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { useAuth } from '../auth/AuthContext';
 import { refreshOnNavigation } from '../data/store';
+import { isUnauthorized } from '../api';
 
 export function Layout() {
   const { user } = useAuth();
   const location = useLocation();
 
-  // Điều hướng nội bộ phải thấy dữ liệu mới ngay, không chờ nhịp polling 5 giây/F5.
+  // Điều hướng nội bộ phải thấy dữ liệu mới ngay, không chờ nhịp polling định kỳ/F5.
   // Chờ mutation đang chạy để không lấy snapshot trước thời điểm thao tác lưu hoàn tất.
   useEffect(() => {
     if (!user) return;
     let active = true;
     void refreshOnNavigation(() => active).catch((e) => {
-      if (active && (e as Error)?.message !== 'unauthorized') console.warn('navigation sync failed', e);
+      if (active && !isUnauthorized(e) && (e as Error)?.name !== 'AbortError') {
+        console.warn('navigation sync failed', e);
+      }
     });
     return () => { active = false; };
   }, [location.pathname, user]);

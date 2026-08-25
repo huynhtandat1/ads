@@ -3,13 +3,58 @@ import type { DB, Row } from './data/store';
 const BASE = (import.meta.env?.VITE_API_URL as string) || 'http://localhost:8787/api';
 
 let token = localStorage.getItem('ko_token') || '';
+let authGeneration = 0;
+const protectedRequests = new Set<AbortController>();
 let pendingMutations = 0;
 let mutationVersion = 0;
 const mutationWaiters = new Set<() => void>();
 
-export function setToken(t: string) { token = t; localStorage.setItem('ko_token', t); }
-export function clearToken() { token = ''; localStorage.removeItem('ko_token'); }
+export type DBRevision = string | number;
+export type DBFetchResponse =
+  | { revision?: DBRevision; unchanged: true; db?: never }
+  | { revision?: DBRevision; unchanged?: false; db: DB };
+
+export class ApiError extends Error {
+  status: number;
+  body?: unknown;
+
+  constructor(status: number, message: string, body?: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.body = body;
+  }
+}
+
+export function isUnauthorized(error: unknown): error is ApiError {
+  return error instanceof ApiError && error.status === 401;
+}
+
+function abortProtectedRequests() {
+  const requests = [...protectedRequests];
+  protectedRequests.clear();
+  requests.forEach((controller) => controller.abort());
+}
+
+/** Đổi phiên trước khi hủy request để response cũ không thể đăng xuất phiên mới. */
+export function setToken(t: string): number {
+  authGeneration++;
+  token = t;
+  localStorage.setItem('ko_token', t);
+  abortProtectedRequests();
+  return authGeneration;
+}
+
+export function clearToken(): number {
+  authGeneration++;
+  token = '';
+  localStorage.removeItem('ko_token');
+  abortProtectedRequests();
+  return authGeneration;
+}
+
 export function hasToken() { return !!token; }
+export function authState() { return { token, generation: authGeneration }; }
 export function mutationState() { return { pending: pendingMutations, version: mutationVersion }; }
 
 /** Chờ toàn bộ thao tác ghi hiện tại hoàn tất trước khi tải snapshot mới. */
@@ -21,28 +66,46 @@ export function waitForMutations(): Promise<void> {
 async function req<T = any>(method: string, path: string, body?: unknown): Promise<T> {
   // Dùng để ngăn một lần đồng bộ nền ghi đè cache trong lúc mutation đang chạy.
   // Login không tính là mutation dữ liệu nghiệp vụ.
-  const isMutation = method !== 'GET' && path !== '/login';
+  const isProtected = path !== '/login';
+  const isMutation = method !== 'GET' && isProtected;
+  const requestToken = token;
+  const requestGeneration = authGeneration;
+  const controller = isProtected ? new AbortController() : null;
+  if (controller) protectedRequests.add(controller);
   if (isMutation) { pendingMutations++; mutationVersion++; }
   try {
     const res = await fetch(BASE + path, {
       method,
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(isProtected && requestToken ? { Authorization: `Bearer ${requestToken}` } : {}),
+      },
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      ...(controller ? { signal: controller.signal } : {}),
     });
-    if (res.status === 401) {
-      // Token hết hiệu lực → buộc đăng nhập lại (tránh thao tác lưu thất bại âm thầm).
-      window.dispatchEvent(new CustomEvent('ko-unauthorized'));
-      throw new Error('unauthorized');
-    }
     if (!res.ok) {
-      const msg = await res.json().catch(() => ({})) as { error?: string };
-      const err: Error & { status?: number; body?: unknown } = new Error(msg.error || `${res.status} ${res.statusText}`);
-      err.status = res.status;
-      err.body = msg;
+      const errorBody = await res.json().catch(() => ({})) as { error?: string };
+      const err = new ApiError(res.status, errorBody.error || `${res.status} ${res.statusText}`, errorBody);
+      // Chỉ 401 của chính phiên hiện tại mới được phép đăng xuất. Một /db cũ trả
+      // muộn sau lần login kế tiếp không thể xóa token mới.
+      if (
+        res.status === 401
+        && isProtected
+        && requestToken
+        && requestToken === token
+        && requestGeneration === authGeneration
+        && !controller?.signal.aborted
+        && typeof window !== 'undefined'
+      ) {
+        window.dispatchEvent(new CustomEvent('ko-unauthorized', {
+          detail: { generation: requestGeneration },
+        }));
+      }
       throw err;
     }
     return res.json();
   } finally {
+    if (controller) protectedRequests.delete(controller);
     if (isMutation) {
       pendingMutations--;
       if (pendingMutations === 0) {
@@ -56,8 +119,11 @@ async function req<T = any>(method: string, path: string, body?: unknown): Promi
 
 export const api = {
   login: (username: string, password: string) =>
-    req<{ token: string; user: any; db: DB }>('POST', '/login', { username, password }),
-  fetchDB: () => req<{ db: DB }>('GET', '/db'),
+    req<{ token: string; user: any }>('POST', '/login', { username, password }),
+  fetchDB: (revision?: DBRevision | null) => req<DBFetchResponse>(
+    'GET',
+    revision == null ? '/db' : `/db?revision=${encodeURIComponent(String(revision))}`,
+  ),
   create: (c: string, row: Row) => req<{ log?: Row; row?: Row }>('POST', `/${c}`, row),
   bulkUpsert: (c: string, rows: Partial<Row>[]) =>
     req<{ log?: Row; rows: Row[] }>('POST', `/${c}/bulk`, { rows }),

@@ -1,5 +1,12 @@
 import { useSyncExternalStore } from 'react';
-import { api, mutationState, waitForMutations } from '../api';
+import {
+  api,
+  authState,
+  mutationState,
+  waitForMutations,
+  type DBFetchResponse,
+  type DBRevision,
+} from '../api';
 
 export type Row = Record<string, any> & { id: number };
 export type DB = Record<string, Row[]>;
@@ -13,6 +20,7 @@ const EMPTY: Row[] = [];
 // stay consistent across the cache and the server).
 let db: DB = {};
 let dbSignature = JSON.stringify(db);
+let dbRevision: DBRevision | null = null;
 const listeners = new Set<() => void>();
 let actor = 'admin';
 
@@ -25,29 +33,92 @@ export function snapshot(): DB { return db; }
 export function getAll(c: string): Row[] { return db[c] || EMPTY; }
 
 /** Thay cache khi dữ liệu thực sự đổi, tránh render lại toàn site sau mỗi nhịp polling. */
-export function hydrate(d: DB): boolean {
+export function hydrate(d: DB, revision: DBRevision | null = null): boolean {
   const next = d || {};
   const signature = JSON.stringify(next);
+  dbRevision = revision;
   if (signature === dbSignature) return false;
   db = next;
   dbSignature = signature;
   emit();
   return true;
 }
-export function clearDB() { db = {}; dbSignature = JSON.stringify(db); emit(); }
+export function clearDB() {
+  db = {};
+  dbSignature = JSON.stringify(db);
+  dbRevision = null;
+  emit();
+}
+
+interface DBFlight {
+  token: string;
+  generation: number;
+  mutationVersion: number;
+  revision: DBRevision | null;
+  promise: Promise<DBFetchResponse>;
+}
+
+let dbFlight: DBFlight | null = null;
+
+/** Bootstrap, focus, polling và navigation dùng chung tối đa một /db cho mỗi phiên. */
+function sharedDBRequest(): DBFlight {
+  const auth = authState();
+  if (dbFlight && dbFlight.generation === auth.generation && dbFlight.token === auth.token) return dbFlight;
+
+  const mutation = mutationState();
+  const flight: DBFlight = {
+    token: auth.token,
+    generation: auth.generation,
+    mutationVersion: mutation.version,
+    revision: dbRevision,
+    promise: null!,
+  };
+  flight.promise = api.fetchDB(flight.revision).finally(() => {
+    if (dbFlight === flight) dbFlight = null;
+  });
+  dbFlight = flight;
+  return flight;
+}
+
+function applyDBResponse(result: DBFetchResponse): boolean {
+  if (result.unchanged) {
+    if (result.revision !== undefined) dbRevision = result.revision;
+    return false;
+  }
+  if (result.db === undefined) throw new Error('Invalid database snapshot response');
+  // Hai caller có thể cùng chờ một full response; caller thứ hai không cần
+  // stringify lại vài MB nếu caller đầu đã áp đúng revision đó.
+  if (result.revision !== undefined && dbRevision === result.revision) return false;
+  return hydrate(result.db, result.revision ?? null);
+}
 
 /**
  * Đồng bộ PostgreSQL → cache frontend mà không ghi đè mutation đang chạy.
  * Nếu một thao tác ghi bắt đầu trong lúc request GET đang chờ, bỏ kết quả cũ;
  * nhịp đồng bộ kế tiếp sẽ lấy lại trạng thái mới nhất.
  */
-export async function refreshFromServer(): Promise<boolean> {
+export async function refreshFromServer(
+  shouldApply: () => boolean = () => true,
+): Promise<boolean> {
+  if (!shouldApply()) return false;
+  const expectedAuth = authState();
   const before = mutationState();
   if (before.pending > 0) return false;
-  const result = await api.fetchDB();
+  const flight = sharedDBRequest();
+  const result = await flight.promise;
+  const currentAuth = authState();
   const after = mutationState();
-  if (after.pending > 0 || after.version !== before.version) return false;
-  return hydrate(result.db);
+  if (
+    !shouldApply()
+    || currentAuth.generation !== expectedAuth.generation
+    || currentAuth.token !== expectedAuth.token
+    || flight.generation !== expectedAuth.generation
+    || flight.token !== expectedAuth.token
+    || flight.mutationVersion !== before.version
+    || after.pending > 0
+    || after.version !== before.version
+  ) return false;
+  return applyDBResponse(result);
 }
 
 /**
@@ -58,14 +129,33 @@ export async function refreshOnNavigation(
   shouldApply: () => boolean = () => true,
   maxAttempts = 3,
 ): Promise<boolean> {
+  const expectedAuth = authState();
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     await waitForMutations();
-    if (!shouldApply()) return false;
+    const currentAuth = authState();
+    if (
+      !shouldApply()
+      || currentAuth.generation !== expectedAuth.generation
+      || currentAuth.token !== expectedAuth.token
+    ) return false;
     const before = mutationState();
-    const result = await api.fetchDB();
+    if (before.pending > 0) continue;
+    const flight = sharedDBRequest();
+    const result = await flight.promise;
     if (!shouldApply()) return false;
+    const latestAuth = authState();
     const after = mutationState();
-    if (after.pending === 0 && after.version === before.version) return hydrate(result.db);
+    if (
+      latestAuth.generation !== expectedAuth.generation
+      || latestAuth.token !== expectedAuth.token
+    ) return false;
+    if (
+      flight.generation === expectedAuth.generation
+      && flight.token === expectedAuth.token
+      && flight.mutationVersion === before.version
+      && after.pending === 0
+      && after.version === before.version
+    ) return applyDBResponse(result);
   }
   return false;
 }
