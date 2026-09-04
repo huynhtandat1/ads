@@ -9,9 +9,9 @@ import { yesterdayRange } from '../lib/date';
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-5 min-w-0">
       <div className="text-sm text-gray-500">{label}</div>
-      <div className={`text-2xl font-bold mt-1 ${accent || 'text-gray-800'}`}>{value}</div>
+      <div className={`text-xl sm:text-2xl font-bold mt-1 break-words ${accent || 'text-gray-800'}`}>{value}</div>
     </div>
   );
 }
@@ -38,18 +38,18 @@ export function Dashboard() {
           <p className="text-sm text-gray-500 mt-1">KrakenOcean · {t('common.loginSub')}</p>
           <p className="text-xs text-gray-400 mt-1">{from} ~ {to}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 justify-end">
+        <div className="w-full sm:w-auto flex flex-wrap items-center gap-2 justify-end">
           <DateRangePicker from={from} to={to} onFromChange={setFrom} onToChange={setTo} />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
         <Stat label={t('report.totalRevenue')} value={money(tot.revenue)} accent="text-red-600" />
         <Stat label={t('report.totalCost')} value={money(tot.cost)} accent="text-emerald-600" />
         <Stat label={t('report.totalProfit')} value={money(tot.afterTax)} accent={profitTextClass(tot.afterTax)} />
         <Stat label={t('report.margin')} value={tot.margin + '%'} />
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Stat label={t('menu.g1a')} value={String(advN)} />
         <Stat label={t('menu.g2a')} value={String(medN)} />
         <Stat label={t('menu.g2c')} value={String(midN)} />

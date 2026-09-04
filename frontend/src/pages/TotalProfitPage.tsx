@@ -180,16 +180,16 @@ export function TotalProfitPage() {
       </div>
 
       {/* Toolbar (dùng chung cho cả 2 bảng) */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex flex-wrap items-end gap-3">
-        <div className="flex items-end gap-2">
-          <div>
+      <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 mb-4 flex flex-wrap items-end gap-3">
+        <div className="flex w-full sm:w-auto items-end gap-2">
+          <div className="w-full sm:w-auto">
             <label className="block text-xs text-gray-500 mb-1">{t('col.date')}</label>
             <DateRangePicker from={from} to={to} onFromChange={setFrom} onToChange={setTo} />
           </div>
                   </div>
-        <div className="flex-1" />
+        <div className="hidden sm:block flex-1" />
         <button onClick={doExport} disabled={rows.length === 0}
-          className="h-9 px-4 inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">
+          className="h-10 sm:h-9 w-full sm:w-auto px-4 inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">
           <IconDownload width={16} height={16} /> {t('report.exportExcel')}
         </button>
       </div>
@@ -199,8 +199,8 @@ export function TotalProfitPage() {
         <div className="px-4 py-3 border-b border-gray-100 text-xs font-semibold uppercase tracking-wide text-gray-500">
           {t('report.monthlyByBiz')}
         </div>
-        <div className="overflow-auto max-h-[calc(50vh-100px)]">
-          <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
+        <div className="overflow-auto lg:max-h-[calc(50vh-100px)]">
+          <table className="w-full min-w-max text-sm [&_th]:text-center [&_td]:text-center">
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
                 {HEADERS.map((h, i) => {
@@ -254,8 +254,8 @@ export function TotalProfitPage() {
         <div className="px-4 py-3 border-b border-gray-100 text-xs font-semibold uppercase tracking-wide text-gray-500">
           {t('report.dailyByBiz')}
         </div>
-        <div className="overflow-auto max-h-[calc(50vh-100px)]">
-          <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
+        <div className="overflow-auto lg:max-h-[calc(50vh-100px)]">
+          <table className="w-full min-w-max text-sm [&_th]:text-center [&_td]:text-center">
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
                 <th className="px-3 py-2.5 font-semibold uppercase text-[11px] tracking-wide whitespace-nowrap">{t('col.date')}</th>

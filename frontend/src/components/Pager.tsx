@@ -16,15 +16,15 @@ interface Props {
 export function Pager({ total, page, totalPages, pageSize, onPage, onPageSize }: Props) {
   const { t } = useTranslation();
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 p-4 text-sm text-gray-500 border-t border-gray-100">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-3 p-3 sm:p-4 text-sm text-gray-500 border-t border-gray-100">
+      <div className="flex items-center justify-between sm:justify-start gap-2">
         <span>{t('common.total')} {total} {t('common.rows')}</span>
         <select value={pageSize} onChange={(e) => { onPageSize(Number(e.target.value)); onPage(1); }}
           className="h-8 px-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-200">
           {PAGE_SIZES.map((n) => <option key={n} value={n}>{n} {t('common.perPage')}</option>)}
         </select>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between sm:justify-start gap-1">
         <button disabled={page <= 1} onClick={() => onPage(page - 1)}
           className="h-8 px-3 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50">‹</button>
         <span className="px-3">{page} / {totalPages}</span>

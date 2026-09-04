@@ -133,15 +133,15 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[calc(100dvh-0.5rem)] sm:max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100 sticky top-0 z-10 bg-white rounded-t-2xl">
           <h3 className="text-lg font-bold text-gray-800">{title}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
         </div>
-        <div className="p-6 grid grid-cols-2 gap-4">
+        <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {fields.filter((f) => !f.hidden).map((f) => (
-            <div key={f.key} className={f.half ? 'col-span-1' : 'col-span-2'}>
+            <div key={f.key} className={f.half ? 'col-span-1' : 'col-span-1 sm:col-span-2'}>
               <label className="block text-sm font-medium text-gray-600 mb-1.5">
                 {(f.labelMap ? (f.labelMap.options[String(vals[f.labelMap.watch] ?? '')] ?? f.labelMap.default) : f.label)} {f.required && !(f.skipRequiredOnEdit && initial) && <span className="text-rose-500">*</span>}
               </label>
@@ -174,15 +174,15 @@ export function FormModal({ title, fields, initial, onClose, onSubmit, onDelete 
             </div>
           ))}
         </div>
-        <div className="flex items-center px-6 py-4 border-t border-gray-100">
+        <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-2 px-4 sm:px-6 py-4 border-t border-gray-100 bg-white">
           {onDelete && (
             <button onClick={onDelete}
               className="h-9 px-4 inline-flex items-center gap-1.5 rounded-lg border border-rose-200 text-sm text-rose-600 hover:bg-rose-50">
               <IconTrash width={16} height={16} /> {t('common.delete')}
             </button>
           )}
-          <div className="flex-1" />
-          <div className="flex gap-2">
+          <div className="hidden sm:block flex-1" />
+          <div className="ml-auto flex gap-2">
             <button onClick={onClose} className="h-9 px-4 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('common.cancel')}</button>
             <button onClick={submit} className="h-9 px-4 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600">{t('common.save')}</button>
           </div>

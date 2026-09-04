@@ -42,7 +42,7 @@ export function RateEditor({ value, workingDate, suffix = '', disabled, integer,
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={save} />
-          <div className="absolute z-50 mt-1 left-0 w-60 bg-white rounded-lg border border-gray-200 shadow-xl p-3 text-left">
+          <div className="fixed inset-x-3 bottom-3 z-50 w-auto bg-white rounded-xl border border-gray-200 shadow-xl p-3 text-left sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-0 sm:mt-1 sm:w-60 sm:rounded-lg">
             <div className="relative mb-2">
               <input type="number" step={integer ? 1 : 0.01} autoFocus value={val}
                 onChange={(e) => setVal(integer ? e.target.value.replace(/\D/g, '') : e.target.value)}

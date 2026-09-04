@@ -105,8 +105,8 @@ export function RolesPage() {
         )} />
 
       {creating && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setCreating(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4" onClick={() => setCreating(false)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-sm p-4 sm:p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-bold mb-4">{t('common.createNew')}</h3>
             <label className="block text-sm font-medium text-gray-600 mb-1.5">{t('col.roleName')}</label>
             <input value={newName} onChange={(e) => setNewName(e.target.value)}
@@ -120,13 +120,14 @@ export function RolesPage() {
       )}
 
       {(editing || pending) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={closeMatrix}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white">
-              <h3 className="text-lg font-bold">{editing?.name ?? pending} — {t('perm.screen')}</h3>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4" onClick={closeMatrix}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-0.5rem)] sm:max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-gray-100 sticky top-0 z-10 bg-white">
+              <h3 className="min-w-0 truncate text-base sm:text-lg font-bold">{editing?.name ?? pending} — {t('perm.screen')}</h3>
               <button onClick={closeMatrix} className="text-gray-400 text-xl">×</button>
             </div>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[600px] text-sm">
               <thead>
                 <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-100">
                   <th className="px-4 py-2.5 font-semibold">{t('perm.screen')}</th>
@@ -147,7 +148,8 @@ export function RolesPage() {
                 ))}
               </tbody>
             </table>
-            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 sticky bottom-0 bg-white">
+            </div>
+            <div className="flex justify-end gap-2 px-4 sm:px-6 py-4 border-t border-gray-100 sticky bottom-0 z-10 bg-white">
               <button onClick={closeMatrix} className="h-9 px-4 rounded-lg border border-gray-200 text-sm">{t('common.cancel')}</button>
               <button onClick={save} className="h-9 px-4 rounded-lg bg-cyan-500 text-white text-sm font-medium">{t('common.save')}</button>
             </div>

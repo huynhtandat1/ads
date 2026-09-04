@@ -268,7 +268,7 @@ export function AdvDataEntryPage({
     toast(`${source}: ${t('entry.aiFilled')}`);
   };
 
-  const sel = "h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-200";
+  const sel = "h-10 sm:h-9 w-full sm:w-auto min-w-0 px-3 rounded-lg border border-gray-200 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-200";
 
   // Click-to-enter cell for traffic / settlement
   const valueCell = (key: string, field: 'traffic' | 'settlement') => {
@@ -307,7 +307,7 @@ export function AdvDataEntryPage({
           <h1 className="text-xl font-bold text-gray-800">{t(titleKey)}</h1>
           <p className="text-sm text-gray-500 mt-0.5">{t('entry.forDate')}: <span className="font-medium text-gray-700">{from}{from !== to ? ` ~ ${to}` : ''}</span></p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 justify-start">
+        <div className="flex w-full xl:w-auto flex-wrap items-center gap-2 justify-start xl:justify-end">
           <DateRangePicker from={from} to={to} onFromChange={setFrom} onToChange={setTo} />
           <select value={fAdv} onChange={(e) => setFAdv(e.target.value)} className={sel}>
             <option value="">{t('entry.chooseAdv')}</option>
@@ -333,19 +333,19 @@ export function AdvDataEntryPage({
             <option value="all">{t('entry.allStatus')}</option>
             {sortByGroupedLabel(statusOptions, (o) => o.label).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('common.searchPh')}
-              className="h-9 pl-8 pr-3 rounded-lg border border-gray-200 text-sm w-44 focus:outline-none focus:ring-2 focus:ring-cyan-200" />
+              className="h-10 sm:h-9 pl-8 pr-3 rounded-lg border border-gray-200 text-sm w-full sm:w-44 focus:outline-none focus:ring-2 focus:ring-cyan-200" />
           </div>
           {ai && canEdit && (
             <button onClick={aiFill}
-              className="h-9 px-4 inline-flex items-center gap-1.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600">
+              className="h-10 sm:h-9 flex-1 sm:flex-none px-4 inline-flex items-center justify-center gap-1.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600">
               <IconUpload width={16} height={16} /> {t('entry.aiFill')}
             </button>
           )}
           <button onClick={confirmAll} disabled={confirming || (!canCreate && !canEdit) || cellRows.length === 0}
-            className="h-9 px-4 inline-flex items-center rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed">
+            className="h-10 sm:h-9 flex-1 sm:flex-none px-4 inline-flex items-center justify-center rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed">
             {confirming ? t('entry.confirming') : t('entry.saveRow')}
           </button>
         </div>
@@ -353,8 +353,8 @@ export function AdvDataEntryPage({
 
       {/* Grid */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-        <div className="overflow-auto max-h-[calc(100vh-220px)]">
-          <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
+        <div className="overflow-auto lg:max-h-[calc(100vh-220px)]">
+          <table className="w-full min-w-max text-sm [&_th]:text-center [&_td]:text-center">
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-200 bg-brand-dark border-b border-brand-dark2">
                 {[t('col.stt'), t('col.date'), t('col.advertiser'), t('col.adOrder'), t('col.type'), t('col.adId'),

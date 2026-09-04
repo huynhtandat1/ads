@@ -20,7 +20,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={push}>
       {children}
-      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
+      <div className="fixed top-3 inset-x-3 sm:top-4 sm:left-auto sm:right-4 z-[100] flex flex-col gap-2">
         {toasts.map((t) => (
           <div key={t.id}
             className={`px-4 py-2.5 rounded-lg shadow-lg text-white text-sm font-medium animate-[fadeIn_.2s] ${

@@ -200,25 +200,25 @@ export function DataTable({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm min-w-0">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3 p-4 border-b border-gray-100">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-4 border-b border-gray-100">
         {toolbarLeft}
-        <div className="flex-1" />
+        <div className="hidden sm:block flex-1" />
         {/* Bộ lọc dropdown trên thanh công cụ đã ẩn — dùng hàng lọc theo cột (nút "Lọc"). */}
-        <div className="relative">
+        <div className="relative order-first w-full sm:order-none sm:w-auto">
           <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />
           <input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder={t('common.searchPh')}
-            className="h-9 pl-8 pr-3 rounded-lg border border-gray-200 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-cyan-200" />
+            className="h-10 sm:h-9 pl-8 pr-3 rounded-lg border border-gray-200 text-sm w-full sm:w-56 focus:outline-none focus:ring-2 focus:ring-cyan-200" />
         </div>
         <button onClick={() => setShowFilters((s) => !s)} title={t('common.filter')}
-          className={`h-9 px-3 inline-flex items-center gap-1.5 rounded-lg border text-sm ${
+          className={`h-10 sm:h-9 flex-1 sm:flex-none px-3 inline-flex items-center justify-center gap-1.5 rounded-lg border text-sm ${
             showFilters ? 'border-cyan-300 bg-cyan-50 text-cyan-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
           <IconFilter width={16} height={16} /> {t('common.filter')}
         </button>
         {canExport && (
           <button onClick={doExport}
-            className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">
+            className="h-10 sm:h-9 flex-1 sm:flex-none px-3 inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">
             <IconDownload width={16} height={16} /> {t('common.export')}
           </button>
         )}
@@ -226,7 +226,7 @@ export function DataTable({
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-max text-sm">
           <thead>
             {showFilters && (
               <tr className="bg-white border-b border-gray-100">
@@ -257,7 +257,7 @@ export function DataTable({
                 const sortable = !noSort(c);
                 return (
                   <th key={c.key} onClick={() => sortable && toggleSort(c.key)}
-                    className={`px-4 py-3 font-semibold uppercase text-xs tracking-wide whitespace-nowrap ${
+                    className={`px-3 sm:px-4 py-3 font-semibold uppercase text-xs tracking-wide whitespace-nowrap ${
                       sortable ? 'cursor-pointer select-none hover:text-gray-700' : ''
                     } ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''}`}>
                     <span className={`inline-flex items-center gap-1 ${c.align === 'right' ? 'flex-row-reverse' : ''}`}>
@@ -283,7 +283,7 @@ export function DataTable({
               return (
                 <tr key={row.id} className="border-b border-gray-50 hover:bg-cyan-50/30 transition-colors">
                   {visibleColumns.map((c) => (
-                    <td key={c.key} className={`px-4 py-3 ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''}`}>
+                    <td key={c.key} className={`px-3 sm:px-4 py-3 ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''}`}>
                       {renderCell(c, row, absIdx)}
                     </td>
                   ))}

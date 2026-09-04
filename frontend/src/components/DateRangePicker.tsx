@@ -137,7 +137,7 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
   };
 
   const renderMonth = (month: Date) => (
-    <div className="w-[292px]">
+    <div className="w-full max-w-[292px]">
       <div className="mb-3 text-center text-sm font-semibold text-gray-800">
         {t('datePicker.monthYear', { month: monthNames[month.getMonth()], year: month.getFullYear() })}
       </div>
@@ -168,8 +168,8 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
   );
 
   return (
-    <div ref={rootRef} className={`relative flex flex-wrap items-center gap-2 ${className}`}>
-      <div className="h-9 min-w-[270px] inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700">
+    <div ref={rootRef} className={`relative flex w-full sm:w-auto flex-wrap items-center gap-2 ${className}`}>
+      <div className="h-10 sm:h-9 min-w-0 w-full sm:w-auto sm:min-w-[270px] inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700">
         <button
           type="button"
           disabled={disabled}
@@ -182,7 +182,7 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
           className="min-w-0 flex-1 inline-flex items-center gap-2 disabled:opacity-60"
         >
           <IconCalendar width={16} height={16} className="text-gray-400 shrink-0" />
-          <span className="flex-1 text-left whitespace-nowrap">{from && to ? `${from} ~ ${to}` : 'YYYY-MM-DD ~ YYYY-MM-DD'}</span>
+          <span className="flex-1 min-w-0 overflow-hidden text-ellipsis text-left whitespace-nowrap">{from && to ? `${from} ~ ${to}` : 'YYYY-MM-DD ~ YYYY-MM-DD'}</span>
         </button>
         {(from || to) && (
           <button
@@ -199,7 +199,7 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
       {renderPresets()}
 
       {open && !disabled && (
-        <div className={`absolute ${alignLeft ? 'left-0' : 'right-0'} top-[calc(100%+8px)] z-[60] w-[650px] max-w-[calc(100vw-18rem)] rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl`}>
+        <div className={`fixed inset-x-2 top-16 z-[60] max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-2xl border border-gray-200 bg-white p-3 shadow-2xl sm:absolute sm:inset-x-auto sm:top-[calc(100%+8px)] sm:w-[360px] sm:max-w-[calc(100vw-1rem)] sm:p-4 md:w-[650px] lg:max-w-[calc(100vw-18rem)] ${alignLeft ? 'sm:left-0 sm:right-auto' : 'sm:right-0 sm:left-auto'}`}>
           <div className="mb-3 flex items-center justify-between text-gray-500">
             <div className="flex gap-1">
               <button type="button" onClick={() => setViewMonth(addMonths(viewMonth, -12))} className="h-8 w-8 rounded-lg hover:bg-gray-100">«</button>
@@ -213,12 +213,12 @@ export function DateRangePicker({ from, to, onFromChange, onToChange, disabled =
           {/* Nghiệp vụ luôn nhìn LÙI (hôm qua, tháng trước) → tháng đang chọn nằm bên PHẢI,
               bên trái là tháng liền trước; không phí nửa panel cho tháng sau chưa có số liệu. */}
           <div className="flex flex-wrap justify-center gap-6">
-            {renderMonth(addMonths(viewMonth, -1))}
+            <div className="hidden md:block">{renderMonth(addMonths(viewMonth, -1))}</div>
             {renderMonth(viewMonth)}
           </div>
-          <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
-            <div className="text-sm text-gray-500">{rangeStart && rangeEnd ? `${rangeStart} ~ ${rangeEnd}` : t('datePicker.selectRange')}</div>
-            <button type="button" onClick={() => applyRange()} className="h-9 px-5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700">
+          <div className="mt-4 flex flex-col items-stretch gap-3 border-t border-gray-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="truncate text-sm text-gray-500">{rangeStart && rangeEnd ? `${rangeStart} ~ ${rangeEnd}` : t('datePicker.selectRange')}</div>
+            <button type="button" onClick={() => applyRange()} className="h-10 sm:h-9 px-5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700">
               {t('common.apply')}
             </button>
           </div>

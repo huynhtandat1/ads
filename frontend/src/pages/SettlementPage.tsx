@@ -183,13 +183,13 @@ function GenerateModal({ collection, targetFrom, previewType, onClose, onDone }:
   const inp = "w-full h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[calc(100dvh-0.5rem)] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100 bg-white rounded-t-2xl">
           <h3 className="text-lg font-bold text-gray-800">{t('settle.generate')}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
         </div>
-        <div className="p-6 space-y-4">
+        <div className="p-4 sm:p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1.5">{t('col.target')} <span className="text-rose-500">*</span></label>
             <select value={target} onChange={(e) => setTarget(e.target.value)} className={inp}>
@@ -215,7 +215,7 @@ function GenerateModal({ collection, targetFrom, previewType, onClose, onDone }:
             </select>
           </div>
         </div>
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+        <div className="sticky bottom-0 z-10 flex justify-end gap-2 px-4 sm:px-6 py-4 border-t border-gray-100 bg-white">
           <button onClick={onClose} className="h-9 px-4 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">{t('common.cancel')}</button>
           <button onClick={save} disabled={loading || !target || total == null}
             className="h-9 px-4 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600 disabled:opacity-50">{t('common.save')}</button>

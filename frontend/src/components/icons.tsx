@@ -42,6 +42,12 @@ export const IconFilter = (p: SVGProps<SVGSVGElement>) => (
 export const IconCalendar = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
 );
+export const IconMenu = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+);
+export const IconClose = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="m6 6 12 12M18 6 6 18" /></svg>
+);
 
 // menu group icons
 export const IconAdv = (p: SVGProps<SVGSVGElement>) => (

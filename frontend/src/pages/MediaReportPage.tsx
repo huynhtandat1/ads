@@ -170,7 +170,7 @@ export function MediaReportPage() {
     exportCSV('media_report', HEADERS, data);
   };
 
-  const sel = "h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-200";
+  const sel = "h-10 sm:h-9 w-full sm:w-auto min-w-0 px-3 rounded-lg border border-gray-200 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-200";
 
   return (
     <div>
@@ -182,17 +182,17 @@ export function MediaReportPage() {
       </div>
 
       {/* Toolbar */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex flex-wrap items-end gap-3">
-        <div className="flex items-end gap-2">
-          <div>
+      <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 mb-4 flex flex-wrap items-end gap-3">
+        <div className="flex w-full sm:w-auto items-end gap-2">
+          <div className="w-full sm:w-auto">
             <label className="block text-xs text-gray-500 mb-1">{t('col.date')}</label>
             <DateRangePicker from={from} to={to} onFromChange={setFrom} onToChange={setTo} disabled={allDates} />
           </div>
         </div>
 
-        <div className="flex-1" />
+        <div className="hidden lg:block flex-1" />
 
-        <div className="flex flex-wrap items-end gap-2 justify-end">
+        <div className="flex w-full lg:w-auto flex-wrap items-end gap-2 justify-start lg:justify-end">
           <button
             type="button"
             aria-pressed={allDates}
@@ -227,16 +227,16 @@ export function MediaReportPage() {
             <option value="all">{t('common.status')}: {t('common.all')}</option>
             {sortByGroupedLabel(statusOptions, (o) => o.label).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width={16} height={16} />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('common.searchPh')}
-              className="h-9 pl-8 pr-3 rounded-lg border border-gray-200 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-cyan-200" />
+              className="h-10 sm:h-9 pl-8 pr-3 rounded-lg border border-gray-200 text-sm w-full sm:w-40 focus:outline-none focus:ring-2 focus:ring-cyan-200" />
           </div>
-          <button onClick={runQuery} className="h-9 px-4 inline-flex items-center gap-1.5 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600">
+          <button onClick={runQuery} className="h-10 sm:h-9 flex-1 sm:flex-none px-4 inline-flex items-center justify-center gap-1.5 rounded-lg bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600">
             <IconSearch width={16} height={16} /> {t('report.query')}
           </button>
           <button onClick={doExport} disabled={!result || rows.length === 0}
-            className="h-9 px-4 inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">
+            className="h-10 sm:h-9 flex-1 sm:flex-none px-4 inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">
             <IconDownload width={16} height={16} /> {t('report.exportExcel')}
           </button>
         </div>
@@ -244,8 +244,8 @@ export function MediaReportPage() {
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-        <div className="overflow-auto max-h-[calc(100vh-260px)]">
-          <table className="w-full text-sm [&_th]:text-center [&_td]:text-center">
+        <div className="overflow-auto lg:max-h-[calc(100vh-260px)]">
+          <table className="w-full min-w-max text-sm [&_th]:text-center [&_td]:text-center">
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
                 {HEADERS.map((h, i) => {

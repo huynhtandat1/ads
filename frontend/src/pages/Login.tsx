@@ -27,7 +27,7 @@ export function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-dark to-brand-dark2 p-4">
       <div className="absolute top-5 right-5"><LangSwitch dark /></div>
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-8">
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-5 sm:p-8">
         <div className="flex flex-col items-center mb-6">
           <img src="/octopus.svg" alt="logo" className="w-16 h-16 mb-3" />
           <h1 className="text-2xl font-extrabold text-brand-dark">KrakenOcean</h1>
