@@ -1,4 +1,5 @@
 import { getAll, effectiveValue, type Row } from '../data/store';
+import { hierarchyKey } from './hierarchyFilters';
 
 export interface Totals {
   revenue: number; cost: number;
@@ -52,3 +53,19 @@ export function allPerf(): Row[] {
 export function filterByDate(rows: Row[], from?: string, to?: string): Row[] {
   return rows.filter((r) => (!from || r.date >= from) && (!to || r.date <= to));
 }
+
+// 业务 = tên đơn QC của ID QUẢNG CÁO (khóa chung thu↔chi); hồ sơ Media ID có thể ghi lệch
+// đơn QC so với adId, dùng r.adOrderId sẽ tách chi media khỏi doanh thu. Trả '' = ẩn khỏi
+// báo cáo lợi nhuận khi: đơn QC tắt, HOẶC mọi đơn media cùng tên (≥1 đơn) đều tắt.
+export const bizNameOf = (r: Row): string => {
+  const adId = r.adIdId != null ? getAll('adIds').find((a) => a.id === r.adIdId) : undefined;
+  const orderId = adId?.adOrderId ?? r.adOrderId;
+  if (orderId == null) return '';
+  const order = getAll('adOrders').find((o) => o.id === orderId);
+  if (!order || order.status === false) return '';
+  const name = String(order.name);
+  const key = hierarchyKey(name);
+  const mediaOrders = getAll('mediaOrders').filter((o) => hierarchyKey(o.name) === key);
+  if (mediaOrders.length > 0 && mediaOrders.every((o) => o.status === false)) return '';
+  return name;
+};

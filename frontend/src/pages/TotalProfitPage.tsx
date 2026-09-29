@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { effectiveValue, getAll, useDB, type Row } from '../data/store';
-import { perfOf } from '../lib/analytics';
+import { effectiveValue, getAll, useDB } from '../data/store';
+import { bizNameOf, perfOf } from '../lib/analytics';
 import { profitTextClass, round3 } from '../lib/format';
 import { exportCSV } from '../lib/export';
 import { DateRangePicker } from '../components/DateRangePicker';
@@ -20,17 +20,6 @@ interface DailyCell { biz: string; date: string; profit: number; tax: number }
 // raw giữ giá trị thô trước khi làm tròn để cộng Σ chính xác (spec không lệch vài xu).
 // today/rawToday giữ để giữ hình dạng dữ liệu, bảng tổng không còn dùng tới.
 interface BizRow { biz: string; today: number; month: number; monthTax: number; rawToday: number; rawMonth: number; rawMonthTax: number }
-
-const bizNameOf = (r: Row): string => {
-  // Nghiệp vụ theo đơn QC của ID QUẢNG CÁO (khóa chung thu↔chi); hồ sơ Media ID có thể
-  // ghi lệch đơn QC so với adId, dùng r.adOrderId sẽ tách chi media khỏi doanh thu.
-  const adId = r.adIdId != null ? getAll('adIds').find((a) => a.id === r.adIdId) : undefined;
-  const orderId = adId?.adOrderId ?? r.adOrderId;
-  if (orderId == null) return '';
-  const order = getAll('adOrders').find((o) => o.id === orderId);
-  if (!order || order.status === false) return '';
-  return String(order.name);
-};
 
 export function TotalProfitPage() {
   const { t } = useTranslation();
