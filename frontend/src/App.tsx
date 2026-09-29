@@ -27,7 +27,8 @@ const adOrderName = (r: Row) => {
   const orderId = adId?.adOrderId ?? r.adOrderId;
   if (orderId == null) return '';
   const order = getAll('adOrders').find((o) => o.id === orderId);
-  return order ? String(order.name) : '';
+  if (!order || order.status === false) return '';
+  return String(order.name);
 };
 
 const REPORTS: Record<string, AggregateSpec> = {
