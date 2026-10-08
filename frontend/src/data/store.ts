@@ -198,21 +198,30 @@ export function create(c: string, data: Omit<Row, 'id'>): Row {
   return row;
 }
 
+// ~376 byte/dòng → 1000 dòng ≈ 370KB, dưới mức body mặc định 1MB của nginx production
+// (xác nhận cả tháng media một lần từng bị nginx trả 413 Request Entity Too Large).
+const BULK_CHUNK = 1000;
+
 /**
  * Ghi hàng loạt và chỉ cập nhật cache sau khi server xác nhận thành công.
- * Lỗi của cả lô chỉ phát một thông báo, thay vì một toast cho mỗi dòng.
+ * Chia lô tuần tự theo BULK_CHUNK; lô nào đã lưu thì cache giữ, lỗi giữa chừng chỉ
+ * phát một thông báo, thay vì một toast cho mỗi dòng.
  */
 export async function bulkUpsert(c: string, rows: Partial<Row>[]): Promise<Row[]> {
+  const saved: Row[] = [];
   try {
-    const result = await api.bulkUpsert(c, rows);
-    const current = db[c] || [];
-    const currentIds = new Set(current.map((row) => row.id));
-    const savedById = new Map(result.rows.map((row) => [row.id, row] as const));
-    const created = result.rows.filter((row) => !currentIds.has(row.id));
-    db[c] = [...created, ...current.map((row) => savedById.get(row.id) ?? row)];
-    emit();
-    appendLog(result.log);
-    return result.rows;
+    for (let i = 0; i < rows.length; i += BULK_CHUNK) {
+      const result = await api.bulkUpsert(c, rows.slice(i, i + BULK_CHUNK));
+      const current = db[c] || [];
+      const currentIds = new Set(current.map((row) => row.id));
+      const savedById = new Map(result.rows.map((row) => [row.id, row] as const));
+      const created = result.rows.filter((row) => !currentIds.has(row.id));
+      db[c] = [...created, ...current.map((row) => savedById.get(row.id) ?? row)];
+      emit();
+      appendLog(result.log);
+      saved.push(...result.rows);
+    }
+    return saved;
   } catch (e) {
     notifySaveError(kindOf(e));
     console.error('bulk upsert failed', e);
